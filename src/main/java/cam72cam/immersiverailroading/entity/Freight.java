@@ -4,7 +4,9 @@ import cam72cam.immersiverailroading.Config.ConfigBalance;
 import cam72cam.immersiverailroading.inventory.FilteredStackHandler;
 import cam72cam.immersiverailroading.library.GuiTypes;
 import cam72cam.immersiverailroading.library.Permissions;
+import cam72cam.immersiverailroading.model.part.Control;
 import cam72cam.immersiverailroading.registry.FreightDefinition;
+import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Living;
 import cam72cam.mod.entity.Player;
@@ -12,9 +14,20 @@ import cam72cam.mod.entity.sync.TagSync;
 import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.item.Fuzzy;
 import cam72cam.mod.item.ItemStack;
+import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.TagField;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.luaj.vm2.Globals;
+import org.luaj.vm2.LuaError;
+import org.luaj.vm2.LuaTable;
+import org.luaj.vm2.LuaValue;
+import org.luaj.vm2.lib.jse.JsePlatform;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 
 public abstract class Freight extends EntityCoupleableRollingStock {
 	@TagField("items")
@@ -31,10 +44,98 @@ public abstract class Freight extends EntityCoupleableRollingStock {
 	public abstract int getInventorySize();
 	public abstract int getInventoryWidth();
 
+	private Globals globals;
+	private LuaValue controlPositionEvent;
+	private boolean isLuaLoaded = false;
+
 	@Override
 	public FreightDefinition getDefinition() {
 		return this.getDefinition(FreightDefinition.class);
 	}
+
+	/**
+	 *
+	 * Lua Implementation
+	 *
+	 */
+
+	@Override
+	public void handleControlPositionEvent(Control<?> control, float val, Map<String, Pair<Boolean, Float>> controlPositions, boolean pressed)
+	{
+		try {
+			ModCore.info(String.format("Control %s changed to %f while %b", control.controlGroup, val, pressed));
+			controlPositions.put(control.controlGroup, Pair.of(pressed, val));
+
+			ModCore.info(controlPositions.toString());
+
+			if (!isLuaLoaded) {
+				globals = JsePlatform.standardGlobals();
+
+				// Get Lua file from Json
+				Identifier script = getDefinition().script;
+				Identifier identifier = new Identifier(script.getDomain(), script.getPath());
+				InputStream inputStream = identifier.getResourceStream();
+
+				if (inputStream == null) {
+					ModCore.error(String.format("File %s does not exist", script.getDomain() + ":" + script.getPath()));
+					return;
+				}
+
+				String luaScript = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+				if (luaScript == null || luaScript.isEmpty()) {
+					ModCore.error("Lua script content is empty | file not found");
+					return;
+				}
+
+				LuaValue chunk = globals.load(luaScript);
+				chunk.call();
+
+				controlPositionEvent = globals.get("controlPositionEvent");
+				if (controlPositionEvent.isnil()) {
+					ModCore.error("Lua function 'controlPositionEvent' is not defined");
+					return;
+				}
+
+				isLuaLoaded = true;
+				ModCore.info("Lua environment initialized and script loaded successfully");
+			}
+
+			LuaValue result = controlPositionEvent.call(LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(val));
+			String result_debug = String.valueOf(controlPositionEvent.call(LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(val)));
+			ModCore.info("results: " + result_debug);
+			if (result.istable()) {
+				LuaTable table = result.checktable();
+				ModCore.info("Lua return is a table");
+
+				for (LuaValue key : table.keys()) {
+					LuaValue value = table.get(key);
+
+					String controlName = key.toString();
+					Float newVal = value.tofloat();
+
+
+					ModCore.info("Key: " + controlName + ", Value: " + newVal);
+
+					// Add to the Java map
+					controlPositions.put(controlName, Pair.of(false, newVal));
+
+					ModCore.info(controlPositions.toString());
+				}
+			} else {
+				ModCore.error("Result is not a table. Type: " + result.typename());
+			}
+
+		} catch (LuaError e) {
+			ModCore.error("LuaError: " + e.getMessage());
+			e.printStackTrace();
+		} catch (Exception e) {
+			ModCore.error("An unexpected error occurred: " + e.getMessage());
+			e.printStackTrace();
+			ModCore.info(String.format("Control %s changed to %f", control.controlGroup, val));
+			controlPositions.put(control.controlGroup, Pair.of(pressed, val));
+		}
+	}
+
 
 	/*
 	 * 
