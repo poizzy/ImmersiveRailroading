@@ -1,6 +1,7 @@
 package cam72cam.immersiverailroading.entity;
 
 import cam72cam.immersiverailroading.Config.ConfigBalance;
+import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.inventory.FilteredStackHandler;
 import cam72cam.immersiverailroading.library.GuiTypes;
 import cam72cam.immersiverailroading.library.Permissions;
@@ -14,22 +15,14 @@ import cam72cam.mod.entity.sync.TagSync;
 import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.item.Fuzzy;
 import cam72cam.mod.item.ItemStack;
-import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.TagField;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.luaj.vm2.Globals;
 import org.luaj.vm2.LuaError;
-import org.luaj.vm2.LuaTable;
-import org.luaj.vm2.LuaValue;
-import org.luaj.vm2.lib.jse.JsePlatform;
 
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
-public abstract class Freight extends EntityCoupleableRollingStock {
+public abstract class Freight extends LuaIntegration {
 	@TagField("items")
 	public FilteredStackHandler cargoItems = new FilteredStackHandler(0);
 
@@ -44,9 +37,7 @@ public abstract class Freight extends EntityCoupleableRollingStock {
 	public abstract int getInventorySize();
 	public abstract int getInventoryWidth();
 
-	private Globals globals;
-	private LuaValue controlPositionEvent;
-	private boolean isLuaLoaded = false;
+
 
 	@Override
 	public FreightDefinition getDefinition() {
@@ -65,65 +56,19 @@ public abstract class Freight extends EntityCoupleableRollingStock {
 		try {
 			ModCore.info(String.format("Control %s changed to %f while %b", control.controlGroup, val, pressed));
 			controlPositions.put(control.controlGroup, Pair.of(pressed, val));
-
+			ModCore.info("Definition: " + getDefinition().script.toString());
 			ModCore.info(controlPositions.toString());
 
-			if (!isLuaLoaded) {
-				globals = JsePlatform.standardGlobals();
+//			LuaIntegrationImpl luaIntegration = new LuaIntegrationImpl();
 
-				// Get Lua file from Json
-				Identifier script = getDefinition().script;
-				Identifier identifier = new Identifier(script.getDomain(), script.getPath());
-				InputStream inputStream = identifier.getResourceStream();
+			if (this.LoadLuaFile()) return;
 
-				if (inputStream == null) {
-					ModCore.error(String.format("File %s does not exist", script.getDomain() + ":" + script.getPath()));
-					return;
-				}
-
-				String luaScript = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
-				if (luaScript == null || luaScript.isEmpty()) {
-					ModCore.error("Lua script content is empty | file not found");
-					return;
-				}
-
-				LuaValue chunk = globals.load(luaScript);
-				chunk.call();
-
-				controlPositionEvent = globals.get("controlPositionEvent");
-				if (controlPositionEvent.isnil()) {
-					ModCore.error("Lua function 'controlPositionEvent' is not defined");
-					return;
-				}
-
-				isLuaLoaded = true;
-				ModCore.info("Lua environment initialized and script loaded successfully");
+			for (Readouts readout : Readouts.values()) {
+				Float readoutValue = readout.getValue(this);
+				ModCore.info(readout + " : " +readoutValue);
 			}
 
-			LuaValue result = controlPositionEvent.call(LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(val));
-			String result_debug = String.valueOf(controlPositionEvent.call(LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(val)));
-			ModCore.info("results: " + result_debug);
-			if (result.istable()) {
-				LuaTable table = result.checktable();
-				ModCore.info("Lua return is a table");
-
-				for (LuaValue key : table.keys()) {
-					LuaValue value = table.get(key);
-
-					String controlName = key.toString();
-					Float newVal = value.tofloat();
-
-
-					ModCore.info("Key: " + controlName + ", Value: " + newVal);
-
-					// Add to the Java map
-					controlPositions.put(controlName, Pair.of(false, newVal));
-
-					ModCore.info(controlPositions.toString());
-				}
-			} else {
-				ModCore.error("Result is not a table. Type: " + result.typename());
-			}
+			this.getControlGroupLua(control, val, controlPositions);
 
 		} catch (LuaError e) {
 			ModCore.error("LuaError: " + e.getMessage());
@@ -135,6 +80,8 @@ public abstract class Freight extends EntityCoupleableRollingStock {
 			controlPositions.put(control.controlGroup, Pair.of(pressed, val));
 		}
 	}
+
+
 
 
 	/*
