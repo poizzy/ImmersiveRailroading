@@ -73,7 +73,6 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 		return false;
 	}
 
-
 	/* TODO?
 	@Override
 	public String getName() {

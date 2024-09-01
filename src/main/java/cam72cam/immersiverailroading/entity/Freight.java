@@ -1,7 +1,6 @@
 package cam72cam.immersiverailroading.entity;
 
 import cam72cam.immersiverailroading.Config.ConfigBalance;
-import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.inventory.FilteredStackHandler;
 import cam72cam.immersiverailroading.library.GuiTypes;
 import cam72cam.immersiverailroading.library.Permissions;
@@ -56,17 +55,10 @@ public abstract class Freight extends LuaIntegration {
 		try {
 			ModCore.info(String.format("Control %s changed to %f while %b", control.controlGroup, val, pressed));
 			controlPositions.put(control.controlGroup, Pair.of(pressed, val));
-			ModCore.info("Definition: " + getDefinition().script.toString());
-			ModCore.info(controlPositions.toString());
 
 //			LuaIntegrationImpl luaIntegration = new LuaIntegrationImpl();
 
 			if (this.LoadLuaFile()) return;
-
-			for (Readouts readout : Readouts.values()) {
-				Float readoutValue = readout.getValue(this);
-				ModCore.info(readout + " : " +readoutValue);
-			}
 
 			this.getControlGroupLua(control, val, controlPositions);
 
