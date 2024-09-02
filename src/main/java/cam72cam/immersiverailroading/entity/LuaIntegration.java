@@ -25,6 +25,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     private boolean isLuaLoaded = false;
     private LuaValue readoutEventHandler;
 
+    // This is bad
     @Override
     public Vec3d getPosition() {
         getReadout();
@@ -111,9 +112,29 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     public void readoutEvent(Readouts readout, float oldVal, float newVal) {
         try {
             if (LoadLuaFile()) return;
-            ModCore.info("readoutEvent" + readout + " | " + oldVal + " | " + newVal);
+//            ModCore.info("readoutEvent" + readout + " | " + oldVal + " | " + newVal);
             readoutEventHandler.call(LuaValue.valueOf(readout.toString()), LuaValue.valueOf(newVal));
+            LuaValue controlgroup = controlPositionEvent.call();
+            if (controlgroup.istable()) {
+                LuaTable table = controlgroup.checktable();
+
+                for (LuaValue key : table.keys()) {
+                    LuaValue value = table.get(key);
+
+                    String controlName = key.toString();
+                    Float newValControl = value.tofloat();
+
+
+                    ModCore.info("Key: " + controlName + ", Value: " + newValControl);
+
+                    // Add to the Java map
+                    controlPositions.put(controlName, Pair.of(false, newValControl));
+                }
+            } else {
+                ModCore.error("Result is not a table. Type: " + controlgroup.typename());
+            }
         }catch (Exception e) {
         }
     }
+
 }
