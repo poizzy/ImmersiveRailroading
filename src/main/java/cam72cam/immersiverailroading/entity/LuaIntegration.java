@@ -77,35 +77,10 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     }
 
     public void getControlGroupLua(Control<?> control, float val, Map<String, Pair<Boolean, Float>> controlPositions) {
-        LuaValue result = getLuaValue(control, val);
+        LuaValue result = controlPositionEvent.call(LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(val));
         String result_debug = String.valueOf(controlPositionEvent.call(LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(val)));
         ModCore.info("results: " + result_debug);
-        if (result.istable()) {
-            LuaTable table = result.checktable();
-            ModCore.info("Lua return is a table");
-
-            for (LuaValue key : table.keys()) {
-                LuaValue value = table.get(key);
-
-                String controlName = key.toString();
-                Float newVal = value.tofloat();
-
-
-                ModCore.info("Key: " + controlName + ", Value: " + newVal);
-
-                // Add to the Java map
-                controlPositions.put(controlName, Pair.of(false, newVal));
-
-                ModCore.info(controlPositions.toString());
-            }
-        } else {
-            ModCore.error("Result is not a table. Type: " + result.typename());
-        }
-    }
-
-    private LuaValue getLuaValue(Control<?> control, float val) {
-        LuaValue result = controlPositionEvent.call(LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(val));
-        return result;
+        putLuaValue(result);
     }
 
     @Override
@@ -114,26 +89,30 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             if (LoadLuaFile()) return;
 //            ModCore.info("readoutEvent" + readout + " | " + oldVal + " | " + newVal);
             readoutEventHandler.call(LuaValue.valueOf(readout.toString()), LuaValue.valueOf(newVal));
-            LuaValue controlgroup = controlPositionEvent.call();
-            if (controlgroup.istable()) {
-                LuaTable table = controlgroup.checktable();
-
-                for (LuaValue key : table.keys()) {
-                    LuaValue value = table.get(key);
-
-                    String controlName = key.toString();
-                    Float newValControl = value.tofloat();
-
-
-                    ModCore.info("Key: " + controlName + ", Value: " + newValControl);
-
-                    // Add to the Java map
-                    controlPositions.put(controlName, Pair.of(false, newValControl));
-                }
-            } else {
-                ModCore.error("Result is not a table. Type: " + controlgroup.typename());
-            }
+            LuaValue result = controlPositionEvent.call();
+            putLuaValue(result);
         }catch (Exception e) {
+        }
+    }
+
+    private void putLuaValue(LuaValue result) {
+        if (result.istable()) {
+            LuaTable table = result.checktable();
+
+            for (LuaValue key : table.keys()) {
+                LuaValue value = table.get(key);
+
+                String controlName = key.toString();
+                Float newValControl = value.tofloat();
+
+
+                ModCore.info("Key: " + controlName + ", Value: " + newValControl);
+
+                // Add to the Java map
+                controlPositions.put(controlName, Pair.of(false, newValControl));
+            }
+        } else {
+            ModCore.error("Result is not a table. Type: " + result.typename());
         }
     }
 
