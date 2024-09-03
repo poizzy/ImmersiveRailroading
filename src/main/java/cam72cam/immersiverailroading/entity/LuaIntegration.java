@@ -24,11 +24,15 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     private LuaValue controlPositionEvent;
     private boolean isLuaLoaded = false;
     private LuaValue readoutEventHandler;
+    private LuaValue textureEventHandler;
 
     // This is bad
     @Override
     public Vec3d getPosition() {
         getReadout();
+        getTexture();
+        textureEvent();
+        test();
         return super.getPosition();
     }
 
@@ -70,6 +74,12 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 return true;
             }
 
+            textureEventHandler = globals.get("textureEventHandler");
+            if (controlPositionEvent.isnil()) {
+                ModCore.error("Lua function 'readoutEvent' is not defined");
+                return true;
+            }
+
             isLuaLoaded = true;
             ModCore.info("Lua environment initialized and script loaded successfully");
         }
@@ -77,6 +87,13 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     }
 
     public void getControlGroupLua(Control<?> control, float val, Map<String, Pair<Boolean, Float>> controlPositions) {
+
+        /*
+         *
+         * Todo: put ControlGroups in Json file
+         *
+         */
+
         LuaValue result = controlPositionEvent.call(LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(val));
         String result_debug = String.valueOf(controlPositionEvent.call(LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(val)));
         ModCore.info("results: " + result_debug);
@@ -114,6 +131,34 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         } else {
             ModCore.error("Result is not a table. Type: " + result.typename());
         }
+    }
+
+    public void textureEvent() {
+        if (textureEventHandler == null) {
+            ModCore.error("textureEventHandler is null");
+            return;
+        }
+
+        String currentTexture = getTexture();
+        if (currentTexture == null) {
+            currentTexture = "Default";
+        }
+
+        LuaValue texture = textureEventHandler.call(LuaValue.valueOf(currentTexture));
+
+        if (texture == null) {
+            return;
+        }
+
+        try {
+            setTexture(texture.tojstring());
+        } catch (Exception e) {
+            ModCore.error(String.format("Failed to set texture '%s'. Error: %s", texture.tojstring(), e.getMessage()));
+        }
+    }
+
+    private void test() {
+
     }
 
 }
