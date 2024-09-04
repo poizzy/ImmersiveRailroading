@@ -60,7 +60,7 @@ public abstract class Freight extends LuaIntegration {
 
 			if (this.LoadLuaFile()) return;
 
-			this.getControlGroupLua(control, val, controlPositions);
+//			this.getControlGroupLua(control, val, controlPositions);
 
 		} catch (LuaError e) {
 			ModCore.error("LuaError: " + e.getMessage());

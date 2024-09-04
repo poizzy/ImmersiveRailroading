@@ -2,9 +2,7 @@ package cam72cam.immersiverailroading.entity;
 
 import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.gui.overlay.ReadoutsEventHandler;
-import cam72cam.immersiverailroading.model.part.Control;
 import cam72cam.mod.ModCore;
-import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.resource.Identifier;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -16,6 +14,9 @@ import org.luaj.vm2.lib.jse.JsePlatform;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public abstract class LuaIntegration extends EntityCoupleableRollingStock implements ReadoutsEventHandler {
@@ -26,14 +27,17 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     private LuaValue readoutEventHandler;
     private LuaValue textureEventHandler;
 
-    // This is bad
     @Override
-    public Vec3d getPosition() {
+    public void onTick() {
+        try {
+            if (LoadLuaFile()) return;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        getControlGroup();
         getReadout();
-        getTexture();
         textureEvent();
-        test();
-        return super.getPosition();
+        super.onTick();
     }
 
     public boolean LoadLuaFile() throws IOException {
@@ -84,20 +88,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             ModCore.info("Lua environment initialized and script loaded successfully");
         }
         return false;
-    }
-
-    public void getControlGroupLua(Control<?> control, float val, Map<String, Pair<Boolean, Float>> controlPositions) {
-
-        /*
-         *
-         * Todo: put ControlGroups in Json file
-         *
-         */
-
-        LuaValue result = controlPositionEvent.call(LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(val));
-        String result_debug = String.valueOf(controlPositionEvent.call(LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(val)));
-        ModCore.info("results: " + result_debug);
-        putLuaValue(result);
     }
 
     @Override
@@ -157,8 +147,35 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         }
     }
 
-    private void test() {
+    private void getControlGroup() {
+        List<String> controlGroup = getDefinition().controlGroup;
+        List<Map<String, Float>> resultList = new ArrayList<>();
+        Map<String, Float> controlMap = new HashMap<>();
 
+        for (String control : controlGroup) {
+            Float position = getControlPosition(control);
+            controlMap.put(control, position);
+        }
+        resultList.add(controlMap);
+//        ModCore.info(controlMap.toString());
+        LuaTable luaTable = convertToLuaTable(resultList);
+        ModCore.info(resultList.toString());
+        LuaValue result = controlPositionEvent.call(luaTable);
+        putLuaValue(result);
+    }
+
+    public LuaTable convertToLuaTable(List<Map<String, Float>> resultList) {
+        LuaTable luaResultList = new LuaTable();
+
+        for (int i = 0; i < resultList.size(); i++) {
+            LuaTable luaMap = new LuaTable();
+            for (Map.Entry<String, Float> entry : resultList.get(i).entrySet()) {
+                luaMap.set(entry.getKey(), LuaValue.valueOf(entry.getValue()));
+            }
+            luaResultList.set(i + 1, luaMap);
+        }
+
+        return luaResultList;
     }
 
 }

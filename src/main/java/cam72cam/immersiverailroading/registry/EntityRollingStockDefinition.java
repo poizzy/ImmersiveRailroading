@@ -45,6 +45,7 @@ public abstract class EntityRollingStockDefinition {
     private final Class<? extends EntityRollingStock> type;
 
     public final List<String> itemGroups;
+    public List<String> controlGroup;
     public Map<String, String> textureNames;
     public float dampeningAmount;
     public Gauge recommended_gauge;
@@ -495,6 +496,12 @@ public abstract class EntityRollingStockDefinition {
         DataBlock lights = data.getBlock("lights");
         if (lights != null) {
             lights.getBlockMap().forEach((key, block) -> this.lights.put(key, new LightDefinition(block)));
+        }
+
+        controlGroup = new ArrayList<>();
+        List<DataBlock.Value> controlGroup1 = data.getValues("Control_Groups");
+        if (controlGroup1 != null) {
+            controlGroup1.forEach(value -> controlGroup.add(value.asString()));
         }
 
         DataBlock sounds = data.getBlock("sounds");
