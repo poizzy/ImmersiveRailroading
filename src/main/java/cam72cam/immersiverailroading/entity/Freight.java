@@ -4,9 +4,7 @@ import cam72cam.immersiverailroading.Config.ConfigBalance;
 import cam72cam.immersiverailroading.inventory.FilteredStackHandler;
 import cam72cam.immersiverailroading.library.GuiTypes;
 import cam72cam.immersiverailroading.library.Permissions;
-import cam72cam.immersiverailroading.model.part.Control;
 import cam72cam.immersiverailroading.registry.FreightDefinition;
-import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Living;
 import cam72cam.mod.entity.Player;
@@ -15,11 +13,8 @@ import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.item.Fuzzy;
 import cam72cam.mod.item.ItemStack;
 import cam72cam.mod.serialization.TagField;
-import org.apache.commons.lang3.tuple.Pair;
-import org.luaj.vm2.LuaError;
 
 import java.util.List;
-import java.util.Map;
 
 public abstract class Freight extends LuaIntegration {
 	@TagField("items")
@@ -42,39 +37,6 @@ public abstract class Freight extends LuaIntegration {
 	public FreightDefinition getDefinition() {
 		return this.getDefinition(FreightDefinition.class);
 	}
-
-	/**
-	 *
-	 * Lua Implementation
-	 *
-	 */
-
-	@Override
-	public void handleControlPositionEvent(Control<?> control, float val, Map<String, Pair<Boolean, Float>> controlPositions, boolean pressed)
-	{
-		try {
-			ModCore.info(String.format("Control %s changed to %f while %b", control.controlGroup, val, pressed));
-			controlPositions.put(control.controlGroup, Pair.of(pressed, val));
-
-//			LuaIntegrationImpl luaIntegration = new LuaIntegrationImpl();
-
-			if (this.LoadLuaFile()) return;
-
-//			this.getControlGroupLua(control, val, controlPositions);
-
-		} catch (LuaError e) {
-			ModCore.error("LuaError: " + e.getMessage());
-			e.printStackTrace();
-		} catch (Exception e) {
-			ModCore.error("An unexpected error occurred: " + e.getMessage());
-			e.printStackTrace();
-			ModCore.info(String.format("Control %s changed to %f", control.controlGroup, val));
-			controlPositions.put(control.controlGroup, Pair.of(pressed, val));
-		}
-	}
-
-
-
 
 	/*
 	 * 

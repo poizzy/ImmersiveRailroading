@@ -29,22 +29,24 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
 
     @Override
     public void onTick() {
-        try {
-            if (LoadLuaFile()) return;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        if (getDefinition().script != null) {
+            try {
+                if (LoadLuaFile()) return;
+                getControlGroup();
+                getReadout();
+                textureEvent();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            super.onTick();
         }
-        getControlGroup();
-        getReadout();
-        textureEvent();
-        super.onTick();
     }
 
     public boolean LoadLuaFile() throws IOException {
         if (!isLuaLoaded) {
             globals = JsePlatform.standardGlobals();
 
-            ModCore.info("Definition SubClass: " + getDefinition().script.toString());
+//            ModCore.info("Definition SubClass: " + getDefinition().script.toString());
 
 
             // Get Lua file from Json
@@ -93,11 +95,10 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     @Override
     public void readoutEvent(Readouts readout, float oldVal, float newVal) {
         try {
-            if (LoadLuaFile()) return;
 //            ModCore.info("readoutEvent" + readout + " | " + oldVal + " | " + newVal);
             readoutEventHandler.call(LuaValue.valueOf(readout.toString()), LuaValue.valueOf(newVal));
-            LuaValue result = controlPositionEvent.call();
-            putLuaValue(result);
+//            LuaValue result = controlPositionEvent.call();
+//            putLuaValue(result);
         }catch (Exception e) {
         }
     }
@@ -113,13 +114,11 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 Float newValControl = value.tofloat();
 
 
-                ModCore.info("Key: " + controlName + ", Value: " + newValControl);
-
-                // Add to the Java map
+//                ModCore.info("Key: " + controlName + ", Value: " + newValControl);
                 controlPositions.put(controlName, Pair.of(false, newValControl));
             }
         } else {
-            ModCore.error("Result is not a table. Type: " + result.typename());
+//            ModCore.error("Result is not a table. Type: " + result.typename());
         }
     }
 
@@ -159,7 +158,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         resultList.add(controlMap);
 //        ModCore.info(controlMap.toString());
         LuaTable luaTable = convertToLuaTable(resultList);
-        ModCore.info(resultList.toString());
+//        ModCore.info(resultList.toString());
         LuaValue result = controlPositionEvent.call(luaTable);
         putLuaValue(result);
     }
