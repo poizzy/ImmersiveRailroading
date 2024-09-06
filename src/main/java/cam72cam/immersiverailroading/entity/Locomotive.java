@@ -24,7 +24,7 @@ import java.util.UUID;
 
 import static cam72cam.immersiverailroading.library.PhysicalMaterials.*;
 
-public abstract class Locomotive extends FreightTank {
+public abstract class Locomotive extends FreightTank{
 	private static final float throttleDelta = 0.04f;
 	private static final float trainBrakeNotch = 0.04f;
 
@@ -486,6 +486,14 @@ public abstract class Locomotive extends FreightTank {
 	public float getThrottle() {
 		return throttle;
 	}
+
+	@Override
+	public void setThrottleLua(float val) {
+		setThrottle(val);
+//		ModCore.info("Original value: " + val);
+//		ModCore.info("Throttle_X: " + ModelComponentType.THROTTLE_X);
+	}
+
 	public void setThrottle(float newThrottle) {
 		setRealThrottle(newThrottle);
 		if (this.getDefinition().muliUnitCapable) {
@@ -494,6 +502,7 @@ public abstract class Locomotive extends FreightTank {
 	}
 	private void setRealThrottle(float newThrottle) {
 		newThrottle = Math.min(1, Math.max(0, newThrottle));
+//		ModCore.info("Set Throttle to: " + newThrottle);
 		if (this.getThrottle() != newThrottle) {
 			setControlPositions(ModelComponentType.THROTTLE_X, newThrottle);
 			throttle = newThrottle;

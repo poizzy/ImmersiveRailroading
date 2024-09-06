@@ -14,10 +14,7 @@ import org.luaj.vm2.lib.jse.JsePlatform;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public abstract class LuaIntegration extends EntityCoupleableRollingStock implements ReadoutsEventHandler {
 
@@ -113,9 +110,12 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 String controlName = key.toString();
                 Float newValControl = value.tofloat();
 
-
+                if (controlName.equals("THROTTLE")) {
+                    setThrottleLua(newValControl);
+                }else {
 //                ModCore.info("Key: " + controlName + ", Value: " + newValControl);
-                controlPositions.put(controlName, Pair.of(false, newValControl));
+                    controlPositions.put(controlName, Pair.of(false, newValControl));
+                }
             }
         } else {
 //            ModCore.error("Result is not a table. Type: " + result.typename());
@@ -175,6 +175,10 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         }
 
         return luaResultList;
+    }
+
+    public void setThrottleLua(float val) {
+
     }
 
 }
