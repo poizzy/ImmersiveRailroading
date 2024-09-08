@@ -482,7 +482,12 @@ public abstract class Locomotive extends FreightTank{
 			((Locomotive) stock).setRealIndependentBrake(this.getIndependentBrake());
 		}
 	}
-	
+
+	@Override
+	public float getThrottleLua() {
+		return getThrottle();
+	}
+
 	public float getThrottle() {
 		return throttle;
 	}
@@ -510,9 +515,21 @@ public abstract class Locomotive extends FreightTank{
 		}
 	}
 
+	@Override
+	public float getReverserLua() {
+		return getReverser();
+	}
+
 	public float getReverser() {
 		return reverser;
 	}
+
+	@Override
+	public void setReverserLua(float val) {
+		setReverser(val);
+	}
+
+
 	public void setReverser(float newReverser) {
 		setRealReverser(newReverser);
 		if (this.getDefinition().muliUnitCapable) {
@@ -572,6 +589,11 @@ public abstract class Locomotive extends FreightTank{
 		return Math.max((float)control, hornPull);
 	}
 
+	@Override
+	public float getTrainBrakeLua() {
+		return getTrainBrake();
+	}
+
 	@Deprecated
 	public float getAirBrake() {
 		return getTrainBrake();
@@ -579,6 +601,13 @@ public abstract class Locomotive extends FreightTank{
 	public float getTrainBrake() {
 		return trainBrake;
 	}
+
+	@Override
+	public void setBrakeLua(float val) {
+		setTrainBrake(val);
+	}
+
+
 	@Deprecated
 	public void setAirBrake(float value) {
 		setTrainBrake(value);
@@ -598,6 +627,11 @@ public abstract class Locomotive extends FreightTank{
 			trainBrake = newTrainBrake;
 			setControlPositions(ModelComponentType.THROTTLE_BRAKE_X, getThrottle()/2 + (1- getTrainBrake())/2);
 		}
+	}
+
+	@Override
+	public void setIndependentBrakeLua(float val) {
+		setIndependentBrake(val);
 	}
 
 	@Override

@@ -23,15 +23,18 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     private boolean isLuaLoaded = false;
     private LuaValue readoutEventHandler;
     private LuaValue textureEventHandler;
+    private boolean controlPositionEventLoaded = false;
+    private boolean readoutEventHandlerLoaded = false;
+    private boolean textureEventHandlerLoaded = false;
 
     @Override
     public void onTick() {
         if (getDefinition().script != null) {
             try {
                 if (LoadLuaFile()) return;
-                getControlGroup();
-                getReadout();
-                textureEvent();
+                if (controlPositionEventLoaded) {getControlGroup();}
+                if (readoutEventHandlerLoaded) {getReadout();}
+                if (textureEventHandlerLoaded) {textureEvent();}
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -69,18 +72,24 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             if (controlPositionEvent.isnil()) {
                 ModCore.error("Lua function 'controlPositionEvent' is not defined");
                 return true;
+            } else {
+                controlPositionEventLoaded = true;
             }
 
             readoutEventHandler = globals.get("readoutEventHandler");
             if (controlPositionEvent.isnil()) {
                 ModCore.error("Lua function 'readoutEvent' is not defined");
                 return true;
+            } else {
+                readoutEventHandlerLoaded = true;
             }
 
             textureEventHandler = globals.get("textureEventHandler");
             if (controlPositionEvent.isnil()) {
                 ModCore.error("Lua function 'readoutEvent' is not defined");
                 return true;
+            } else {
+                textureEventHandlerLoaded = true;
             }
 
             isLuaLoaded = true;
@@ -110,11 +119,22 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 String controlName = key.toString();
                 Float newValControl = value.tofloat();
 
-                if (controlName.equals("THROTTLE")) {
-                    setThrottleLua(newValControl);
-                }else {
-//                ModCore.info("Key: " + controlName + ", Value: " + newValControl);
-                    controlPositions.put(controlName, Pair.of(false, newValControl));
+                switch (controlName) {
+                    case "THROTTLE":
+                        setThrottleLua(newValControl);
+                        break;
+                    case "REVERSER":
+                        setReverserLua(newValControl);
+                        break;
+                    case "TRAIN_BRAKE":
+                        setBrakeLua(newValControl);
+                        break;
+                    case "INDEPENDENT_BRAKE":
+                        setIndependentBrakeLua(newValControl);
+                        break;
+                    default:
+                        controlPositions.put(controlName, Pair.of(false, newValControl));
+                        break;
                 }
             }
         } else {
@@ -150,15 +170,22 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         List<String> controlGroup = getDefinition().controlGroup;
         List<Map<String, Float>> resultList = new ArrayList<>();
         Map<String, Float> controlMap = new HashMap<>();
+        Map<String, Float> controls = new HashMap<>();
+
+        controls.put("THROTTLE", getThrottleLua());
+        controls.put("REVERSER", getReverserLua());
+        controls.put("TRAIN_BRAKE", getTrainBrakeLua());
 
         for (String control : controlGroup) {
             Float position = getControlPosition(control);
             controlMap.put(control, position);
         }
+
         resultList.add(controlMap);
-//        ModCore.info(controlMap.toString());
+        resultList.add(controls);
+
+
         LuaTable luaTable = convertToLuaTable(resultList);
-//        ModCore.info(resultList.toString());
         LuaValue result = controlPositionEvent.call(luaTable);
         putLuaValue(result);
     }
@@ -179,6 +206,30 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
 
     public void setThrottleLua(float val) {
 
+    }
+
+    public void setReverserLua(float val) {
+
+    }
+
+    public void setBrakeLua(float val) {
+
+    }
+
+    public void setIndependentBrakeLua(float val) {
+
+    }
+
+    public float getThrottleLua() {
+        return 0;
+    }
+
+    public float getReverserLua() {
+        return 0;
+    }
+
+    public float getTrainBrakeLua() {
+        return 0;
     }
 
 }
