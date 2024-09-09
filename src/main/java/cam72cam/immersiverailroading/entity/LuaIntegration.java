@@ -78,8 +78,8 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                     }
                 }
             }
-            super.onTick();
         }
+        super.onTick();
     }
 
     public boolean LoadLuaFile() throws IOException {
