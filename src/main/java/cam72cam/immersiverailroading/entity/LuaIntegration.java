@@ -2,6 +2,7 @@ package cam72cam.immersiverailroading.entity;
 
 import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.gui.overlay.ReadoutsEventHandler;
+import cam72cam.immersiverailroading.Config.ConfigPerformance;
 import cam72cam.mod.ModCore;
 import cam72cam.mod.resource.Identifier;
 import org.apache.commons.io.IOUtils;
@@ -26,17 +27,57 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     private boolean controlPositionEventLoaded = false;
     private boolean readoutEventHandlerLoaded = false;
     private boolean textureEventHandlerLoaded = false;
+    private boolean isSleeping;
+    private long lastExecutionTime;
+    private boolean wakeLuaScriptCalled = false;
 
     @Override
     public void onTick() {
         if (getDefinition().script != null) {
-            try {
-                if (LoadLuaFile()) return;
-                if (controlPositionEventLoaded) {getControlGroup();}
-                if (readoutEventHandlerLoaded) {getReadout();}
-                if (textureEventHandlerLoaded) {textureEvent();}
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+            if (!ConfigPerformance.disableLuaScript) {
+                if (ConfigPerformance.luaScriptSleep > 0) {
+                    long currentTime = System.currentTimeMillis();
+                    long elapsedTime = currentTime - lastExecutionTime;
+                    
+                    if (!isSleeping && elapsedTime >= ConfigPerformance.luaScriptSleep * 1000L) {
+                        isSleeping = true;
+                    }
+
+                    if (isSleeping) {
+                        if (wakeLuaScriptCalled || getPassengerCount() > 0) {
+                            wakeLuaScriptCalled = false;
+                            isSleeping = false;
+                            lastExecutionTime = currentTime;
+                        } else {
+                            return;
+                        }
+                    }
+                }
+
+                if (ConfigPerformance.luaScriptSleep == 0) {
+                    isSleeping = false;
+                    lastExecutionTime = System.currentTimeMillis();
+                }
+
+
+                if (!isSleeping || ConfigPerformance.luaScriptSleep == 0) {
+
+                    try {
+                        if (LoadLuaFile()) return;
+                        if (controlPositionEventLoaded) {
+                            getControlGroup();
+                        }
+                        if (readoutEventHandlerLoaded) {
+                            getReadout();
+                        }
+                        if (textureEventHandlerLoaded) {
+                            textureEvent();
+                        }
+                        ModCore.info("Script is running");
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
             }
             super.onTick();
         }
@@ -172,6 +213,8 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         Map<String, Float> controlMap = new HashMap<>();
         Map<String, Float> controls = new HashMap<>();
 
+        ModCore.info("getControlGroup");
+
         controls.put("THROTTLE", getThrottleLua());
         controls.put("REVERSER", getReverserLua());
         controls.put("TRAIN_BRAKE", getTrainBrakeLua());
@@ -232,4 +275,9 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         return 0;
     }
 
+    @Override
+    public void wakeLuaScript() {
+        super.wakeLuaScript();
+        wakeLuaScriptCalled = true;
+    }
 }
