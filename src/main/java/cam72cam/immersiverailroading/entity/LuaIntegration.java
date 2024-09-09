@@ -73,7 +73,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                         if (textureEventHandlerLoaded) {
                             textureEvent();
                         }
-                        ModCore.info("Script is running");
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -212,8 +211,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         List<Map<String, Float>> resultList = new ArrayList<>();
         Map<String, Float> controlMap = new HashMap<>();
         Map<String, Float> controls = new HashMap<>();
-
-        ModCore.info("getControlGroup");
 
         controls.put("THROTTLE", getThrottleLua());
         controls.put("REVERSER", getReverserLua());
