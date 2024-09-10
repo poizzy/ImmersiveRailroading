@@ -908,4 +908,13 @@ public abstract class EntityRollingStockDefinition {
         return brakeCoefficient;
     }
 
+    public void setTraction(double val){
+    }
+
+    public void setHorsepower(double val) {
+    }
+
+    public void setMaxSpeed(double val) {
+    }
+
 }

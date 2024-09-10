@@ -31,6 +31,8 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     private long lastExecutionTime;
     private boolean wakeLuaScriptCalled = false;
     private boolean couplerBoolean;
+    private LuaValue changePerformance;
+    private boolean changePerformanceLoded;
 
     @Override
     public void onTick() {
@@ -74,6 +76,9 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                         if (textureEventHandlerLoaded) {
                             textureEvent();
                         }
+                        if (changePerformanceLoded) {
+                            setChangePerformance();
+                        }
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -112,7 +117,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             controlPositionEvent = globals.get("controlPositionEvent");
             if (controlPositionEvent.isnil()) {
                 ModCore.error("Lua function 'controlPositionEvent' is not defined");
-                return true;
             } else {
                 controlPositionEventLoaded = true;
             }
@@ -120,7 +124,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             readoutEventHandler = globals.get("readoutEventHandler");
             if (controlPositionEvent.isnil()) {
                 ModCore.error("Lua function 'readoutEvent' is not defined");
-                return true;
             } else {
                 readoutEventHandlerLoaded = true;
             }
@@ -128,9 +131,15 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             textureEventHandler = globals.get("textureEventHandler");
             if (controlPositionEvent.isnil()) {
                 ModCore.error("Lua function 'readoutEvent' is not defined");
-                return true;
             } else {
                 textureEventHandlerLoaded = true;
+            }
+
+            changePerformance = globals.get("changePerformance");
+            if (changePerformance.isnil()) {
+                ModCore.error("Lua function 'changePerformance' is not defined");
+            } else {
+                changePerformanceLoded = true;
             }
 
             isLuaLoaded = true;
@@ -174,11 +183,11 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                         setIndependentBrakeLua(newValControl);
                         break;
                     case "COUPLER_ENGAGED_FRONT":
-                        couplerBoolean = newValControl == 1;
+                        couplerBoolean = newValControl != 1;
                         setCouplerEngaged(CouplerType.FRONT, couplerBoolean);
                         break;
                     case "COUPLER_ENGAGED_BACK":
-                        couplerBoolean = newValControl == 1;
+                        couplerBoolean = newValControl != 1;
                         setCouplerEngaged(CouplerType.BACK, couplerBoolean);
                         break;
                     default:
@@ -251,6 +260,32 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         }
 
         return luaResultList;
+    }
+    
+    public void setChangePerformance() {
+        LuaValue result = changePerformance.call();
+        if (result.istable()) {
+            LuaTable table = result.checktable();
+
+            for (LuaValue key : table.keys()) {
+                LuaValue value = table.get(key);
+
+                String scriptName = key.toString();
+                Double scripValDouble = value.todouble();
+
+                switch (scriptName) {
+                    case "max_speed_kmh":
+                        getDefinition().setMaxSpeed(scripValDouble);
+                        break;
+                    case "tractive_effort_lbf":
+                        getDefinition().setTraction(scripValDouble);
+                        break;
+                    case "horsepower":
+                        getDefinition().setHorsepower(scripValDouble);
+                        break;
+                }
+            }
+        }
     }
 
     public void setThrottleLua(float val) {

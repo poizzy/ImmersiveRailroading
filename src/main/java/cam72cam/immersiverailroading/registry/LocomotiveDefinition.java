@@ -123,4 +123,19 @@ public abstract class LocomotiveDefinition extends FreightDefinition {
     public double factorOfAdhesion() {
         return this.factorOfAdhesion;
     }
+
+    @Override
+    public void setTraction(double val) {
+        this.traction = val;
+    }
+
+    @Override
+    public void setHorsepower(double val) {
+        this.power = val;
+    }
+
+    @Override
+    public void setMaxSpeed(double val) {
+        this.maxSpeed = Speed.fromMetric(val);
+    }
 }
