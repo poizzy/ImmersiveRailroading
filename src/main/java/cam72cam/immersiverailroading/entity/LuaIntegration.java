@@ -30,6 +30,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     private boolean isSleeping;
     private long lastExecutionTime;
     private boolean wakeLuaScriptCalled = false;
+    private boolean couplerBoolean;
 
     @Override
     public void onTick() {
@@ -171,6 +172,14 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                         break;
                     case "INDEPENDENT_BRAKE":
                         setIndependentBrakeLua(newValControl);
+                        break;
+                    case "COUPLER_ENGAGED_FRONT":
+                        couplerBoolean = newValControl == 1;
+                        setCouplerEngaged(CouplerType.FRONT, couplerBoolean);
+                        break;
+                    case "COUPLER_ENGAGED_BACK":
+                        couplerBoolean = newValControl == 1;
+                        setCouplerEngaged(CouplerType.BACK, couplerBoolean);
                         break;
                     default:
                         controlPositions.put(controlName, Pair.of(false, newValControl));
