@@ -3,6 +3,7 @@ package cam72cam.immersiverailroading.entity;
 import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.gui.overlay.ReadoutsEventHandler;
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
+import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.mod.ModCore;
 import cam72cam.mod.resource.Identifier;
 import org.apache.commons.io.IOUtils;
@@ -33,6 +34,8 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     private boolean couplerBoolean;
     private LuaValue changePerformance;
     private boolean changePerformanceLoded;
+    private LuaValue changeSound;
+    private boolean changeSoundLoaded;
 
     @Override
     public void onTick() {
@@ -78,6 +81,9 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                         }
                         if (changePerformanceLoded) {
                             setChangePerformance();
+                        }
+                        if (changeSoundLoaded) {
+                            setChangeSounds();
                         }
                     } catch (IOException e) {
                         throw new RuntimeException(e);
@@ -140,6 +146,13 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 ModCore.error("Lua function 'changePerformance' is not defined");
             } else {
                 changePerformanceLoded = true;
+            }
+
+            changeSound = globals.get("changeSound");
+            if (changeSound.isnil()) {
+                ModCore.error("Lua function 'changeSounds' is not defined");
+            } else {
+                changeSoundLoaded = true;
             }
 
             isLuaLoaded = true;
@@ -285,6 +298,44 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                         break;
                 }
             }
+        }
+    }
+
+    public void setChangeSounds() {
+        LuaValue result = changeSound.call();
+        List<Map<String, DataBlock.Value>> newSound = new ArrayList<>();
+
+        for (LuaValue key : result.checktable().keys()) {
+
+            LuaValue entry = result.get(key);
+            Map<String, DataBlock.Value> soundDefinition = new HashMap<>();
+
+            for(LuaValue entrykey : entry.checktable().keys()) {
+                LuaValue value = entry.get(entrykey);
+                DataBlock.Value soundDef = new ObjectValue(convertLuaValue(value));
+                soundDefinition.put(entrykey.tojstring(), soundDef);
+            }
+            newSound.add(soundDefinition);
+        }
+        getDefinition().setSounds(newSound);
+    }
+
+    private static Object convertLuaValue(LuaValue value) {
+        if (value.isboolean()) {
+            return value.toboolean();
+        } else if (value.isnumber()) {
+            return value.todouble();
+        } else if (value.isstring()) {
+            return value.tojstring();
+        } else if (value.istable()) {
+            Map<String, Object> nestedMap = new HashMap<>();
+            for (LuaValue key : value.checktable().keys()) {
+                LuaValue val = value.get(key);
+                nestedMap.put(key.tojstring(), convertLuaValue(val));
+            }
+            return nestedMap;
+        } else {
+            return value; // Return raw LuaValue if type is unknown
         }
     }
 

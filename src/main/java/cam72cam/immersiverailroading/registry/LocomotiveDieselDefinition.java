@@ -3,6 +3,7 @@ package cam72cam.immersiverailroading.registry;
 import cam72cam.immersiverailroading.Config;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.LocomotiveDiesel;
+import cam72cam.immersiverailroading.entity.ObjectValue;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.immersiverailroading.gui.overlay.GuiBuilder;
 import cam72cam.immersiverailroading.library.Gauge;
@@ -10,9 +11,12 @@ import cam72cam.immersiverailroading.library.ValveGearConfig;
 import cam72cam.immersiverailroading.model.DieselLocomotiveModel;
 import cam72cam.immersiverailroading.model.StockModel;
 import cam72cam.immersiverailroading.util.FluidQuantity;
+import cam72cam.mod.ModCore;
 import cam72cam.mod.resource.Identifier;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 public class LocomotiveDieselDefinition extends LocomotiveDefinition {
     public SoundDefinition idle;
@@ -100,5 +104,16 @@ public class LocomotiveDieselDefinition extends LocomotiveDefinition {
 
     public float getEnginePitchRange() {
         return enginePitchRange;
+    }
+
+    @Override
+    public void setSounds(List<Map<String, DataBlock.Value>> newSound) {
+        for (Map<String, DataBlock.Value> soundDef : newSound) {
+            String idleSound = "idle";
+            ObjectValue objectValue = new ObjectValue(idleSound);
+
+            this.idle = new SoundDefinition(objectValue, soundDef);
+            ModCore.info(String.valueOf(idle));
+        }
     }
 }

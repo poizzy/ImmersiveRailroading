@@ -7,6 +7,7 @@ import cam72cam.immersiverailroading.entity.EntityBuildableRollingStock;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
 import cam72cam.immersiverailroading.entity.EntityMoveableRollingStock;
 import cam72cam.immersiverailroading.entity.EntityRollingStock;
+import cam72cam.immersiverailroading.entity.ObjectValue;
 import cam72cam.immersiverailroading.util.*;
 import cam72cam.immersiverailroading.gui.overlay.GuiBuilder;
 import cam72cam.immersiverailroading.gui.overlay.Readouts;
@@ -132,6 +133,15 @@ public abstract class EntityRollingStockDefinition {
             stop = obj.getValue("stop").asIdentifier();
             distance = obj.getValue("distance").asFloat();
             volume = obj.getValue("volume").asFloat(1.0f);
+        }
+
+        public SoundDefinition(ObjectValue newSound, Map<String, DataBlock.Value> sound) {
+            start = newSound.getValueMap("start", sound).asIdentifier();
+            main = newSound.getValueMap("main", sound).asIdentifier();
+            looping = newSound.getValueMap("looping", sound).asBoolean(true);
+            stop = newSound.getValueMap("stop", sound).asIdentifier();
+            distance = newSound.getValueMap("distance", sound).asFloat();
+            volume = newSound.getValueMap("volume", sound).asFloat(1.0f);
         }
 
         public static SoundDefinition getOrDefault(DataBlock block, String key) {
@@ -915,6 +925,9 @@ public abstract class EntityRollingStockDefinition {
     }
 
     public void setMaxSpeed(double val) {
+    }
+
+    public void setSounds(List<Map<String, DataBlock.Value>> newSound) {
     }
 
 }
