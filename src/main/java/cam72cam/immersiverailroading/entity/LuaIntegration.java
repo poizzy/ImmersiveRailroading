@@ -82,9 +82,10 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                         if (changePerformanceLoded) {
                             setChangePerformance();
                         }
-                        if (changeSoundLoaded) {
+                        if (changeSoundLoaded){
                             setChangeSounds();
                         }
+
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -148,6 +149,8 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 changePerformanceLoded = true;
             }
 
+
+//             TODO: re-add change sounds
             changeSound = globals.get("changeSound");
             if (changeSound.isnil()) {
                 ModCore.error("Lua function 'changeSounds' is not defined");
@@ -301,23 +304,31 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         }
     }
 
+    /**
+     *
+     * Maybe re-adding one day? who knows
+     *
+     */
     public void setChangeSounds() {
         LuaValue result = changeSound.call();
         List<Map<String, DataBlock.Value>> newSound = new ArrayList<>();
 
-        for (LuaValue key : result.checktable().keys()) {
+        if (result.istable()) {
 
-            LuaValue entry = result.get(key);
-            Map<String, DataBlock.Value> soundDefinition = new HashMap<>();
+            for (LuaValue key : result.checktable().keys()) {
 
-            for(LuaValue entrykey : entry.checktable().keys()) {
-                LuaValue value = entry.get(entrykey);
-                DataBlock.Value soundDef = new ObjectValue(convertLuaValue(value));
-                soundDefinition.put(entrykey.tojstring(), soundDef);
+                LuaValue entry = result.get(key);
+                Map<String, DataBlock.Value> soundDefinition = new HashMap<>();
+
+                for (LuaValue entrykey : entry.checktable().keys()) {
+                    LuaValue value = entry.get(entrykey);
+                    DataBlock.Value soundDef = new ObjectValue(convertLuaValue(value));
+                    soundDefinition.put(entrykey.tojstring(), soundDef);
+                }
+                newSound.add(soundDefinition);
             }
-            newSound.add(soundDefinition);
+            getDefinition().setSounds(newSound);
         }
-        getDefinition().setSounds(newSound);
     }
 
     private static Object convertLuaValue(LuaValue value) {

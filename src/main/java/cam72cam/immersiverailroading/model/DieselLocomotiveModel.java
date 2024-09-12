@@ -8,11 +8,9 @@ import cam72cam.immersiverailroading.model.components.ComponentProvider;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
 import cam72cam.immersiverailroading.model.part.*;
 import cam72cam.immersiverailroading.registry.LocomotiveDieselDefinition;
+import cam72cam.mod.ModCore;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 public class DieselLocomotiveModel extends LocomotiveModel<LocomotiveDiesel, LocomotiveDieselDefinition> {
     private List<ModelComponent> components;
@@ -20,6 +18,7 @@ public class DieselLocomotiveModel extends LocomotiveModel<LocomotiveDiesel, Loc
     private Horn horn;
     private final PartSound idle;
     private final PartSound running;
+    SetSound setSound = SetSound.getInstance();
 
     private Map<UUID, Float> runningFade = new HashMap<>();
 
@@ -74,7 +73,8 @@ public class DieselLocomotiveModel extends LocomotiveModel<LocomotiveDiesel, Loc
                 stock.getHornTime() > 0 && (stock.isRunning() || stock.getDefinition().isCabCar())
                         ? stock.getDefinition().getHornSus() ? stock.getHornTime() / 10f : 1
                         : 0);
-        if (idle != null) {
+        if (idle != null && setSound.getIdle() == null) {
+            ModCore.info(String.valueOf(setSound.getIdle()));
             if (stock.isRunning()) {
                 float volume = Math.max(0.1f, stock.getRelativeRPM());
                 float pitchRange = stock.getDefinition().getEnginePitchRange();
@@ -99,6 +99,31 @@ public class DieselLocomotiveModel extends LocomotiveModel<LocomotiveDiesel, Loc
                     runningFade.put(stock.getUUID(), 0f);
                 }
             }
+        }else if (setSound.getIdle() != null) {
+            if (stock.isRunning()) {
+                float volume = Math.max(0.1f, stock.getRelativeRPM());
+                float pitchRange = stock.getDefinition().getEnginePitchRange();
+                float pitch = (1-pitchRange) + stock.getRelativeRPM() * pitchRange;
+                if (running == null) {
+                    // Simple
+                    setSound.getIdle().effects(stock, volume, pitch);
+                } else {
+                    boolean isThrottledUp = stock.getRelativeRPM() > 0.01;
+                    float fade = runningFade.getOrDefault(stock.getUUID(), 0f);
+                    fade += 0.05f * (isThrottledUp ? 1 : -1);
+                    fade = Math.min(Math.max(fade, 0), 1);
+                    runningFade.put(stock.getUUID(), fade);
+
+                    setSound.getIdle().effects(stock, 1 - fade + 0.01f, 1);
+                    running.effects(stock, fade + 0.01f, pitch);
+                }
+            } else {
+                setSound.getIdle().effects(stock, false);
+                if (running != null) {
+                    running.effects(stock, false);
+                    runningFade.put(stock.getUUID(), 0f);
+                }
+            }
         }
     }
 
@@ -108,6 +133,9 @@ public class DieselLocomotiveModel extends LocomotiveModel<LocomotiveDiesel, Loc
         horn.removed(stock);
         if (idle != null) {
             idle.removed(stock);
+        }
+        if (setSound.getIdle() != null) {
+            setSound.getIdle().removed(stock);
         }
         if (running != null) {
             running.removed(stock);

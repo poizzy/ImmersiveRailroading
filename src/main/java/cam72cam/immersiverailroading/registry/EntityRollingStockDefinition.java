@@ -14,6 +14,7 @@ import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.library.*;
 import cam72cam.immersiverailroading.model.StockModel;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
+import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.EntityRegistry;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.OBJGroup;
@@ -152,6 +153,24 @@ public abstract class EntityRollingStockDefinition {
             Identifier ident = block.getValue(key).asIdentifier();
             if (ident != null && ident.canLoad()) {
                 return new SoundDefinition(ident);
+            }
+            return null;
+        }
+
+        public static SoundDefinition getOrDefault(ObjectValue value, Map<String, DataBlock.Value> sound) {
+            ModCore.info(value.toString() + " | " + sound);
+            if (sound.containsKey("start") || sound.containsKey("main") ||
+                    sound.containsKey("looping") || sound.containsKey("stop") ||
+                    sound.containsKey("distance") || sound.containsKey("volume")) {
+                return new SoundDefinition(value, sound);
+            }
+            DataBlock.Value dataBlockValue = sound.get(value.asString());
+
+            if (dataBlockValue != null) {
+                Identifier ident = dataBlockValue.asIdentifier();
+                if (ident != null) {
+                    return new SoundDefinition(ident);
+                }
             }
             return null;
         }
