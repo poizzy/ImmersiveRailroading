@@ -14,7 +14,6 @@ import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.library.*;
 import cam72cam.immersiverailroading.model.StockModel;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
-import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.EntityRegistry;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.OBJGroup;
@@ -158,7 +157,6 @@ public abstract class EntityRollingStockDefinition {
         }
 
         public static SoundDefinition getOrDefault(ObjectValue value, Map<String, DataBlock.Value> sound) {
-            ModCore.info(value.toString() + " | " + sound);
             if (sound.containsKey("start") || sound.containsKey("main") ||
                     sound.containsKey("looping") || sound.containsKey("stop") ||
                     sound.containsKey("distance") || sound.containsKey("volume")) {
@@ -174,6 +172,26 @@ public abstract class EntityRollingStockDefinition {
             }
             return null;
         }
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (obj == null || getClass() != obj.getClass()) return false;
+            SoundDefinition that = (SoundDefinition) obj;
+
+            return Objects.equals(start, that.start) &&
+                    Objects.equals(main, that.main) &&
+                    looping == that.looping &&
+                    Objects.equals(stop, that.stop) &&
+                    Objects.equals(distance, that.distance) &&
+                    Objects.equals(volume, that.volume);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(start, main, looping, stop, distance, volume);
+        }
+
+
     }
 
     public static class AnimationDefinition {

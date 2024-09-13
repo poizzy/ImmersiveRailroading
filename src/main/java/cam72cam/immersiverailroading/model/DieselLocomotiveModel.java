@@ -1,6 +1,5 @@
 package cam72cam.immersiverailroading.model;
 
-import cam72cam.immersiverailroading.ConfigSound;
 import cam72cam.immersiverailroading.entity.LocomotiveDiesel;
 import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.library.ModelComponentType;
@@ -8,7 +7,6 @@ import cam72cam.immersiverailroading.model.components.ComponentProvider;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
 import cam72cam.immersiverailroading.model.part.*;
 import cam72cam.immersiverailroading.registry.LocomotiveDieselDefinition;
-import cam72cam.mod.ModCore;
 
 import java.util.*;
 
@@ -16,16 +14,18 @@ public class DieselLocomotiveModel extends LocomotiveModel<LocomotiveDiesel, Loc
     private List<ModelComponent> components;
     private DieselExhaust exhaust;
     private Horn horn;
-    private final PartSound idle;
-    private final PartSound running;
-    SetSound setSound = SetSound.getInstance();
+//    private final PartSound idle;
+    private final SetSound setSound;
 
     private Map<UUID, Float> runningFade = new HashMap<>();
 
     public DieselLocomotiveModel(LocomotiveDieselDefinition def) throws Exception {
         super(def);
-        idle = def.isCabCar() ? null : new PartSound(def.idle, true, 80, ConfigSound.SoundCategories.Locomotive.Diesel::idle);
-        running = def.isCabCar() || def.running == null ? null : new PartSound(def.running, true, 80, ConfigSound.SoundCategories.Locomotive.Diesel::running);
+        setSound = SetSound.getInstance(def.defID);
+        setSound.defaultIdle(def);
+        setSound.getIdle();
+        setSound.defaultRunning(def);
+        setSound.getRunning();
     }
 
     @Override
@@ -73,38 +73,12 @@ public class DieselLocomotiveModel extends LocomotiveModel<LocomotiveDiesel, Loc
                 stock.getHornTime() > 0 && (stock.isRunning() || stock.getDefinition().isCabCar())
                         ? stock.getDefinition().getHornSus() ? stock.getHornTime() / 10f : 1
                         : 0);
-        if (idle != null && setSound.getIdle() == null) {
-            ModCore.info(String.valueOf(setSound.getIdle()));
+        if (setSound.getIdle() != null) {
             if (stock.isRunning()) {
                 float volume = Math.max(0.1f, stock.getRelativeRPM());
                 float pitchRange = stock.getDefinition().getEnginePitchRange();
                 float pitch = (1-pitchRange) + stock.getRelativeRPM() * pitchRange;
-                if (running == null) {
-                    // Simple
-                    idle.effects(stock, volume, pitch);
-                } else {
-                    boolean isThrottledUp = stock.getRelativeRPM() > 0.01;
-                    float fade = runningFade.getOrDefault(stock.getUUID(), 0f);
-                    fade += 0.05f * (isThrottledUp ? 1 : -1);
-                    fade = Math.min(Math.max(fade, 0), 1);
-                    runningFade.put(stock.getUUID(), fade);
-
-                    idle.effects(stock, 1 - fade + 0.01f, 1);
-                    running.effects(stock, fade + 0.01f, pitch);
-                }
-            } else {
-                idle.effects(stock, false);
-                if (running != null) {
-                    running.effects(stock, false);
-                    runningFade.put(stock.getUUID(), 0f);
-                }
-            }
-        }else if (setSound.getIdle() != null) {
-            if (stock.isRunning()) {
-                float volume = Math.max(0.1f, stock.getRelativeRPM());
-                float pitchRange = stock.getDefinition().getEnginePitchRange();
-                float pitch = (1-pitchRange) + stock.getRelativeRPM() * pitchRange;
-                if (running == null) {
+                if (setSound.getRunning() == null) {
                     // Simple
                     setSound.getIdle().effects(stock, volume, pitch);
                 } else {
@@ -115,12 +89,12 @@ public class DieselLocomotiveModel extends LocomotiveModel<LocomotiveDiesel, Loc
                     runningFade.put(stock.getUUID(), fade);
 
                     setSound.getIdle().effects(stock, 1 - fade + 0.01f, 1);
-                    running.effects(stock, fade + 0.01f, pitch);
+                    setSound.getRunning().effects(stock, fade + 0.01f, pitch);
                 }
             } else {
                 setSound.getIdle().effects(stock, false);
-                if (running != null) {
-                    running.effects(stock, false);
+                if (setSound.getRunning() != null) {
+                    setSound.getRunning().effects(stock, false);
                     runningFade.put(stock.getUUID(), 0f);
                 }
             }
@@ -131,14 +105,11 @@ public class DieselLocomotiveModel extends LocomotiveModel<LocomotiveDiesel, Loc
     protected void removed(LocomotiveDiesel stock) {
         super.removed(stock);
         horn.removed(stock);
-        if (idle != null) {
-            idle.removed(stock);
-        }
         if (setSound.getIdle() != null) {
             setSound.getIdle().removed(stock);
         }
-        if (running != null) {
-            running.removed(stock);
+        if (setSound.getRunning() != null) {
+            setSound.getRunning().removed(stock);
         }
     }
 }

@@ -29,6 +29,9 @@ public class LocomotiveDieselDefinition extends LocomotiveDefinition {
     private float enginePitchRange;
     public boolean hasDynamicTractionControl;
     private SoundDefinition oldValue;
+    private String soundsIdle = "idle";
+    private String soundsRunning = "running";
+    private SoundDefinition oldRunning;
 
     public LocomotiveDieselDefinition(String defID, DataBlock data) throws Exception {
         super(LocomotiveDiesel.class, defID, data);
@@ -110,15 +113,23 @@ public class LocomotiveDieselDefinition extends LocomotiveDefinition {
     @Override
     public void setSounds(List<Map<String, DataBlock.Value>> newSound) {
         for (Map<String, DataBlock.Value> soundDef : newSound) {
-            String idleSound = "idle";
-            ObjectValue objectValue = new ObjectValue(idleSound);
-            SetSound setSound = SetSound.getInstance();
+            ObjectValue objectValue = new ObjectValue(soundsIdle);
+            ObjectValue objectValueRunning = new ObjectValue(soundsRunning);
+            SetSound setSound = SetSound.getInstance(defID);
             this.idle = SoundDefinition.getOrDefault(objectValue, soundDef);
-            if (this.idle != oldValue) {
-                setSound.newIdle(this, this.idle);
-                oldValue = this.idle;
+            if (soundDef.containsKey(soundsIdle)) {
+                if (!this.idle.equals(oldValue)) {
+                    setSound.newIdle(this, this.idle);
+                    oldValue = this.idle;
+                }
             }
-//            ModCore.info(String.valueOf(setSound.getIdle()));
+            if (soundDef.containsKey(soundsRunning)) {
+                this.running = SoundDefinition.getOrDefault(objectValueRunning, soundDef);
+                if (!this.running.equals(oldRunning)) {
+                    setSound.newRunning(this, this.running);
+                    oldRunning = this.running;
+                }
+            }
         }
     }
 }
