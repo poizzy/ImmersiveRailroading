@@ -85,6 +85,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                         if (changeSoundLoaded){
                             setChangeSounds();
                         }
+                        ModCore.info(getTrain().toString());
 
                     } catch (IOException e) {
                         throw new RuntimeException(e);
@@ -149,8 +150,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 changePerformanceLoded = true;
             }
 
-
-//             TODO: re-add change sounds
             changeSound = globals.get("changeSound");
             if (changeSound.isnil()) {
                 ModCore.error("Lua function 'changeSounds' is not defined");
@@ -207,7 +206,13 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                         setCouplerEngaged(CouplerType.BACK, couplerBoolean);
                         break;
                     default:
-                        controlPositions.put(controlName, Pair.of(false, newValControl));
+                        if(controlName.contains("GLOBAL_")) {
+                            this.mapTrain(this, false, stock -> {
+                                stock.controlPositions.put(controlName, Pair.of(false, newValControl));
+                            });
+                        } else {
+                            controlPositions.put(controlName, Pair.of(false, newValControl));
+                        }
                         break;
                 }
             }
@@ -304,11 +309,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         }
     }
 
-    /**
-     *
-     * Maybe re-adding one day? who knows
-     *
-     */
     public void setChangeSounds() {
         LuaValue result = changeSound.call();
         List<Map<String, DataBlock.Value>> newSound = new ArrayList<>();
