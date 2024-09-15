@@ -2,27 +2,18 @@ package cam72cam.immersiverailroading.gui.overlay;
 
 import cam72cam.immersiverailroading.entity.EntityRollingStock;
 
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.HashMap;
+import java.util.Map;
 
 public interface ReadoutsEventHandler {
 
-    ConcurrentMap<Readouts, Float> readoutState = new ConcurrentHashMap<>();
+    Map<String, Float> readoutState = new HashMap<>();
 
     default void getReadout() {
         for (Readouts readout : Readouts.values()) {
             Float readoutValue = readout.getValue((EntityRollingStock) this);
-            Float previousValue = readoutState.get(readout);
-
-            if (!Objects.equals(readoutValue, previousValue)) {
-                readoutEvent(readout, (previousValue != null ? previousValue : 0), readoutValue);
-            }
-            readoutState.put(readout, readoutValue);
+            readoutState.put(readout.toString(), readoutValue);
         }
     }
 
-    default void readoutEvent(Readouts readout, float oldVal, float newVal) {
-
-    }
 }

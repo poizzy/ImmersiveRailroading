@@ -1,6 +1,5 @@
 package cam72cam.immersiverailroading.entity;
 
-import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.gui.overlay.ReadoutsEventHandler;
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
 import cam72cam.immersiverailroading.util.DataBlock;
@@ -8,34 +7,27 @@ import cam72cam.mod.ModCore;
 import cam72cam.mod.resource.Identifier;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.luaj.vm2.Globals;
-import org.luaj.vm2.LuaTable;
-import org.luaj.vm2.LuaValue;
+import org.luaj.vm2.*;
 import org.luaj.vm2.lib.jse.JsePlatform;
+import org.luaj.vm2.LuaValue;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import org.luaj.vm2.LuaFunction;
 
 public abstract class LuaIntegration extends EntityCoupleableRollingStock implements ReadoutsEventHandler {
 
     private Globals globals;
-    private LuaValue controlPositionEvent;
+    private LuaValue tickEvent;
     private boolean isLuaLoaded = false;
-    private LuaValue readoutEventHandler;
-    private LuaValue textureEventHandler;
-    private boolean controlPositionEventLoaded = false;
-    private boolean readoutEventHandlerLoaded = false;
-    private boolean textureEventHandlerLoaded = false;
     private boolean isSleeping;
     private long lastExecutionTime;
     private boolean wakeLuaScriptCalled = false;
-    private boolean couplerBoolean;
-    private LuaValue changePerformance;
-    private boolean changePerformanceLoded;
-    private LuaValue changeSound;
-    private boolean changeSoundLoaded;
+    LuaTable luaFunction = new LuaTable();
+    private Map<String, Float> readoutsMap = new HashMap<>();
+    private Map<String, InputStream> moduleMap = new HashMap<>();
 
     @Override
     public void onTick() {
@@ -70,23 +62,8 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
 
                     try {
                         if (LoadLuaFile()) return;
-                        if (controlPositionEventLoaded) {
-                            getControlGroup();
-                        }
-                        if (readoutEventHandlerLoaded) {
-                            getReadout();
-                        }
-                        if (textureEventHandlerLoaded) {
-                            textureEvent();
-                        }
-                        if (changePerformanceLoded) {
-                            setChangePerformance();
-                        }
-                        if (changeSoundLoaded){
-                            setChangeSounds();
-                        }
-                        ModCore.info(getTrain().toString());
-
+                        callFuction();
+                        getReadout();
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -99,8 +76,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     public boolean LoadLuaFile() throws IOException {
         if (!isLuaLoaded) {
             globals = JsePlatform.standardGlobals();
-
-//            ModCore.info("Definition SubClass: " + getDefinition().script.toString());
 
 
             // Get Lua file from Json
@@ -119,42 +94,23 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 return true;
             }
 
+            for (String modules: getDefinition().controlGroup){
+                Identifier newModule = identifier.getRelative(modules);
+                moduleMap.put(modules.replace(".lua", ""), newModule.getResourceStream());
+            }
+
+            preloadModules(globals, moduleMap);
+
             LuaValue chunk = globals.load(luaScript);
             chunk.call();
 
-            controlPositionEvent = globals.get("controlPositionEvent");
-            if (controlPositionEvent.isnil()) {
-                ModCore.error("Lua function 'controlPositionEvent' is not defined");
-            } else {
-                controlPositionEventLoaded = true;
-            }
+            setLuaFunctions();
 
-            readoutEventHandler = globals.get("readoutEventHandler");
-            if (controlPositionEvent.isnil()) {
-                ModCore.error("Lua function 'readoutEvent' is not defined");
-            } else {
-                readoutEventHandlerLoaded = true;
-            }
+            globals.set("IR", luaFunction);
 
-            textureEventHandler = globals.get("textureEventHandler");
-            if (controlPositionEvent.isnil()) {
-                ModCore.error("Lua function 'readoutEvent' is not defined");
-            } else {
-                textureEventHandlerLoaded = true;
-            }
-
-            changePerformance = globals.get("changePerformance");
-            if (changePerformance.isnil()) {
-                ModCore.error("Lua function 'changePerformance' is not defined");
-            } else {
-                changePerformanceLoded = true;
-            }
-
-            changeSound = globals.get("changeSound");
-            if (changeSound.isnil()) {
-                ModCore.error("Lua function 'changeSounds' is not defined");
-            } else {
-                changeSoundLoaded = true;
+            tickEvent = globals.get("tickEvent");
+            if (tickEvent.isnil()) {
+                ModCore.error("Function 'tickEvent' is not Defined!");
             }
 
             isLuaLoaded = true;
@@ -163,154 +119,199 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         return false;
     }
 
-    @Override
-    public void readoutEvent(Readouts readout, float oldVal, float newVal) {
-        try {
-//            ModCore.info("readoutEvent" + readout + " | " + oldVal + " | " + newVal);
-            readoutEventHandler.call(LuaValue.valueOf(readout.toString()), LuaValue.valueOf(newVal));
-//            LuaValue result = controlPositionEvent.call();
-//            putLuaValue(result);
-        }catch (Exception e) {
-        }
-    }
+    private void preloadModules(Globals globals, Map<String, InputStream> moduleStreams) {
+        LuaValue packageLib = globals.get("package");
+        LuaValue preloadTable = packageLib.get("preload");
 
-    private void putLuaValue(LuaValue result) {
-        if (result.istable()) {
-            LuaTable table = result.checktable();
+        for (Map.Entry<String, InputStream> entry : moduleStreams.entrySet()) {
+            String moduleName = entry.getKey();
+            InputStream moduleStream = entry.getValue();
 
-            for (LuaValue key : table.keys()) {
-                LuaValue value = table.get(key);
+            try {
+                // Step 5: Load the Lua chunk from the InputStream
+                LuaValue chunk = globals.load(moduleStream, moduleName, "bt", globals);
 
-                String controlName = key.toString();
-                Float newValControl = value.tofloat();
-
-                switch (controlName) {
-                    case "THROTTLE":
-                        setThrottleLua(newValControl);
-                        break;
-                    case "REVERSER":
-                        setReverserLua(newValControl);
-                        break;
-                    case "TRAIN_BRAKE":
-                        setBrakeLua(newValControl);
-                        break;
-                    case "INDEPENDENT_BRAKE":
-                        setIndependentBrakeLua(newValControl);
-                        break;
-                    case "COUPLER_ENGAGED_FRONT":
-                        couplerBoolean = newValControl != 1;
-                        setCouplerEngaged(CouplerType.FRONT, couplerBoolean);
-                        break;
-                    case "COUPLER_ENGAGED_BACK":
-                        couplerBoolean = newValControl != 1;
-                        setCouplerEngaged(CouplerType.BACK, couplerBoolean);
-                        break;
-                    default:
-                        if(controlName.contains("GLOBAL_")) {
-                            this.mapTrain(this, false, stock -> {
-                                stock.controlPositions.put(controlName, Pair.of(false, newValControl));
-                            });
-                        } else {
-                            controlPositions.put(controlName, Pair.of(false, newValControl));
-                        }
-                        break;
-                }
+                // Step 6: Add the chunk to package.preload with the module name
+                preloadTable.set(moduleName, chunk);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        } else {
-//            ModCore.error("Result is not a table. Type: " + result.typename());
         }
     }
 
-    public void textureEvent() {
-        if (textureEventHandler == null) {
-            ModCore.error("textureEventHandler is null");
-            return;
-        }
+    public void setLuaFunctions() {
+        luaFunction.set("getCG", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue control) {
+                float result = getControlGroup(control.tojstring());
+                return LuaValue.valueOf(result);
+            }
+        });
+        luaFunction.set("setCG", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue control, LuaValue val) {
+                setControlGroup(control.tojstring(), val.tofloat());
+                return LuaValue.NIL;
+            }
+        });
+        luaFunction.set("getPaint", new LuaFunction() {
+            @Override
+            public LuaValue call() {
+                String result = getCurrentTexture();
+                return LuaValue.valueOf(result);
+            }
+        });
+        luaFunction.set("setPaint", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue newTexture) {
+                setNewTexture(newTexture.tojstring());
+                return LuaValue.NIL;
+            }
+        });
+        luaFunction.set("getReadout", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue readout) {
+                float result = getReadout(readout.tojstring());
+                return LuaValue.valueOf(result);
+            }
+        });
+        luaFunction.set("setPerformance", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue performanceType, LuaValue newVal) {
+                setPerformance(performanceType.tojstring(), newVal.todouble());
+                return LuaValue.NIL;
+            }
+        });
+        luaFunction.set("couplerEngaged", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue position, LuaValue newState) {
+                setCouplerEngaged(position.tojstring(), newState.toboolean());
+                return LuaValue.NIL;
+            }
+        });
+        luaFunction.set("setThrottle", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue val) {
+                setThrottleLua(val.tofloat());
+                return LuaValue.NIL;
+            }
+        });
+        luaFunction.set("setReverser", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue val) {
+                setReverserLua(val.tofloat());
+                return LuaValue.NIL;
+            }
+        });
+        luaFunction.set("setTrainBrake", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue val) {
+                setBrakeLua(val.tofloat());
+                return LuaValue.NIL;
+            }
+        });
+        luaFunction.set("setIndependentBrake", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue val) {
+                setIndependentBrakeLua(val.tofloat());
+                return LuaValue.NIL;
+            }
+        });
+        luaFunction.set("getThrottle", new LuaFunction() {
+            @Override
+            public LuaValue call() {
+                return LuaValue.valueOf(getThrottleLua());
+            }
+        });
+        luaFunction.set("getReverser", new LuaFunction() {
+            @Override
+            public LuaValue call() {
+                return LuaValue.valueOf(getReverserLua());
+            }
+        });
+        luaFunction.set("getTrainBrake", new LuaFunction() {
+            @Override
+            public LuaValue call() {
+                return LuaValue.valueOf(getTrainBrakeLua());
+            }
+        });
+        luaFunction.set("setSound", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue val) {
+                setNewSound(val);
+                return LuaValue.NIL;
+            }
+        });
+        luaFunction.set("setGlobal", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue control, LuaValue val) {
+                setGlobalControlGroup(control.tojstring(), val.tofloat());
+                return LuaValue.NIL;
+            }
+        });
+    }
 
+    public float getControlGroup(String control) {
+        return getControlPosition(control);
+    }
+
+    public void setControlGroup(String control, float val) {
+        controlPositions.put(control, Pair.of(false, val));
+    }
+
+    public void setGlobalControlGroup(String controlName, float newValControl) {
+        this.mapTrain(this, false, stock -> {
+            stock.controlPositions.put(controlName, Pair.of(false, newValControl));
+        });
+    }
+
+    public String getCurrentTexture() {
         String currentTexture = getTexture();
         if (currentTexture == null) {
             currentTexture = "Default";
         }
+        return currentTexture;
+    }
 
-        LuaValue texture = textureEventHandler.call(LuaValue.valueOf(currentTexture));
+    public void setNewTexture(String texture) {
+        setTexture(texture);
+    }
 
-        if (texture == null) {
-            return;
-        }
+    public float getReadout(String readout) {
+        getReadout();
+        return readoutState.get(readout);
+    }
 
-        try {
-            setTexture(texture.tojstring());
-        } catch (Exception e) {
-            ModCore.error(String.format("Failed to set texture '%s'. Error: %s", texture.tojstring(), e.getMessage()));
+    public void setPerformance(String performanceType, double val) {
+        switch (performanceType) {
+            case "max_speed_kmh":
+                getDefinition().setMaxSpeed(val);
+                break;
+            case "tractive_effort_lbf":
+                getDefinition().setTraction(val);
+                break;
+            case "horsepower":
+                getDefinition().setHorsepower(val);
+                break;
         }
     }
 
-    private void getControlGroup() {
-        List<String> controlGroup = getDefinition().controlGroup;
-        List<Map<String, Float>> resultList = new ArrayList<>();
-        Map<String, Float> controlMap = new HashMap<>();
-        Map<String, Float> controls = new HashMap<>();
-
-        controls.put("THROTTLE", getThrottleLua());
-        controls.put("REVERSER", getReverserLua());
-        controls.put("TRAIN_BRAKE", getTrainBrakeLua());
-
-        for (String control : controlGroup) {
-            Float position = getControlPosition(control);
-            controlMap.put(control, position);
-        }
-
-        resultList.add(controlMap);
-        resultList.add(controls);
-
-
-        LuaTable luaTable = convertToLuaTable(resultList);
-        LuaValue result = controlPositionEvent.call(luaTable);
-        putLuaValue(result);
-    }
-
-    public LuaTable convertToLuaTable(List<Map<String, Float>> resultList) {
-        LuaTable luaResultList = new LuaTable();
-
-        for (int i = 0; i < resultList.size(); i++) {
-            LuaTable luaMap = new LuaTable();
-            for (Map.Entry<String, Float> entry : resultList.get(i).entrySet()) {
-                luaMap.set(entry.getKey(), LuaValue.valueOf(entry.getValue()));
-            }
-            luaResultList.set(i + 1, luaMap);
-        }
-
-        return luaResultList;
-    }
-    
-    public void setChangePerformance() {
-        LuaValue result = changePerformance.call();
-        if (result.istable()) {
-            LuaTable table = result.checktable();
-
-            for (LuaValue key : table.keys()) {
-                LuaValue value = table.get(key);
-
-                String scriptName = key.toString();
-                Double scripValDouble = value.todouble();
-
-                switch (scriptName) {
-                    case "max_speed_kmh":
-                        getDefinition().setMaxSpeed(scripValDouble);
-                        break;
-                    case "tractive_effort_lbf":
-                        getDefinition().setTraction(scripValDouble);
-                        break;
-                    case "horsepower":
-                        getDefinition().setHorsepower(scripValDouble);
-                        break;
-                }
-            }
+    public void setCouplerEngaged(String position, Boolean engaged) {
+        switch (position) {
+            case "FRONT":
+                setCouplerEngaged(CouplerType.FRONT, engaged);
+                break;
+            case "BACK":
+                setCouplerEngaged(CouplerType.BACK, engaged);
+                break;
         }
     }
 
-    public void setChangeSounds() {
-        LuaValue result = changeSound.call();
+    public void callFuction() {
+        tickEvent.call();
+    }
+
+    public void setNewSound(LuaValue result) {
         List<Map<String, DataBlock.Value>> newSound = new ArrayList<>();
 
         if (result.istable()) {
