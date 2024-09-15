@@ -94,7 +94,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 return true;
             }
 
-            for (String modules: getDefinition().controlGroup){
+            for (String modules: getDefinition().addScripts){
                 Identifier newModule = identifier.getRelative(modules);
                 moduleMap.put(modules.replace(".lua", ""), newModule.getResourceStream());
             }
