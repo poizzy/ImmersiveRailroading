@@ -250,6 +250,13 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 return LuaValue.NIL;
             }
         });
+        luaFunction.set("setUnit", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue control, LuaValue val) {
+                setUnitControlGroup(control.tojstring(), val.tofloat());
+                return LuaValue.NIL;
+            }
+        });
     }
 
     public float getControlGroup(String control) {
@@ -264,6 +271,19 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         this.mapTrain(this, false, stock -> {
             stock.controlPositions.put(controlName, Pair.of(false, newValControl));
         });
+    }
+
+    public void setUnitControlGroup(String controlName, float newValControl) {
+        List<List<EntityCoupleableRollingStock>> units = this.getUnit(false);
+
+        for (List<EntityCoupleableRollingStock> unit : units) {
+            if (unit.contains(this)) {
+                for (EntityCoupleableRollingStock stock : unit) {
+                    stock.controlPositions.put(controlName, Pair.of(false, newValControl));
+                }
+                break;
+            }
+        }
     }
 
     public String getCurrentTexture() {
