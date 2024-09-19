@@ -2,9 +2,14 @@ package cam72cam.immersiverailroading.entity;
 
 import cam72cam.immersiverailroading.gui.overlay.ReadoutsEventHandler;
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
+import cam72cam.immersiverailroading.library.ModelComponentType;
+import cam72cam.immersiverailroading.model.components.ModelComponent;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.mod.ModCore;
+import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.resource.Identifier;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.luaj.vm2.*;
@@ -28,6 +33,10 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     LuaTable luaFunction = new LuaTable();
     private Map<String, Float> readoutsMap = new HashMap<>();
     private Map<String, InputStream> moduleMap = new HashMap<>();
+    private String oldControl = null;
+    private float oldValue;
+    private Vec3d vec3d;
+    private String oldText;
 
     @Override
     public void onTick() {
@@ -257,6 +266,14 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 return LuaValue.NIL;
             }
         });
+        luaFunction.set("setText", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue identifier, LuaValue text) {
+                Identifier id = new Identifier(identifier.tojstring());
+                setText(id, text.tojstring());
+                return LuaValue.NIL;
+            }
+        });
     }
 
     public float getControlGroup(String control) {
@@ -273,13 +290,15 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         });
     }
 
+    @SideOnly(Side.CLIENT)
     public void setUnitControlGroup(String controlName, float newValControl) {
         List<List<EntityCoupleableRollingStock>> units = this.getUnit(false);
-
         for (List<EntityCoupleableRollingStock> unit : units) {
             if (unit.contains(this)) {
                 for (EntityCoupleableRollingStock stock : unit) {
                     stock.controlPositions.put(controlName, Pair.of(false, newValControl));
+                    oldControl = controlName;
+                    oldValue = newValControl;
                 }
                 break;
             }
@@ -325,6 +344,20 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             case "BACK":
                 setCouplerEngaged(CouplerType.BACK, engaged);
                 break;
+        }
+    }
+
+    public void setText(Identifier id, String newText) {
+        List<ModelComponent> test = getDefinition().getModel().allComponents;
+        for (ModelComponent component : getDefinition().getModel().allComponents) {
+            if (component.type == ModelComponentType.TEXTFIELD_X) {
+                if (!newText.equals(oldText)) {
+                    vec3d = component.center;
+                    RenderText renderText = RenderText.getInstance(defID);
+                    renderText.setText(newText, id, vec3d);
+                    oldText = newText;
+                }
+            }
         }
     }
 
