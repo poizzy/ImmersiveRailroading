@@ -16,6 +16,7 @@ import org.luaj.vm2.*;
 import org.luaj.vm2.lib.jse.JsePlatform;
 import org.luaj.vm2.LuaValue;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -270,7 +271,11 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             @Override
             public LuaValue call(LuaValue identifier, LuaValue text) {
                 Identifier id = new Identifier(identifier.tojstring());
-                setText(id, text.tojstring());
+                try {
+                    setText(id, text.tojstring());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
                 return LuaValue.NIL;
             }
         });
@@ -347,19 +352,24 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         }
     }
 
-    public void setText(Identifier id, String newText) {
-        List<ModelComponent> test = getDefinition().getModel().allComponents;
-        for (ModelComponent component : getDefinition().getModel().allComponents) {
-            if (component.type == ModelComponentType.TEXTFIELD_X) {
-                if (!newText.equals(oldText)) {
+    public void setText(Identifier id, String newText) throws IOException {
+        if (!newText.equals(oldText)) {
+            List<ModelComponent> components = getDefinition().getModel().allComponents;
+            for (ModelComponent component : components) {
+                if (component.type == ModelComponentType.TEXTFIELD_X) {
                     vec3d = component.center;
                     RenderText renderText = RenderText.getInstance(defID);
-                    renderText.setText(newText, id, vec3d);
+                    File file = new File(id.getPath());
+                    String jsonPath = file.getName();
+                    Identifier jsonId = id.getRelative(jsonPath.replaceAll(".png", ".json"));
+                    InputStream json = jsonId.getResourceStream();
+                    renderText.setText(newText, id, vec3d, json);
                     oldText = newText;
                 }
             }
         }
     }
+
 
     public void callFuction() {
         tickEvent.call();
