@@ -36,8 +36,10 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     private Map<String, InputStream> moduleMap = new HashMap<>();
     private String oldControl = null;
     private float oldValue;
-    private Vec3d vec3d;
     private String oldText;
+    private Vec3d vec3dmin;
+    private Vec3d vec3dmax;
+    private Font.TextAlign align;
 
     @Override
     public void onTick() {
@@ -269,13 +271,8 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         });
         luaFunction.set("setText", new LuaFunction() {
             @Override
-            public LuaValue call(LuaValue identifier, LuaValue text) {
-                Identifier id = new Identifier(identifier.tojstring());
-                try {
-                    setText(id, text.tojstring());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
+            public LuaValue call(LuaValue table) {
+                textFieldDef(table);
                 return LuaValue.NIL;
             }
         });
@@ -352,18 +349,61 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         }
     }
 
-    public void setText(Identifier id, String newText) throws IOException {
+    public void textFieldDef(LuaValue result) {
+        Map<String, DataBlock.Value> textField = new HashMap<>();
+        if (result.istable()) {
+            for (LuaValue key : result.checktable().keys()) {
+                DataBlock.Value value = new ObjectValue(convertLuaValue(result.get(key))); // Fixed here
+                textField.put(key.tojstring(), value);
+            }
+        }
+
+        Identifier font = textField.get("font") != null ? textField.get("font").asIdentifier() : null;
+        int textFieldId = textField.get("ID") != null ? textField.get("ID").asInteger() : 1;
+        int resX = textField.get("resX") != null ? textField.get("resX").asInteger() : 0;
+        int resY = textField.get("resY") != null ? textField.get("resY").asInteger() : 0;
+        boolean flipped = textField.get("flipped") != null && textField.get("flipped").asBoolean();
+        int fontSize = textField.get("fontSize") != null ? textField.get("fontSize").asInteger() : 12;
+        int fontLength = textField.get("fontLength") != null ? textField.get("fontLength").asInteger() : 512;
+        int fontGap = textField.get("fontGap") != null ? textField.get("fontGap").asInteger() : 1;
+        Identifier overlay = textField.get("overlay") != null ? textField.get("overlay").asIdentifier() : null;
+
+        if (textField.get("align") != null) {
+            String alignStr = textField.get("align").asString();
+            if (alignStr.equalsIgnoreCase("right")) {
+                align = Font.TextAlign.RIGHT;
+            } else if (alignStr.equalsIgnoreCase("center")) {
+                align = Font.TextAlign.CENTER;
+            } else {
+                align = Font.TextAlign.LEFT;
+            }
+        } else {
+            align = Font.TextAlign.LEFT;
+        }
+
+        String text = textField.get("text") != null ? textField.get("text").asString() : "";
+
+        try {
+            setText(font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, overlay);
+        } catch (IOException e) {
+            ModCore.error(String.format("Couldn't load Font %s", font != null ? font.toString() : "null"));
+        }
+    }
+
+
+    public void setText(Identifier id, String newText, int resX, int resY, Font.TextAlign align, boolean flipped, int componentId, int fontSize, int fontX, int fontGap, Identifier overlay) throws IOException {
         if (!newText.equals(oldText)) {
             List<ModelComponent> components = getDefinition().getModel().allComponents;
             for (ModelComponent component : components) {
-                if (component.type == ModelComponentType.TEXTFIELD_X) {
-                    vec3d = component.center;
+                if (component.type == ModelComponentType.TEXTFIELD_X && component.id == componentId) {
+                    vec3dmin = component.min;
+                    vec3dmax = component.max;
                     RenderText renderText = RenderText.getInstance(defID);
                     File file = new File(id.getPath());
                     String jsonPath = file.getName();
                     Identifier jsonId = id.getRelative(jsonPath.replaceAll(".png", ".json"));
                     InputStream json = jsonId.getResourceStream();
-                    renderText.setText(newText, id, vec3d, json);
+                    renderText.setText(componentId, newText, id, vec3dmin, vec3dmax, json, resX, resY, align, flipped, fontSize, fontX, fontGap, overlay);
                     oldText = newText;
                 }
             }

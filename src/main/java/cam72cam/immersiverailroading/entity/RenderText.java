@@ -15,18 +15,14 @@ import java.util.Map;
 public class RenderText {
     private Font myFont;
     private static Map<String, RenderText> instances = new HashMap<>();
-    private String text;
-    private Identifier id;
-    private Vec3d vec3d;
     private boolean fontInitialized;
-    private String oldText;
-    private boolean dirty;
     private DirectDraw draw;
     private int textureId;
-    private InputStream json;
+    private int overlayTextureId;
+    private Map<Integer, TextField> textFields = new HashMap<>();
+
 
     public RenderText() {
-        dirty = true;
         draw = new DirectDraw();
     }
 
@@ -35,37 +31,77 @@ public class RenderText {
         return instance;
     }
 
-    public void setText(String text, Identifier id, Vec3d vec3d, InputStream json) {
-        if (!text.equals(oldText)) {
+    private class TextField {
+        String text;
+        Identifier id;
+        Vec3d vec3dmin;
+        Vec3d vec3dmax;
+        InputStream json;
+        int resX;
+        int resY;
+        Font.TextAlign textAlign;
+        boolean flipDirection;
+        int fontSize;
+        int fontLength;
+        int fontGap;
+        Identifier overlayId;
+
+        TextField(String text, Identifier id, Vec3d vec3dmin, Vec3d vec3dmax,
+                  InputStream json, int resX, int resY, Font.TextAlign align,
+                  boolean flipDir, int fontSize, int fontLength, int fontGap,
+                  Identifier overlayId) {
             this.text = text;
             this.id = id;
-            this.vec3d = vec3d;
+            this.vec3dmin = vec3dmin;
+            this.vec3dmax = vec3dmax;
             this.json = json;
-            oldText = text;
-            dirty = true;  // Mark text as dirty if it has changed
+            this.resX = resX;
+            this.resY = resY;
+            this.textAlign = align;
+            this.flipDirection = flipDir;
+            this.fontSize = fontSize;
+            this.fontLength = fontLength;
+            this.fontGap = fontGap;
+            this.overlayId = overlayId;
         }
     }
 
+    public void setText(int componentId, String text, Identifier id, Vec3d vec3dmin, Vec3d vec3dmax,
+                        InputStream json, int resX, int resY, Font.TextAlign align,
+                        boolean flipDir, int fontSize, int fontLength, int fontGap,
+                        Identifier overlayId) {
+        textFields.put(componentId, new TextField(text, id, vec3dmin, vec3dmax, json, resX, resY, align, flipDir, fontSize, fontLength, fontGap, overlayId));
+    }
+
     public void textRender(RenderState state) {
-        if (id != null) {
-            if (!GLContext.getCapabilities().OpenGL11) {
-                return;
-            }
+        RenderState renderText = state.clone();
+        if (!GLContext.getCapabilities().OpenGL11) {
+            return;
+        }
+        for (Map.Entry<Integer, TextField> entry : textFields.entrySet()) {
+            TextField field = entry.getValue();
 
             if (!fontInitialized) {
-                textureId = new MinecraftTexture(id).getId();
-                myFont = new Font(textureId, 625, 19, 1, json);
+                if (field.overlayId != null) {
+                    overlayTextureId = new MinecraftTexture(field.overlayId).getId();
+                }
+                textureId = new MinecraftTexture(field.id).getId();
+                myFont = new Font(textureId, field.fontLength, field.fontSize, field.fontGap, field.json);
                 fontInitialized = true;
             }
 
-            // Only redraw if the text has changed (is dirty)
-            if (dirty && myFont != null) {
-                draw = new DirectDraw();  // Clear any existing vertices before drawing new ones
-                myFont.drawText(draw, text, vec3d, state);
-                dirty = false;  // Reset dirty flag once the text is rendered
+            draw = new DirectDraw();
+            myFont.drawText(draw, field.text, field.vec3dmin, field.vec3dmax, renderText, field.resX, field.resY, field.flipDirection, field.textAlign);
+
+            GL11.glEnable(GL11.GL_BLEND);
+            // TODO? Re-add Overlay if possible
+            if (field.overlayId != null) {
+                GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, overlayTextureId);
             }
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
-            draw.draw(state);
+            draw.draw(renderText);
+            GL11.glDisable(GL11.GL_BLEND);
         }
     }
 }

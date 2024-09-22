@@ -56,10 +56,71 @@ public class Font {
         return glyphs.getOrDefault(c, glyphs.get(' '));
     }
 
-    public void drawText(DirectDraw draw, String text, Vec3d pos, RenderState state) {
-        double currentX = pos.x;
-        double currentY = pos.y;
-        double currentZ = pos.z;
+    public enum TextAlign {
+        LEFT, CENTER, RIGHT
+    }
+
+    public void drawText(DirectDraw draw, String text, Vec3d bottomLeft, Vec3d topRight, RenderState state, int resolutionWidth, int resolutionHeight, boolean flipDirection, TextAlign alignment) {
+        Vec3d directionX = new Vec3d(topRight.x - bottomLeft.x, 0, topRight.z - bottomLeft.z).normalize();  // X-Z direction vector
+        Vec3d directionY = new Vec3d(0, topRight.y - bottomLeft.y, 0).normalize();  // Y direction for height
+
+        boolean isZAligned = Math.abs(directionX.x) < 1e-6;
+
+        double boxHeight = topRight.y - bottomLeft.y;
+        double boxWidth = directionX.length();
+
+        double scaleX = boxWidth / resolutionWidth;
+        double scaleY = boxHeight / resolutionHeight;
+
+        double totalTextWidth = 0;
+        for (char c : text.toCharArray()) {
+            Glyph glyph = getGlyphForChar(c);
+            if (glyph != null) {
+                totalTextWidth += glyph.width * scaleX;
+            }
+        }
+
+        double totalTextHeight = glyphHeight * scaleY;
+
+        double yOffset;
+        if (flipDirection) {
+            yOffset = -(boxHeight / 2 + totalTextHeight / 2);
+        } else {
+            yOffset = boxHeight / 2 - totalTextHeight / 2;
+        }
+
+        Vec3d startPos;
+        if (flipDirection) {
+            directionX = directionX.scale(-1);
+
+            switch (alignment) {
+                case RIGHT:
+                    startPos = bottomLeft.add(directionX.scale(-totalTextWidth)).add(0, -yOffset, 0);
+                    break;
+                case CENTER:
+                    startPos = topRight.subtract(directionX.scale((boxWidth + totalTextWidth) / 4)).add(0, yOffset, 0);
+                    break;
+                case LEFT:
+                default:
+                    startPos = topRight.add(0, yOffset, 0);
+                    break;
+            }
+        } else {
+            switch (alignment) {
+                case RIGHT:
+                    startPos = bottomLeft.add(directionX.scale(boxWidth - totalTextWidth)).add(0, yOffset, 0);
+                    break;
+                case CENTER:
+                    startPos = bottomLeft.add(directionX.scale((boxWidth - totalTextWidth) / 2)).add(0, yOffset, 0);
+                    break;
+                case LEFT:
+                default:
+                    startPos = bottomLeft.add(0, yOffset, 0);
+                    break;
+            }
+        }
+
+        Vec3d currentPos = startPos;
 
         for (char c : text.toCharArray()) {
             Glyph glyph = getGlyphForChar(c);
@@ -71,15 +132,26 @@ public class Font {
             double v1 = (double) (glyph.y + glyphHeight) / textureHeight;
 
             v = 1.0 - v;
-            v1 = 1.0 -v1;
+            v1 = 1.0 - v1;
 
-            draw.vertex(currentX, currentY, currentZ).uv(u, v);  // Bottom-left
-            draw.vertex(currentX + glyph.width, currentY, currentZ).uv(u1, v);  // Bottom-right
-            draw.vertex(currentX + glyph.width, currentY + glyphHeight, currentZ).uv(u1, v1);  // Top-right
-            draw.vertex(currentX, currentY + glyphHeight, currentZ).uv(u, v1);  // Top-left
+            double scaledGlyphWidth = glyph.width * scaleX;
+            double scaledGlyphHeight = glyphHeight * scaleY;
 
-            currentX += glyph.width + gap;  // Move by glyph width + gap
+            Vec3d bottomLeftPos = currentPos;
+            Vec3d bottomRightPos = currentPos.add(directionX.scale(scaledGlyphWidth));
+            Vec3d topRightPos = bottomRightPos.add(0, scaledGlyphHeight, 0);
+            Vec3d topLeftPos = bottomLeftPos.add(0, scaledGlyphHeight, 0);
+
+            draw.vertex(bottomLeftPos.x, bottomLeftPos.y, bottomLeftPos.z).uv(u, v);
+            draw.vertex(bottomRightPos.x, bottomRightPos.y, bottomRightPos.z).uv(u1, v);
+            draw.vertex(topRightPos.x, topRightPos.y, topRightPos.z).uv(u1, v1);
+            draw.vertex(topLeftPos.x, topLeftPos.y, topLeftPos.z).uv(u, v1);
+
+            if (isZAligned) {
+                currentPos = currentPos.add(directionX.scale(scaledGlyphWidth + gap * scaleX));
+            } else {
+                currentPos = currentPos.add(directionX.scale(scaledGlyphWidth + gap * scaleX));
+            }
         }
     }
-
 }
