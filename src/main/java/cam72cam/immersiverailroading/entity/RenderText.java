@@ -18,8 +18,7 @@ public class RenderText {
     private boolean fontInitialized;
     private DirectDraw draw;
     private int textureId;
-    private int overlayTextureId;
-    private Map<Integer, TextField> textFields = new HashMap<>();
+    private Map<String, TextField> textFields = new HashMap<>();
 
 
     public RenderText() {
@@ -32,6 +31,7 @@ public class RenderText {
     }
 
     private class TextField {
+        Vec3d normal;
         String text;
         Identifier id;
         Vec3d vec3dmin;
@@ -45,11 +45,12 @@ public class RenderText {
         int fontLength;
         int fontGap;
         Identifier overlayId;
+        String hexCode;
 
         TextField(String text, Identifier id, Vec3d vec3dmin, Vec3d vec3dmax,
                   InputStream json, int resX, int resY, Font.TextAlign align,
                   boolean flipDir, int fontSize, int fontLength, int fontGap,
-                  Identifier overlayId) {
+                  Identifier overlayId, Vec3d normal, String hexCode) {
             this.text = text;
             this.id = id;
             this.vec3dmin = vec3dmin;
@@ -63,14 +64,16 @@ public class RenderText {
             this.fontLength = fontLength;
             this.fontGap = fontGap;
             this.overlayId = overlayId;
+            this.normal = normal;
+            this.hexCode = hexCode;
         }
     }
 
-    public void setText(int componentId, String text, Identifier id, Vec3d vec3dmin, Vec3d vec3dmax,
+    public void setText(String componentId, String text, Identifier id, Vec3d vec3dmin, Vec3d vec3dmax,
                         InputStream json, int resX, int resY, Font.TextAlign align,
                         boolean flipDir, int fontSize, int fontLength, int fontGap,
-                        Identifier overlayId) {
-        textFields.put(componentId, new TextField(text, id, vec3dmin, vec3dmax, json, resX, resY, align, flipDir, fontSize, fontLength, fontGap, overlayId));
+                        Identifier overlayId, Vec3d normal, String hexCode) {
+        textFields.put(componentId, new TextField(text, id, vec3dmin, vec3dmax, json, resX, resY, align, flipDir, fontSize, fontLength, fontGap, overlayId, normal, hexCode));
     }
 
     public void textRender(RenderState state) {
@@ -78,30 +81,20 @@ public class RenderText {
         if (!GLContext.getCapabilities().OpenGL11) {
             return;
         }
-        for (Map.Entry<Integer, TextField> entry : textFields.entrySet()) {
+        for (Map.Entry<String, TextField> entry : textFields.entrySet()) {
             TextField field = entry.getValue();
 
             if (!fontInitialized) {
-                if (field.overlayId != null) {
-                    overlayTextureId = new MinecraftTexture(field.overlayId).getId();
-                }
                 textureId = new MinecraftTexture(field.id).getId();
                 myFont = new Font(textureId, field.fontLength, field.fontSize, field.fontGap, field.json);
                 fontInitialized = true;
             }
 
             draw = new DirectDraw();
-            myFont.drawText(draw, field.text, field.vec3dmin, field.vec3dmax, renderText, field.resX, field.resY, field.flipDirection, field.textAlign);
+            myFont.drawText(draw, field.text, field.vec3dmin, field.vec3dmax, renderText, field.resX, field.resY, field.textAlign, field.normal, field.flipDirection, field.hexCode);
 
-            GL11.glEnable(GL11.GL_BLEND);
-            // TODO? Re-add Overlay if possible
-            if (field.overlayId != null) {
-                GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                GL11.glBindTexture(GL11.GL_TEXTURE_2D, overlayTextureId);
-            }
             GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureId);
             draw.draw(renderText);
-            GL11.glDisable(GL11.GL_BLEND);
         }
     }
 }

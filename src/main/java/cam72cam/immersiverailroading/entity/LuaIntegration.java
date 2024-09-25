@@ -2,11 +2,11 @@ package cam72cam.immersiverailroading.entity;
 
 import cam72cam.immersiverailroading.gui.overlay.ReadoutsEventHandler;
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
-import cam72cam.immersiverailroading.library.ModelComponentType;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.mod.ModCore;
 import cam72cam.mod.math.Vec3d;
+import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.resource.Identifier;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -16,9 +16,7 @@ import org.luaj.vm2.*;
 import org.luaj.vm2.lib.jse.JsePlatform;
 import org.luaj.vm2.LuaValue;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.luaj.vm2.LuaFunction;
@@ -40,6 +38,8 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     private Vec3d vec3dmin;
     private Vec3d vec3dmax;
     private Font.TextAlign align;
+    private final Map<String, Position> normals= new HashMap<>();
+    private boolean isNormalsLoaded = false;
 
     @Override
     public void onTick() {
@@ -359,7 +359,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         }
 
         Identifier font = textField.get("font") != null ? textField.get("font").asIdentifier() : null;
-        int textFieldId = textField.get("ID") != null ? textField.get("ID").asInteger() : 1;
+        String textFieldId = textField.get("ID") != null ? textField.get("ID").asString() : null;
         int resX = textField.get("resX") != null ? textField.get("resX").asInteger() : 0;
         int resY = textField.get("resY") != null ? textField.get("resY").asInteger() : 0;
         boolean flipped = textField.get("flipped") != null && textField.get("flipped").asBoolean();
@@ -367,6 +367,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         int fontLength = textField.get("fontLength") != null ? textField.get("fontLength").asInteger() : 512;
         int fontGap = textField.get("fontGap") != null ? textField.get("fontGap").asInteger() : 1;
         Identifier overlay = textField.get("overlay") != null ? textField.get("overlay").asIdentifier() : null;
+        String hexCode = textField.get("color") != null ? textField.get("color").asString() : null;
 
         if (textField.get("align") != null) {
             String alignStr = textField.get("align").asString();
@@ -382,31 +383,127 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         }
 
         String text = textField.get("text") != null ? textField.get("text").asString() : "";
-
         try {
-            setText(font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, overlay);
+            if (LoadNormals()) return;
+        } catch (IOException e) {
+            ModCore.error("Couldn't get normals for: ", getDefinition().modelLoc);
+        }
+        try {
+            setText(font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, overlay, hexCode);
         } catch (IOException e) {
             ModCore.error(String.format("Couldn't load Font %s", font != null ? font.toString() : "null"));
         }
     }
 
+    class Position {
+        public Vec3d normal;
+        public List<Vec3d> vertices;
 
-    public void setText(Identifier id, String newText, int resX, int resY, Font.TextAlign align, boolean flipped, int componentId, int fontSize, int fontX, int fontGap, Identifier overlay) throws IOException {
+        public Position (Vec3d normal, List<Vec3d> vertices) {
+            this.normal = normal;
+            this.vertices = vertices;
+        }
+    }
+
+    // This is bad. But I don't want to change UMC
+    public boolean LoadNormals() throws IOException {
+        if (!isNormalsLoaded) {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(getDefinition().modelLoc.getResourceStream()));
+            String line;
+            String object = null;
+            boolean withingTextFieldObject = false;
+            float index = 0;
+            List<Vec3d> currentVertices = new ArrayList<>();
+            Map<String, List<Vec3d>> objectVertices = new HashMap<>();
+
+            try {
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("o ")) {
+
+                        if (object != null) {
+                            objectVertices.put(object, new ArrayList<>(currentVertices));
+                        }
+
+                        withingTextFieldObject = line.contains("TEXTFIELD_");
+                        if (withingTextFieldObject) {
+                            object = line.replace("o ", ""); // This is not great either
+                            currentVertices.clear();
+                        }
+                    }
+
+                    if (withingTextFieldObject && line.startsWith("v ")) {
+                        String[] tokens = line.split("\\s");
+                        float x = Float.parseFloat(tokens[1]);
+                        float y = Float.parseFloat(tokens[2]);
+                        float z = Float.parseFloat(tokens[3]);
+
+                        Vec3d point = new Vec3d(x, y, z);
+                        currentVertices.add(point);
+                    }
+
+                    if (withingTextFieldObject && line.startsWith("vn ")) {
+                        String[] tokens = line.split("\\s");
+                        float x = Float.parseFloat(tokens[1]);
+                        float y = Float.parseFloat(tokens[2]);
+                        float z = Float.parseFloat(tokens[3]);
+
+                        Vec3d normalVector = new Vec3d(x, y, z);
+                        normals.put(object, new Position(normalVector,new ArrayList<>(currentVertices)));
+                    }
+
+                    if (object != null) {
+                        objectVertices.put(object, new ArrayList<>(currentVertices));
+                    }
+                }
+            } catch (IOException e) {
+                ModCore.info("An error occured while loading Normals: ", e);
+            }
+            isNormalsLoaded = true;
+        }
+        return false;
+    }
+
+    private Vec3d getVec3dmin (List<Vec3d> vectors) {
+        return vectors.stream().min(Comparator.comparingDouble(Vec3d::length)).orElse(null);
+    }
+
+    private Vec3d getVec3dmax (List<Vec3d> vectors) {
+        return vectors.stream().max(Comparator.comparingDouble(Vec3d::length)).orElse(null);
+    }
+
+
+    public void setText(Identifier id, String newText, int resX, int resY, Font.TextAlign align, boolean flipped, String componentId, int fontSize, int fontX, int fontGap, Identifier overlay, String hexCode) throws IOException {
         if (!newText.equals(oldText)) {
             List<ModelComponent> components = getDefinition().getModel().allComponents;
-            for (ModelComponent component : components) {
-                if (component.type == ModelComponentType.TEXTFIELD_X && component.id == componentId) {
-                    vec3dmin = component.min;
-                    vec3dmax = component.max;
+            LinkedHashMap<String, OBJGroup> group = this.getDefinition().getModel().groups;
+            for (Map.Entry<String, OBJGroup> entry : group.entrySet()) {
+                if (entry.getKey().contains(String.format("TEXTFIELD_%s", componentId))) {
+                    Position getPosition = normals.get(entry.getKey());
+                    vec3dmin = getVec3dmin(getPosition.vertices);
+                    vec3dmax = getVec3dmax(getPosition.vertices);
+                    Vec3d vec3dNormal = getPosition.normal;
                     RenderText renderText = RenderText.getInstance(defID);
                     File file = new File(id.getPath());
                     String jsonPath = file.getName();
                     Identifier jsonId = id.getRelative(jsonPath.replaceAll(".png", ".json"));
                     InputStream json = jsonId.getResourceStream();
-                    renderText.setText(componentId, newText, id, vec3dmin, vec3dmax, json, resX, resY, align, flipped, fontSize, fontX, fontGap, overlay);
+                    renderText.setText(componentId, newText, id, vec3dmin, vec3dmax, json, resX, resY, align, flipped, fontSize, fontX, fontGap, overlay, vec3dNormal, hexCode);
                     oldText = newText;
                 }
             }
+//            for (ModelComponent component : components) {
+//                if (component.type == ModelComponentType.TEXTFIELD_X && component.id == componentId) {
+//                    vec3dmin = component.min;
+//                    vec3dmax = component.max;
+//                    Vec3d vec3dNormal = getDefinition().getModel().groups.get(component.key).normal;
+//                    RenderText renderText = RenderText.getInstance(defID);
+//                    File file = new File(id.getPath());
+//                    String jsonPath = file.getName();
+//                    Identifier jsonId = id.getRelative(jsonPath.replaceAll(".png", ".json"));
+//                    InputStream json = jsonId.getResourceStream();
+//                    renderText.setText(componentId, newText, id, vec3dmin, vec3dmax, json, resX, resY, align, flipped, fontSize, fontX, fontGap, overlay, vec3dNormal);
+//                    oldText = newText;
+//                }
         }
     }
 

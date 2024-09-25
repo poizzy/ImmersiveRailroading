@@ -219,7 +219,6 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
         seats.addAll(Seat.get(provider, rocking));
 
         addHeadlight(def, provider, ModelComponentType.HEADLIGHT_X);
-        addControl(provider, ModelComponentType.TEXTFIELD_X);
     }
 
     protected void parseComponents(ComponentProvider provider, DEFINITION def) {
