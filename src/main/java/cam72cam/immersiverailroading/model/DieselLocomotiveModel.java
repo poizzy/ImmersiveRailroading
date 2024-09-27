@@ -15,13 +15,12 @@ public class DieselLocomotiveModel extends LocomotiveModel<LocomotiveDiesel, Loc
     private DieselExhaust exhaust;
     private Horn horn;
 //    private final PartSound idle;
-    private final SetSound setSound;
 
     private Map<UUID, Float> runningFade = new HashMap<>();
 
     public DieselLocomotiveModel(LocomotiveDieselDefinition def) throws Exception {
         super(def);
-        setSound = SetSound.getInstance(def.defID);
+        SetSound setSound = SetSound.getInstance(def.defID);
         setSound.defaultIdle(def);
         setSound.getIdle();
         setSound.defaultRunning(def);
@@ -68,6 +67,7 @@ public class DieselLocomotiveModel extends LocomotiveModel<LocomotiveDiesel, Loc
     @Override
     protected void effects(LocomotiveDiesel stock) {
         super.effects(stock);
+        SetSound setSound = SetSound.getInstance(String.valueOf(stock.getUUID()), stock.getDefinitionID());
         exhaust.effects(stock);
         horn.effects(stock,
                 stock.getHornTime() > 0 && (stock.isRunning() || stock.getDefinition().isCabCar())
@@ -105,6 +105,7 @@ public class DieselLocomotiveModel extends LocomotiveModel<LocomotiveDiesel, Loc
     protected void removed(LocomotiveDiesel stock) {
         super.removed(stock);
         horn.removed(stock);
+        SetSound setSound = SetSound.getInstance(String.valueOf(stock.getUUID()), stock.getDefinitionID());
         if (setSound.getIdle() != null) {
             setSound.getIdle().removed(stock);
         }

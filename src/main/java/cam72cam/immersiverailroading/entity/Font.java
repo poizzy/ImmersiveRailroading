@@ -38,9 +38,9 @@ public class Font {
     private final int gap;
     private final Map<Character, Glyph> glyphs = new HashMap<>();
 
-    public Font(int textureId, int textureWidth, int textureHeight, int gap, InputStream jsonInputStream) {
+    public Font(int textureId, int textureWidth, int glyphHeight, int gap, InputStream jsonInputStream, int textureHeight) {
         this.textureId = textureId;
-        this.glyphHeight = textureHeight;
+        this.glyphHeight = glyphHeight;
         this.textureHeight = textureHeight;
         this.textureWidth = textureWidth;
         this.gap = gap;
@@ -184,10 +184,10 @@ public class Font {
             Vec3d topRightPos = bottomRightPos.add(directionY.scale(scaledGlyphHeight));
             Vec3d topLeftPos = bottomLeftPos.add(directionY.scale(scaledGlyphHeight));
 
-            draw.vertex(bottomLeftPos.x, bottomLeftPos.y, bottomLeftPos.z).uv(u, v).color(rFloat, gFloat, bFloat, alpha);
-            draw.vertex(bottomRightPos.x, bottomRightPos.y, bottomRightPos.z).uv(u1, v).color(rFloat, gFloat, bFloat, alpha);
-            draw.vertex(topRightPos.x, topRightPos.y, topRightPos.z).uv(u1, v1).color(rFloat, gFloat, bFloat, alpha);
-            draw.vertex(topLeftPos.x, topLeftPos.y, topLeftPos.z).uv(u, v1).color(rFloat, gFloat, bFloat, alpha);
+            draw.vertex(bottomLeftPos.x, bottomLeftPos.y, bottomLeftPos.z).uv(u, v);
+            draw.vertex(bottomRightPos.x, bottomRightPos.y, bottomRightPos.z).uv(u1, v);
+            draw.vertex(topRightPos.x, topRightPos.y, topRightPos.z).uv(u1, v1);
+            draw.vertex(topLeftPos.x, topLeftPos.y, topLeftPos.z).uv(u, v1);
 
             // Move to the next glyph position along the X axis
             currentPos = currentPos.add(directionX.scale(scaledGlyphWidth + gap * scaleX));

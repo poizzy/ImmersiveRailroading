@@ -2,6 +2,7 @@ package cam72cam.immersiverailroading.registry;
 
 import cam72cam.immersiverailroading.Config;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
+import cam72cam.immersiverailroading.entity.EntityMoveableRollingStock;
 import cam72cam.immersiverailroading.entity.LocomotiveDiesel;
 import cam72cam.immersiverailroading.entity.ObjectValue;
 import cam72cam.immersiverailroading.model.SetSound;
@@ -111,25 +112,12 @@ public class LocomotiveDieselDefinition extends LocomotiveDefinition {
     }
 
     @Override
-    public void setSounds(List<Map<String, DataBlock.Value>> newSound) {
+    public void setSounds(List<Map<String, DataBlock.Value>> newSound, EntityMoveableRollingStock stock) {
         for (Map<String, DataBlock.Value> soundDef : newSound) {
             ObjectValue objectValue = new ObjectValue(soundsIdle);
             ObjectValue objectValueRunning = new ObjectValue(soundsRunning);
-            SetSound setSound = SetSound.getInstance(defID);
-            this.idle = SoundDefinition.getOrDefault(objectValue, soundDef);
-            if (soundDef.containsKey(soundsIdle)) {
-                if (!this.idle.equals(oldValue)) {
-                    setSound.newIdle(this, this.idle);
-                    oldValue = this.idle;
-                }
-            }
-            if (soundDef.containsKey(soundsRunning)) {
-                this.running = SoundDefinition.getOrDefault(objectValueRunning, soundDef);
-                if (!this.running.equals(oldRunning)) {
-                    setSound.newRunning(this, this.running);
-                    oldRunning = this.running;
-                }
-            }
+            SetSound setSound = SetSound.getInstance(String.valueOf(stock.getUUID()), defID);
+            setSound.newSound(soundDef, objectValue, setSound, objectValueRunning, this);
         }
     }
 }

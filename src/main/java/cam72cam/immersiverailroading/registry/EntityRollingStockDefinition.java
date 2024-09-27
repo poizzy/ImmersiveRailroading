@@ -964,7 +964,7 @@ public abstract class EntityRollingStockDefinition {
     public void setMaxSpeed(double val) {
     }
 
-    public void setSounds(List<Map<String, DataBlock.Value>> newSound) {
+    public void setSounds(List<Map<String, DataBlock.Value>> newSound, EntityMoveableRollingStock stock) {
     }
 
 }

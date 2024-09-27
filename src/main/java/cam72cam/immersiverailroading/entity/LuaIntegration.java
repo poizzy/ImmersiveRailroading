@@ -25,13 +25,13 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
 
     private Globals globals;
     private LuaValue tickEvent;
-    private boolean isLuaLoaded = false;
+    public boolean isLuaLoaded = false;
     private boolean isSleeping;
     private long lastExecutionTime;
     private boolean wakeLuaScriptCalled = false;
     LuaTable luaFunction = new LuaTable();
-    private Map<String, Float> readoutsMap = new HashMap<>();
-    private Map<String, InputStream> moduleMap = new HashMap<>();
+    private final Map<String, Float> readoutsMap = new HashMap<>();
+    private final Map<String, InputStream> moduleMap = new HashMap<>();
     private String oldControl = null;
     private float oldValue;
     private String oldText;
@@ -76,6 +76,8 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                         if (LoadLuaFile()) return;
                         callFuction();
                         getReadout();
+                        List<EntityCoupleableRollingStock> info = getTrain(false);
+                        ModCore.info(info.toArray().toString());
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -276,6 +278,45 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 return LuaValue.NIL;
             }
         });
+        luaFunction.set("getTag", new LuaFunction() {
+            @Override
+            public LuaValue call() {
+                return LuaValue.valueOf(getTag());
+            }
+        });
+        luaFunction.set("getTrain", new LuaFunction() {
+            @Override
+            public LuaValue call() {
+                LuaValue result = getTrainConsist();
+                return result;
+            }
+        });
+        luaFunction.set("setIndividualCG", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue luaValue) {
+                setIndividualCG(luaValue);
+                return LuaValue.NIL;
+            }
+        });
+        luaFunction.set("getIndividualCG", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue luaValue) {
+                return getIndividualCG(luaValue);
+            }
+        });
+        luaFunction.set("engineStartStop", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue luaValue) {
+                setTurnedOnLua(luaValue.toboolean());
+                return LuaValue.NIL;
+            }
+        });
+        luaFunction.set("isTurnedOn", new LuaFunction() {
+            @Override
+            public LuaValue call() {
+                return LuaValue.valueOf(getEngineState());
+            }
+        });
     }
 
     public float getControlGroup(String control) {
@@ -363,11 +404,13 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         int resX = textField.get("resX") != null ? textField.get("resX").asInteger() : 0;
         int resY = textField.get("resY") != null ? textField.get("resY").asInteger() : 0;
         boolean flipped = textField.get("flipped") != null && textField.get("flipped").asBoolean();
-        int fontSize = textField.get("fontSize") != null ? textField.get("fontSize").asInteger() : 12;
-        int fontLength = textField.get("fontLength") != null ? textField.get("fontLength").asInteger() : 512;
+        int textureHeight = textField.get("textureHeight") != null ? textField.get("textureHeight").asInteger() : 12;
+        int fontSize = textField.get("fontSize") != null ? textField.get("fontSize").asInteger() : textureHeight;
+        int fontLength = textField.get("textureWidth") != null ? textField.get("textureWidth").asInteger() : 512;
         int fontGap = textField.get("fontGap") != null ? textField.get("fontGap").asInteger() : 1;
         Identifier overlay = textField.get("overlay") != null ? textField.get("overlay").asIdentifier() : null;
         String hexCode = textField.get("color") != null ? textField.get("color").asString() : null;
+        boolean fullbright = textField.get("fullbright") != null ? textField.get("fullbright").asBoolean() : false;
 
         if (textField.get("align") != null) {
             String alignStr = textField.get("align").asString();
@@ -389,7 +432,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             ModCore.error("Couldn't get normals for: ", getDefinition().modelLoc);
         }
         try {
-            setText(font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, overlay, hexCode);
+            setText(font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, overlay, hexCode, fullbright, textureHeight);
         } catch (IOException e) {
             ModCore.error(String.format("Couldn't load Font %s", font != null ? font.toString() : "null"));
         }
@@ -472,7 +515,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     }
 
 
-    public void setText(Identifier id, String newText, int resX, int resY, Font.TextAlign align, boolean flipped, String componentId, int fontSize, int fontX, int fontGap, Identifier overlay, String hexCode) throws IOException {
+    public void setText(Identifier id, String newText, int resX, int resY, Font.TextAlign align, boolean flipped, String componentId, int fontSize, int fontX, int fontGap, Identifier overlay, String hexCode, boolean fullbright, int textureHeight) throws IOException {
         if (!newText.equals(oldText)) {
             List<ModelComponent> components = getDefinition().getModel().allComponents;
             LinkedHashMap<String, OBJGroup> group = this.getDefinition().getModel().groups;
@@ -482,35 +525,98 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                     vec3dmin = getVec3dmin(getPosition.vertices);
                     vec3dmax = getVec3dmax(getPosition.vertices);
                     Vec3d vec3dNormal = getPosition.normal;
-                    RenderText renderText = RenderText.getInstance(defID);
+                    new RenderText();
+                    RenderText renderText = RenderText.getInstance(String.valueOf(getUUID()));
                     File file = new File(id.getPath());
                     String jsonPath = file.getName();
                     Identifier jsonId = id.getRelative(jsonPath.replaceAll(".png", ".json"));
                     InputStream json = jsonId.getResourceStream();
-                    renderText.setText(componentId, newText, id, vec3dmin, vec3dmax, json, resX, resY, align, flipped, fontSize, fontX, fontGap, overlay, vec3dNormal, hexCode);
+                    renderText.setText(componentId, newText, id, vec3dmin, vec3dmax, json, resX, resY, align, flipped, fontSize, fontX, fontGap, overlay, vec3dNormal, hexCode, fullbright, textureHeight);
                     oldText = newText;
                 }
             }
-//            for (ModelComponent component : components) {
-//                if (component.type == ModelComponentType.TEXTFIELD_X && component.id == componentId) {
-//                    vec3dmin = component.min;
-//                    vec3dmax = component.max;
-//                    Vec3d vec3dNormal = getDefinition().getModel().groups.get(component.key).normal;
-//                    RenderText renderText = RenderText.getInstance(defID);
-//                    File file = new File(id.getPath());
-//                    String jsonPath = file.getName();
-//                    Identifier jsonId = id.getRelative(jsonPath.replaceAll(".png", ".json"));
-//                    InputStream json = jsonId.getResourceStream();
-//                    renderText.setText(componentId, newText, id, vec3dmin, vec3dmax, json, resX, resY, align, flipped, fontSize, fontX, fontGap, overlay, vec3dNormal);
-//                    oldText = newText;
-//                }
         }
     }
 
+    public LuaValue getTrainConsist() {
+        List<List<EntityCoupleableRollingStock>> unit = getUnit(false);
+        LuaValue table = LuaValue.tableOf();
+
+        for (int i = 0; i < unit.size(); i++) {
+            List<EntityCoupleableRollingStock> oneUnit = unit.get(i);
+            LuaValue luaUnit = LuaValue.tableOf();
+
+            for (int j = 0; j < oneUnit.size(); j++) {
+                EntityCoupleableRollingStock obj = oneUnit.get(j);
+
+                LuaValue objTable = LuaValue.tableOf();
+
+                objTable.set("UUID", LuaValue.valueOf(obj.getUUID().toString()));
+
+                objTable.set("defID", obj.defID != null ? LuaValue.valueOf(obj.defID) : LuaValue.NIL);
+
+                objTable.set("coupledFront", obj.coupledFront != null ? LuaValue.valueOf(obj.coupledFront.toString()) : LuaValue.valueOf(""));
+
+                objTable.set("coupledBack", obj.coupledBack != null ? LuaValue.valueOf(obj.coupledBack.toString()) : LuaValue.valueOf(""));
+
+                objTable.set("distanceTraveled", obj.distanceTraveled != 0 ? LuaValue.valueOf(obj.distanceTraveled) : LuaValue.valueOf(0));
+                LuaTable controlPosition = LuaValue.tableOf();
+
+                obj.controlPositions.forEach((key, pair) -> {
+                    LuaValue booleanValue = LuaValue.valueOf(pair.getLeft());
+                    LuaValue floatValue = LuaValue.valueOf(pair.getRight());
+
+                    LuaValue pairTable = LuaValue.tableOf(new LuaValue[]{ booleanValue, floatValue });
+
+                    controlPosition.set(LuaValue.valueOf(key), pairTable);
+                });
+
+                objTable.set("controlPositions", controlPosition);
+                objTable.set("tag", obj.tag);
+                luaUnit.set(j + 1, objTable);
+            }
+            table.set(i + 1, luaUnit);
+        }
+        return table;
+    }
+
+    private String getTag() {
+        return this.tag;
+    }
 
     public void callFuction() {
         tickEvent.call();
     }
+
+    public void setIndividualCG(LuaValue stockUnit) {
+        List<List<EntityCoupleableRollingStock>> allUnit = getUnit(false);
+        int unit = stockUnit.checktable().get(1).toint();
+        int stock = stockUnit.checktable().get(2).toint();
+        String control = stockUnit.checktable().get(3).tojstring();
+        float value = stockUnit.checktable().get(4).tofloat();
+        List<EntityCoupleableRollingStock> individualUnit = allUnit.get(unit - 1);
+        if (allUnit.size() <= unit && individualUnit.size() <= stock) {
+            EntityCoupleableRollingStock individualStock = individualUnit.get(stock - 1);
+            individualStock.controlPositions.put(control, Pair.of(false, value));
+        }
+    }
+
+    public LuaValue getIndividualCG(LuaValue stockUnit) {
+        List<List<EntityCoupleableRollingStock>> allUnit = getUnit(false);
+        int unit = stockUnit.checktable().get(1).toint();
+        int stock = stockUnit.checktable().get(2).toint();
+        String control = stockUnit.checktable().get(3).tojstring();
+
+        List<EntityCoupleableRollingStock> individualUnit = allUnit.get(unit - 1);
+        if (allUnit.size() <= unit && individualUnit.size() <= stock) {
+            EntityCoupleableRollingStock individualStock = individualUnit.get(stock - 1);
+            Pair<Boolean, Float> value = individualStock.controlPositions.containsKey(control) ? individualStock.controlPositions.get(control) : Pair.of(false, 0f);
+            return LuaValue.valueOf(value.getRight());
+        } else {
+            return LuaValue.valueOf(0);
+        }
+    }
+
 
     public void setNewSound(LuaValue result) {
         List<Map<String, DataBlock.Value>> newSound = new ArrayList<>();
@@ -529,7 +635,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 }
                 newSound.add(soundDefinition);
             }
-            getDefinition().setSounds(newSound);
+            getDefinition().setSounds(newSound, this);
         }
     }
 
@@ -584,5 +690,12 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     public void wakeLuaScript() {
         super.wakeLuaScript();
         wakeLuaScriptCalled = true;
+    }
+
+    public void setTurnedOnLua(boolean b) {
+    }
+
+    public boolean getEngineState() {
+        return false;
     }
 }

@@ -285,7 +285,8 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
     private int lod_level = LOD_LARGE;
     private int lod_tick = 0;
     public final void renderEntity(EntityMoveableRollingStock stock, RenderState state, float partialTicks) {
-        RenderText renderText = RenderText.getInstance(def.defID);
+        new RenderText();
+        RenderText renderText = RenderText.getInstance(String.valueOf(stock.getUUID()));
         renderText.textRender(state);
         List<ModelComponentType> available = stock.isBuilt() ? null : stock.getItemComponents()
                 .stream().flatMap(x -> x.render.stream())
