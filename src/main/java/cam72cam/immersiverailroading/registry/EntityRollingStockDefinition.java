@@ -3,17 +3,15 @@ package cam72cam.immersiverailroading.registry;
 import cam72cam.immersiverailroading.Config;
 import cam72cam.immersiverailroading.ConfigSound;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
-import cam72cam.immersiverailroading.entity.EntityBuildableRollingStock;
+import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
-import cam72cam.immersiverailroading.entity.EntityMoveableRollingStock;
-import cam72cam.immersiverailroading.entity.EntityRollingStock;
-import cam72cam.immersiverailroading.entity.ObjectValue;
 import cam72cam.immersiverailroading.util.*;
 import cam72cam.immersiverailroading.gui.overlay.GuiBuilder;
 import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.library.*;
 import cam72cam.immersiverailroading.model.StockModel;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
+import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.EntityRegistry;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.OBJGroup;
@@ -30,8 +28,10 @@ import cam72cam.mod.world.World;
 
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -107,6 +107,8 @@ public abstract class EntityRollingStockDefinition {
     public List<AnimationDefinition> animations;
     public Map<String, Float> cgDefaults;
     public Map<String, DataBlock> widgetConfig;
+
+    public final Map<String, Position> normals = new HashMap<>();
 
     public static class SoundDefinition {
         public final Identifier start;
@@ -611,6 +613,7 @@ public abstract class EntityRollingStockDefinition {
         if (widgets != null) {
             widgetConfig = widgets.getBlockMap();
         }
+        LoadVertecies();
     }
 
     public List<ModelComponent> getComponents(ModelComponentType name) {
@@ -967,4 +970,67 @@ public abstract class EntityRollingStockDefinition {
     public void setSounds(List<Map<String, DataBlock.Value>> newSound, EntityMoveableRollingStock stock) {
     }
 
+    public static class Position {
+        public final Vec3d normal;
+        public final List<Vec3d> vertices;
+
+        public Position (Vec3d normal, List<Vec3d> vertices) {
+            this.normal = normal;
+            this.vertices = vertices;
+        }
+    }
+
+    // This is bad. But I don't want to change UMC
+    public void LoadVertecies() throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(this.modelLoc.getResourceStream()));
+        String line;
+        String object = null;
+        boolean withingTextFieldObject = false;
+        float index = 0;
+        List<Vec3d> currentVertices = new ArrayList<>();
+        Map<String, List<Vec3d>> objectVertices = new HashMap<>();
+
+        try {
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("o ")) {
+
+                    if (object != null) {
+                        objectVertices.put(object, new ArrayList<>(currentVertices));
+                    }
+
+                    withingTextFieldObject = line.contains("TEXTFIELD_");
+                    if (withingTextFieldObject) {
+                        object = line.replace("o ", ""); // This is not great either
+                        currentVertices.clear();
+                    }
+                }
+
+                if (withingTextFieldObject && line.startsWith("v ")) {
+                    String[] tokens = line.split("\\s");
+                    float x = Float.parseFloat(tokens[1]);
+                    float y = Float.parseFloat(tokens[2]);
+                    float z = Float.parseFloat(tokens[3]);
+
+                    Vec3d point = new Vec3d(x, y, z);
+                    currentVertices.add(point);
+                }
+
+                if (withingTextFieldObject && line.startsWith("vn ")) {
+                    String[] tokens = line.split("\\s");
+                    float x = Float.parseFloat(tokens[1]);
+                    float y = Float.parseFloat(tokens[2]);
+                    float z = Float.parseFloat(tokens[3]);
+
+                    Vec3d normalVector = new Vec3d(x, y, z);
+                    normals.put(object, new Position(normalVector, new ArrayList<>(currentVertices)));
+                }
+
+                if (object != null) {
+                    objectVertices.put(object, new ArrayList<>(currentVertices));
+                }
+            }
+        } catch (IOException e) {
+            ModCore.info("An error occured while loading Normals: ", e);
+        }
+    }
 }

@@ -8,14 +8,16 @@ import org.lwjgl.opengl.GLContext;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class RenderText {
     private Font myFont;
-    private static Map<String, RenderText> instances = new HashMap<>();
+    private static final Map<String, RenderText> instances = new HashMap<>();
     private boolean fontInitialized;
     private DirectDraw draw;
     private int textureId;
-    private Map<String, TextField> textFields = new HashMap<>();
+    private final ConcurrentMap<String, TextField> textFields = new ConcurrentHashMap<>();
 
 
     public RenderText() {
@@ -23,12 +25,11 @@ public class RenderText {
     }
 
     public static RenderText getInstance(String name) {
-        RenderText instance = instances.computeIfAbsent(name, k -> new RenderText());
-        return instance;
+        return instances.computeIfAbsent(name, k -> new RenderText());
     }
 
-    private class TextField {
-        private final int texX;
+    public static class TextField {
+        private final int texY;
         boolean fullbright;
         Vec3d normal;
         String text;
@@ -45,11 +46,14 @@ public class RenderText {
         int fontGap;
         Identifier overlayId;
         String hexCode;
+        Font myFont;
+        boolean fontInitialized = false;
+        boolean useAlternative;
 
         TextField(String text, Identifier id, Vec3d vec3dmin, Vec3d vec3dmax,
                   InputStream json, int resX, int resY, Font.TextAlign align,
                   boolean flipDir, int fontSize, int fontLength, int fontGap,
-                  Identifier overlayId, Vec3d normal, String hexCode, boolean fullbright, int texX) {
+                  Identifier overlayId, Vec3d normal, String hexCode, boolean fullbright, int texY, boolean useAlternative) {
             this.text = text;
             this.id = id;
             this.vec3dmin = vec3dmin;
@@ -66,15 +70,23 @@ public class RenderText {
             this.normal = normal;
             this.hexCode = hexCode;
             this.fullbright = fullbright;
-            this.texX = texX;
+            this.texY = texY;
+            this.useAlternative = useAlternative;
+        }
+        void initializeFont() {
+            if (!fontInitialized) {
+                int textureId = new MinecraftTexture(this.id).getId();
+                this.myFont = new Font(textureId, this.fontLength, this.fontSize, this.fontGap, this.json, this.texY);
+                this.fontInitialized = true;
+            }
         }
     }
 
     public void setText(String componentId, String text, Identifier id, Vec3d vec3dmin, Vec3d vec3dmax,
                         InputStream json, int resX, int resY, Font.TextAlign align,
                         boolean flipDir, int fontSize, int fontLength, int fontGap,
-                        Identifier overlayId, Vec3d normal, String hexCode, boolean fullbright, int texX) {
-        textFields.put(componentId, new TextField(text, id, vec3dmin, vec3dmax, json, resX, resY, align, flipDir, fontSize, fontLength, fontGap, overlayId, normal, hexCode, fullbright, texX));
+                        Identifier overlayId, Vec3d normal, String hexCode, boolean fullbright, int texY, boolean useAlternative) {
+        textFields.put(componentId, new TextField(text, id, vec3dmin, vec3dmax, json, resX, resY, align, flipDir, fontSize, fontLength, fontGap, overlayId, normal, hexCode, fullbright, texY, useAlternative));
     }
 
     public void textRender(RenderState state) {
@@ -84,11 +96,8 @@ public class RenderText {
         for (Map.Entry<String, TextField> entry : textFields.entrySet()) {
             TextField field = entry.getValue();
 
-            if (!fontInitialized) {
-                textureId = new MinecraftTexture(field.id).getId();
-                myFont = new Font(textureId, field.fontLength, field.fontSize, field.fontGap, field.json, field.texX);
-                fontInitialized = true;
-            }
+            field.initializeFont();
+
             RenderState renderText = state.clone()
                     .texture(Texture.wrap(field.id))
                     .lightmap(field.fullbright ? 1 : 0, 1)
@@ -96,7 +105,6 @@ public class RenderText {
 
             int r = 0, g = 0, b = 0;
             if (field.hexCode != null && field.hexCode.matches("^#([A-Fa-f0-9]{6})$")) {
-                // Parse hex string and extract RGB values
                 r = Integer.parseInt(field.hexCode.substring(1, 3), 16);
                 g = Integer.parseInt(field.hexCode.substring(3, 5), 16);
                 b = Integer.parseInt(field.hexCode.substring(5, 7), 16);
@@ -110,7 +118,7 @@ public class RenderText {
             renderText.color(rFloat, gFloat, bFloat, alpha);
 
             draw = new DirectDraw();
-            myFont.drawText(draw, field.text, field.vec3dmin, field.vec3dmax, renderText, field.resX, field.resY, field.textAlign, field.normal, field.flipDirection, field.hexCode);
+            field.myFont.drawText(draw, field.text, field.vec3dmin, field.vec3dmax, renderText, field.resX, field.resY, field.textAlign, field.normal, field.flipDirection, field.hexCode, field.useAlternative);
 
             draw.draw(renderText);
         }

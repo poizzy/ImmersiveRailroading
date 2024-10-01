@@ -14,6 +14,7 @@ import cam72cam.immersiverailroading.library.Permissions;
 import cam72cam.immersiverailroading.model.part.Control;
 import cam72cam.immersiverailroading.net.SoundPacket;
 import cam72cam.mod.entity.sync.TagSync;
+import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.StrictTagMapper;
 import cam72cam.mod.serialization.TagField;
 import cam72cam.mod.world.World;
@@ -512,5 +513,8 @@ public abstract class EntityCoupleableRollingStock extends EntityMoveableRolling
 						getTickCount() - gotElectricalPowerTick > 15 ||
 						((getTickCount() - gotElectricalPowerTick)/(int)((Math.random()+2) * 4)) % 2 == 0
 		);
+	}
+
+	public void setTextTrain(TextRenderOptions options) {
 	}
 }

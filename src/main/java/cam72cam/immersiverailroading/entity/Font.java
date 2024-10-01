@@ -1,6 +1,9 @@
 package cam72cam.immersiverailroading.entity;
 
+import cam72cam.mod.ModCore;
 import cam72cam.mod.math.Vec3d;
+import cam72cam.mod.model.obj.Buffers;
+import cam72cam.mod.model.obj.VertexBuffer;
 import cam72cam.mod.render.opengl.DirectDraw;
 import cam72cam.mod.render.opengl.RenderState;
 import com.google.gson.Gson;
@@ -14,7 +17,7 @@ import java.util.Map;
 
 public class Font {
 
-    private double textureHeight;
+    private final double textureHeight;
 
     private Vec3d crossProduct(Vec3d vec1, Vec3d vec2) {
         double crossX = vec1.y * vec2.z - vec1.z * vec2.y;
@@ -25,6 +28,10 @@ public class Font {
 
     private double dot(Vec3d vec1, Vec3d vec2) {
         return vec1.x * vec2.x + vec1.y * vec2.y + vec1.z * vec2.z;
+    }
+
+    private double getDistance2D(double x1, double z1, double x2, double z2) {
+        return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(z2 - z1, 2));
     }
 
     private static class Glyph {
@@ -54,12 +61,11 @@ public class Font {
             Type type = new TypeToken<Map<String, Glyph>>() {}.getType();
             Map<String, Glyph> loadedGlyphs = gson.fromJson(reader, type);
 
-            // Convert loadedGlyphs (which uses String keys) to Character keys
             for (Map.Entry<String, Glyph> entry : loadedGlyphs.entrySet()) {
                 glyphs.put(entry.getKey().charAt(0), entry.getValue());
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            ModCore.error(String.format("An error occured while loading font %s : %s", jsonInputStream, e));
         }
     }
 
@@ -71,37 +77,29 @@ public class Font {
         LEFT, CENTER, RIGHT
     }
 
-    public void drawText(DirectDraw draw, String text, Vec3d minVector, Vec3d maxVector, RenderState state, int resolutionWidth, int resolutionHeight, TextAlign alignment, Vec3d normal, boolean switchPlusMinus, String fontColor) {
-        // Normalize the normal vector for plane alignment
+    public void drawText(DirectDraw draw, String text, Vec3d minVector, Vec3d maxVector, RenderState state, int resolutionWidth, int resolutionHeight, TextAlign alignment, Vec3d normal, boolean switchPlusMinus, String fontColor, boolean useAlternative) {
         normal = normal.normalize();
-
-        // Determine the direction of the text on the plane
         Vec3d up = new Vec3d(0, 1, 0);
 
-        // Avoid using the up vector if it's too close to the normal direction
         if (Math.abs(dot(normal, up)) > 0.999) {
-            up = new Vec3d(1, 0, 0);  // Adjust 'up' to avoid being parallel to 'normal'
+            up = new Vec3d(1, 0, 0);
         }
 
-        // Calculate the X and Y axes relative to the plane defined by the normal
-        Vec3d directionX = crossProduct(normal, up).normalize();  // Horizontal text direction
-
+        Vec3d directionX = crossProduct(normal, up).normalize();
 
         if (directionX.lengthSquared() < 1e-8) {
-            up = new Vec3d(1, 0, 0); // In extreme cases, use x-axis as up
+            up = new Vec3d(1, 0, 0);
             directionX = crossProduct(normal, up).normalize();
         }
         Vec3d directionY = crossProduct(directionX, normal).normalize();
 
-        // Calculate box dimensions using min and max vectors
         double boxHeight = maxVector.y - minVector.y;
         double boxWidth = directionX.length();
+        double boxWidth2 = useAlternative ? boxWidth : getDistance2D(maxVector.x, maxVector.z, minVector.x, minVector.z);
 
-        // Calculate scale factors for text fitting into the box
         double scaleX = boxWidth / resolutionWidth;
         double scaleY = boxHeight / resolutionHeight;
 
-        // Calculate the total text width based on glyph widths
         double totalTextWidth = 0;
         for (char c : text.toCharArray()) {
             Glyph glyph = getGlyphForChar(c);
@@ -110,26 +108,23 @@ public class Font {
             }
         }
 
-        double glyphHeightScaled = glyphHeight * scaleY;  // Scaled height for glyphs
+        double glyphHeightScaled = glyphHeight * scaleY;
         double totalTextHeight = glyphHeightScaled;
-
-        // Center the text vertically within the box
         double verticalOffset = (boxHeight - totalTextHeight) / 2;
         double yOffset = (boxHeight + totalTextHeight) / 2;
 
-        // Determine starting position based on alignment
         Vec3d startPos;
         double horizontalOffset;
         switch (alignment) {
             case RIGHT:
-                horizontalOffset = boxWidth - totalTextWidth;  // Right-align text
+                horizontalOffset = boxWidth2 - totalTextWidth;
                 break;
             case CENTER:
-                horizontalOffset = (boxWidth - totalTextWidth) / 2;  // Center-align text
+                horizontalOffset = (boxWidth2 - totalTextWidth) / 2;
                 break;
             case LEFT:
             default:
-                horizontalOffset = 0;  // Left-align text
+                horizontalOffset = 0;
                 break;
         }
 
@@ -143,55 +138,55 @@ public class Font {
                     .subtract(directionY.scale(yOffset));
         }
 
-        // Initialize current position for drawing each glyph
         Vec3d currentPos = startPos;
 
-        int r = 0, g = 0, b = 0;
-        if (fontColor != null && fontColor.matches("^#([A-Fa-f0-9]{6})$")) {
-            // Parse hex string and extract RGB values
-            r = Integer.parseInt(fontColor.substring(1, 3), 16);
-            g = Integer.parseInt(fontColor.substring(3, 5), 16);
-            b = Integer.parseInt(fontColor.substring(5, 7), 16);
-        }
+        Buffers.FloatBuffer vertexBuffer = new Buffers.FloatBuffer(text.length() * 12 * 4);
 
-        float rFloat = r / 255.0f;
-        float gFloat = g / 255.0f;
-        float bFloat = b / 255.0f;
-        float alpha = 1.0f;// Full opacity
-
-        // Render each character of the text
         for (char c : text.toCharArray()) {
             Glyph glyph = getGlyphForChar(c);
             if (glyph == null) continue;
 
-            // Calculate texture UV coordinates for the glyph
-            double u = (double) glyph.x / textureWidth;
-            double v = (double) glyph.y / textureHeight;
-            double u1 = (double) (glyph.x + glyph.width) / textureWidth;
-            double v1 = (double) (glyph.y + glyphHeight) / textureHeight;
+            double u = glyph.x / textureWidth;
+            double u1 = (glyph.x + glyph.width) / textureWidth;
+            double v = (glyph.y + glyphHeight) / textureHeight;
+            double v1 = glyph.y / textureHeight;
 
-            // Flip V coordinates because texture space might be flipped vertically
-            v = 1.0 - v;
-            v1 = 1.0 - v1;
-
-            // Scale glyph size to fit the text box
             double scaledGlyphWidth = glyph.width * scaleX;
             double scaledGlyphHeight = glyphHeightScaled;
 
-            // Calculate the four corners of the glyph quad
             Vec3d bottomLeftPos = currentPos;
             Vec3d bottomRightPos = currentPos.add(directionX.scale(scaledGlyphWidth));
             Vec3d topRightPos = bottomRightPos.add(directionY.scale(scaledGlyphHeight));
             Vec3d topLeftPos = bottomLeftPos.add(directionY.scale(scaledGlyphHeight));
 
-            draw.vertex(bottomLeftPos.x, bottomLeftPos.y, bottomLeftPos.z).uv(u, v);
-            draw.vertex(bottomRightPos.x, bottomRightPos.y, bottomRightPos.z).uv(u1, v);
-            draw.vertex(topRightPos.x, topRightPos.y, topRightPos.z).uv(u1, v1);
-            draw.vertex(topLeftPos.x, topLeftPos.y, topLeftPos.z).uv(u, v1);
+            addVertexToBuffer(vertexBuffer, bottomLeftPos, u, v);
+            addVertexToBuffer(vertexBuffer, bottomRightPos, u1, v);
+            addVertexToBuffer(vertexBuffer, topRightPos, u1, v1);
+            addVertexToBuffer(vertexBuffer, topLeftPos, u, v1);
 
-            // Move to the next glyph position along the X axis
             currentPos = currentPos.add(directionX.scale(scaledGlyphWidth + gap * scaleX));
+        }
+
+        float[] vertexData = vertexBuffer.array();
+        int stride = 5;
+
+        for (int i = 0; i < vertexData.length; i += stride) {
+            draw.vertex(
+                    vertexData[i],     // x
+                    vertexData[i + 1], // y
+                    vertexData[i + 2]  // z
+            ).uv(
+                    vertexData[i + 3], // u
+                    vertexData[i + 4]  // v
+            );
         }
     }
 
+    private void addVertexToBuffer(Buffers.FloatBuffer buffer, Vec3d pos, double u, double v) {
+        buffer.add((float) pos.x);
+        buffer.add((float) pos.y);
+        buffer.add((float) pos.z);
+        buffer.add((float) u);
+        buffer.add((float) v);
+    }
 }

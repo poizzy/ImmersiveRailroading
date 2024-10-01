@@ -2,14 +2,12 @@ package cam72cam.immersiverailroading.entity;
 
 import cam72cam.immersiverailroading.gui.overlay.ReadoutsEventHandler;
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
-import cam72cam.immersiverailroading.model.components.ModelComponent;
+import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.mod.ModCore;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.resource.Identifier;
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.luaj.vm2.*;
@@ -19,27 +17,19 @@ import org.luaj.vm2.LuaValue;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+
 import org.luaj.vm2.LuaFunction;
 
 public abstract class LuaIntegration extends EntityCoupleableRollingStock implements ReadoutsEventHandler {
 
-    private Globals globals;
     private LuaValue tickEvent;
     public boolean isLuaLoaded = false;
     private boolean isSleeping;
     private long lastExecutionTime;
     private boolean wakeLuaScriptCalled = false;
     LuaTable luaFunction = new LuaTable();
-    private final Map<String, Float> readoutsMap = new HashMap<>();
     private final Map<String, InputStream> moduleMap = new HashMap<>();
-    private String oldControl = null;
-    private float oldValue;
     private String oldText;
-    private Vec3d vec3dmin;
-    private Vec3d vec3dmax;
-    private Font.TextAlign align;
-    private final Map<String, Position> normals= new HashMap<>();
-    private boolean isNormalsLoaded = false;
 
     @Override
     public void onTick() {
@@ -76,8 +66,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                         if (LoadLuaFile()) return;
                         callFuction();
                         getReadout();
-                        List<EntityCoupleableRollingStock> info = getTrain(false);
-                        ModCore.info(info.toArray().toString());
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -89,7 +77,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
 
     public boolean LoadLuaFile() throws IOException {
         if (!isLuaLoaded) {
-            globals = JsePlatform.standardGlobals();
+            Globals globals = JsePlatform.standardGlobals();
 
 
             // Get Lua file from Json
@@ -149,7 +137,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 // Step 6: Add the chunk to package.preload with the module name
                 preloadTable.set(moduleName, chunk);
             } catch (Exception e) {
-                e.printStackTrace();
+                ModCore.error("An error occurred while preloading lua modules", e);
             }
         }
     }
@@ -287,8 +275,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         luaFunction.set("getTrain", new LuaFunction() {
             @Override
             public LuaValue call() {
-                LuaValue result = getTrainConsist();
-                return result;
+                return getTrainConsist();
             }
         });
         luaFunction.set("setIndividualCG", new LuaFunction() {
@@ -333,15 +320,12 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         });
     }
 
-    @SideOnly(Side.CLIENT)
     public void setUnitControlGroup(String controlName, float newValControl) {
         List<List<EntityCoupleableRollingStock>> units = this.getUnit(false);
         for (List<EntityCoupleableRollingStock> unit : units) {
             if (unit.contains(this)) {
                 for (EntityCoupleableRollingStock stock : unit) {
                     stock.controlPositions.put(controlName, Pair.of(false, newValControl));
-                    oldControl = controlName;
-                    oldValue = newValControl;
                 }
                 break;
             }
@@ -394,7 +378,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         Map<String, DataBlock.Value> textField = new HashMap<>();
         if (result.istable()) {
             for (LuaValue key : result.checktable().keys()) {
-                DataBlock.Value value = new ObjectValue(convertLuaValue(result.get(key))); // Fixed here
+                DataBlock.Value value = new ObjectValue(convertLuaValueText(key, result.get(key))); // Fixed here
                 textField.put(key.tojstring(), value);
             }
         }
@@ -411,7 +395,10 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         Identifier overlay = textField.get("overlay") != null ? textField.get("overlay").asIdentifier() : null;
         String hexCode = textField.get("color") != null ? textField.get("color").asString() : null;
         boolean fullbright = textField.get("fullbright") != null ? textField.get("fullbright").asBoolean() : false;
+        boolean allStock = textField.get("global") != null ? textField.get("global").asBoolean() : false;
+        boolean useAlternative = textField.get("useAltAlignment") != null ? textField.get("useAltAlignment").asBoolean() : false;
 
+        Font.TextAlign align;
         if (textField.get("align") != null) {
             String alignStr = textField.get("align").asString();
             if (alignStr.equalsIgnoreCase("right")) {
@@ -427,83 +414,17 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
 
         String text = textField.get("text") != null ? textField.get("text").asString() : "";
         try {
-            if (LoadNormals()) return;
-        } catch (IOException e) {
-            ModCore.error("Couldn't get normals for: ", getDefinition().modelLoc);
-        }
-        try {
-            setText(font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, overlay, hexCode, fullbright, textureHeight);
+            TextRenderOptions options = new TextRenderOptions(
+                    font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, overlay, hexCode, fullbright, textureHeight, useAlternative
+            );
+            if (allStock) {
+                setAllText(options);
+            } else {
+                setText(options);
+            }
         } catch (IOException e) {
             ModCore.error(String.format("Couldn't load Font %s", font != null ? font.toString() : "null"));
         }
-    }
-
-    class Position {
-        public Vec3d normal;
-        public List<Vec3d> vertices;
-
-        public Position (Vec3d normal, List<Vec3d> vertices) {
-            this.normal = normal;
-            this.vertices = vertices;
-        }
-    }
-
-    // This is bad. But I don't want to change UMC
-    public boolean LoadNormals() throws IOException {
-        if (!isNormalsLoaded) {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(getDefinition().modelLoc.getResourceStream()));
-            String line;
-            String object = null;
-            boolean withingTextFieldObject = false;
-            float index = 0;
-            List<Vec3d> currentVertices = new ArrayList<>();
-            Map<String, List<Vec3d>> objectVertices = new HashMap<>();
-
-            try {
-                while ((line = reader.readLine()) != null) {
-                    if (line.startsWith("o ")) {
-
-                        if (object != null) {
-                            objectVertices.put(object, new ArrayList<>(currentVertices));
-                        }
-
-                        withingTextFieldObject = line.contains("TEXTFIELD_");
-                        if (withingTextFieldObject) {
-                            object = line.replace("o ", ""); // This is not great either
-                            currentVertices.clear();
-                        }
-                    }
-
-                    if (withingTextFieldObject && line.startsWith("v ")) {
-                        String[] tokens = line.split("\\s");
-                        float x = Float.parseFloat(tokens[1]);
-                        float y = Float.parseFloat(tokens[2]);
-                        float z = Float.parseFloat(tokens[3]);
-
-                        Vec3d point = new Vec3d(x, y, z);
-                        currentVertices.add(point);
-                    }
-
-                    if (withingTextFieldObject && line.startsWith("vn ")) {
-                        String[] tokens = line.split("\\s");
-                        float x = Float.parseFloat(tokens[1]);
-                        float y = Float.parseFloat(tokens[2]);
-                        float z = Float.parseFloat(tokens[3]);
-
-                        Vec3d normalVector = new Vec3d(x, y, z);
-                        normals.put(object, new Position(normalVector,new ArrayList<>(currentVertices)));
-                    }
-
-                    if (object != null) {
-                        objectVertices.put(object, new ArrayList<>(currentVertices));
-                    }
-                }
-            } catch (IOException e) {
-                ModCore.info("An error occured while loading Normals: ", e);
-            }
-            isNormalsLoaded = true;
-        }
-        return false;
     }
 
     private Vec3d getVec3dmin (List<Vec3d> vectors) {
@@ -514,25 +435,41 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         return vectors.stream().max(Comparator.comparingDouble(Vec3d::length)).orElse(null);
     }
 
+    public void setAllText(TextRenderOptions options) {
+        this.mapTrain(this, false, stock -> {
+            if (stock == null) {
+                ModCore.error("Stock is null when setting text.");
+                return;
+            }
+            if (options == null) {
+                ModCore.error("Options is null when setting text.");
+                return;
+            }
+            stock.setTextTrain(options);
+        });
+    }
 
-    public void setText(Identifier id, String newText, int resX, int resY, Font.TextAlign align, boolean flipped, String componentId, int fontSize, int fontX, int fontGap, Identifier overlay, String hexCode, boolean fullbright, int textureHeight) throws IOException {
-        if (!newText.equals(oldText)) {
-            List<ModelComponent> components = getDefinition().getModel().allComponents;
+    private void setText(TextRenderOptions options) throws IOException {
+        if (!options.newText.equals(oldText)) {
             LinkedHashMap<String, OBJGroup> group = this.getDefinition().getModel().groups;
             for (Map.Entry<String, OBJGroup> entry : group.entrySet()) {
-                if (entry.getKey().contains(String.format("TEXTFIELD_%s", componentId))) {
-                    Position getPosition = normals.get(entry.getKey());
-                    vec3dmin = getVec3dmin(getPosition.vertices);
-                    vec3dmax = getVec3dmax(getPosition.vertices);
+                if (entry.getKey().contains(String.format("TEXTFIELD_%s", options.componentId))) {
+                    EntityRollingStockDefinition.Position getPosition = getDefinition().normals.get(entry.getKey());
+                    // TODO: add animation
+                    Vec3d vec3dmin = getVec3dmin(getPosition.vertices);
+                    Vec3d vec3dmax = getVec3dmax(getPosition.vertices);
                     Vec3d vec3dNormal = getPosition.normal;
-                    new RenderText();
                     RenderText renderText = RenderText.getInstance(String.valueOf(getUUID()));
-                    File file = new File(id.getPath());
+                    File file = new File(options.id.getPath());
                     String jsonPath = file.getName();
-                    Identifier jsonId = id.getRelative(jsonPath.replaceAll(".png", ".json"));
+                    Identifier jsonId = options.id.getRelative(jsonPath.replaceAll(".png", ".json"));
                     InputStream json = jsonId.getResourceStream();
-                    renderText.setText(componentId, newText, id, vec3dmin, vec3dmax, json, resX, resY, align, flipped, fontSize, fontX, fontGap, overlay, vec3dNormal, hexCode, fullbright, textureHeight);
-                    oldText = newText;
+                    renderText.setText(
+                            options.componentId, options.newText, options.id, vec3dmin, vec3dmax, json,
+                            options.resX, options.resY, options.align, options.flipped, options.fontSize, options.fontX,
+                            options.fontGap, options.overlay, vec3dNormal, options.hexCode, options.fullbright, options.textureHeight, options.useAlternative
+                    );
+                    oldText = options.newText;
                 }
             }
         }
@@ -658,6 +595,29 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         }
     }
 
+    private static Object convertLuaValueText(LuaValue k, LuaValue value) {
+        if ("text".equals(k.tojstring())) {
+            return value.tojstring();  // Force the value to be a string
+        }
+
+        if (value.isboolean()) {
+            return value.toboolean();
+        } else if (value.isnumber()) {
+            return value.todouble();
+        } else if (value.isstring()) {
+            return value.tojstring();
+        } else if (value.istable()) {
+            Map<String, Object> nestedMap = new HashMap<>();
+            for (LuaValue key : value.checktable().keys()) {
+                LuaValue val = value.get(key);
+                nestedMap.put(key.tojstring(), convertLuaValue(val));
+            }
+            return nestedMap;
+        } else {
+            return value; // Return raw LuaValue if type is unknown
+        }
+    }
+
     public void setThrottleLua(float val) {
 
     }
@@ -697,5 +657,14 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
 
     public boolean getEngineState() {
         return false;
+    }
+
+    @Override
+    public void setTextTrain(TextRenderOptions options) {
+        try {
+            setText(options);
+        } catch (IOException e) {
+            ModCore.error("An error occurred while creating textfields", e);
+        }
     }
 }
