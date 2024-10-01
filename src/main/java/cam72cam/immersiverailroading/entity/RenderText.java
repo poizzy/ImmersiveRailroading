@@ -1,22 +1,24 @@
 package cam72cam.immersiverailroading.entity;
 
+import cam72cam.immersiverailroading.model.animation.StockAnimation;
 import cam72cam.mod.math.Vec3d;
+import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.render.opengl.*;
 import cam72cam.mod.resource.Identifier;
 import org.lwjgl.opengl.GLContext;
+import util.Matrix4;
 
 import java.io.InputStream;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 public class RenderText {
-    private Font myFont;
     private static final Map<String, RenderText> instances = new HashMap<>();
-    private boolean fontInitialized;
     private DirectDraw draw;
-    private int textureId;
     private final ConcurrentMap<String, TextField> textFields = new ConcurrentHashMap<>();
 
 
@@ -73,6 +75,7 @@ public class RenderText {
             this.texY = texY;
             this.useAlternative = useAlternative;
         }
+
         void initializeFont() {
             if (!fontInitialized) {
                 int textureId = new MinecraftTexture(this.id).getId();
@@ -89,10 +92,11 @@ public class RenderText {
         textFields.put(componentId, new TextField(text, id, vec3dmin, vec3dmax, json, resX, resY, align, flipDir, fontSize, fontLength, fontGap, overlayId, normal, hexCode, fullbright, texY, useAlternative));
     }
 
-    public void textRender(RenderState state) {
+    public void textRender(RenderState state, List<StockAnimation> animations, EntityRollingStock stock, float partialTicks) {
         if (!GLContext.getCapabilities().OpenGL11) {
             return;
         }
+
         for (Map.Entry<String, TextField> entry : textFields.entrySet()) {
             TextField field = entry.getValue();
 
@@ -113,14 +117,43 @@ public class RenderText {
             float rFloat = r / 255.0f;
             float gFloat = g / 255.0f;
             float bFloat = b / 255.0f;
-            float alpha = 1.0f;// Full opacity
+            float alpha = 1.0f;
 
             renderText.color(rFloat, gFloat, bFloat, alpha);
 
-            draw = new DirectDraw();
-            field.myFont.drawText(draw, field.text, field.vec3dmin, field.vec3dmax, renderText, field.resX, field.resY, field.textAlign, field.normal, field.flipDirection, field.hexCode, field.useAlternative);
+            // This is so fuckin ugly I can't even put it into words
+            Matrix4 transformationMatrix = null;
+            for (StockAnimation animation : animations) {
+                LinkedHashMap<String, OBJGroup> group = stock.getDefinition().getModel().groups;
+                for (Map.Entry<String, OBJGroup> groupEntry : group.entrySet()) {
+                    if (groupEntry.getKey().contains(entry.getKey())) {
+                        Matrix4 animMatrix = animation.getMatrix(stock, groupEntry.getKey(), partialTicks);
+                        if (animMatrix != null) {
+                            transformationMatrix = animMatrix;
+                            break;
+                        }
+                    }
+                }
 
-            draw.draw(renderText);
+                if (transformationMatrix != null) {
+                    Vec3d animatedVec3dmin = transformationMatrix.apply(field.vec3dmin);
+                    Vec3d animatedVec3dmax = transformationMatrix.apply(field.vec3dmax);
+
+                    draw = new DirectDraw();
+                    field.myFont.drawText(draw, field.text, animatedVec3dmin, animatedVec3dmax, renderText,
+                            field.resX, field.resY, field.textAlign, field.normal,
+                            field.flipDirection, field.hexCode, field.useAlternative);
+
+                    draw.draw(renderText);
+                } else {
+                    draw = new DirectDraw();
+                    field.myFont.drawText(draw, field.text, field.vec3dmin, field.vec3dmax, renderText,
+                            field.resX, field.resY, field.textAlign, field.normal,
+                            field.flipDirection, field.hexCode, field.useAlternative);
+
+                    draw.draw(renderText);
+                }
+            }
         }
     }
 }

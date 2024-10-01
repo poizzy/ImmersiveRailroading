@@ -455,7 +455,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             for (Map.Entry<String, OBJGroup> entry : group.entrySet()) {
                 if (entry.getKey().contains(String.format("TEXTFIELD_%s", options.componentId))) {
                     EntityRollingStockDefinition.Position getPosition = getDefinition().normals.get(entry.getKey());
-                    // TODO: add animation
                     Vec3d vec3dmin = getVec3dmin(getPosition.vertices);
                     Vec3d vec3dmax = getVec3dmax(getPosition.vertices);
                     Vec3d vec3dNormal = getPosition.normal;
