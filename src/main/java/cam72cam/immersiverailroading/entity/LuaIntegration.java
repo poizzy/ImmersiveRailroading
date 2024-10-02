@@ -79,6 +79,20 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         if (!isLuaLoaded) {
             Globals globals = JsePlatform.standardGlobals();
 
+            LuaValue safeOs = LuaValue.tableOf();
+            safeOs.set("time", globals.get("os").get("time"));
+            safeOs.set("date", globals.get("os").get("date"));
+            safeOs.set("clock", globals.get("os").get("clock"));
+            safeOs.set("difftime", globals.get("os").get("difftime"));
+
+
+            globals.set("os", safeOs);
+
+            globals.set("io", LuaValue.NIL);
+            globals.set("luajava", LuaValue.NIL);
+            globals.set("coroutine", LuaValue.NIL);
+            globals.set("debug", LuaValue.NIL);
+
 
             // Get Lua file from Json
             Identifier script = getDefinition().script;

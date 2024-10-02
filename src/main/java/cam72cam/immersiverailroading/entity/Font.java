@@ -77,7 +77,7 @@ public class Font {
         LEFT, CENTER, RIGHT
     }
 
-    public void drawText(DirectDraw draw, String text, Vec3d minVector, Vec3d maxVector, RenderState state, int resolutionWidth, int resolutionHeight, TextAlign alignment, Vec3d normal, boolean switchPlusMinus, String fontColor, boolean useAlternative) {
+    public void drawText(DirectDraw draw, String text, Vec3d minVector, Vec3d maxVector, RenderState state, int resolutionWidth, int resolutionHeight, TextAlign alignment, Vec3d normal, boolean switchPlusMinus, String fontColor, boolean useAlternative, int fontGap) {
         normal = normal.normalize();
         Vec3d up = new Vec3d(0, 1, 0);
 
@@ -101,11 +101,15 @@ public class Font {
         double scaleY = boxHeight / resolutionHeight;
 
         double totalTextWidth = 0;
-        for (char c : text.toCharArray()) {
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
             Glyph glyph = getGlyphForChar(c);
             if (glyph != null) {
-                totalTextWidth += glyph.width * scaleX;
+                totalTextWidth += (glyph.width + gap) * scaleX;
             }
+        }
+        if (totalTextWidth > 0) {
+            totalTextWidth -= gap * scaleX;
         }
 
         double glyphHeightScaled = glyphHeight * scaleY;

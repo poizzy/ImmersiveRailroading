@@ -142,14 +142,14 @@ public class RenderText {
                     draw = new DirectDraw();
                     field.myFont.drawText(draw, field.text, animatedVec3dmin, animatedVec3dmax, renderText,
                             field.resX, field.resY, field.textAlign, field.normal,
-                            field.flipDirection, field.hexCode, field.useAlternative);
+                            field.flipDirection, field.hexCode, field.useAlternative, field.fontGap);
 
                     draw.draw(renderText);
                 } else {
                     draw = new DirectDraw();
                     field.myFont.drawText(draw, field.text, field.vec3dmin, field.vec3dmax, renderText,
                             field.resX, field.resY, field.textAlign, field.normal,
-                            field.flipDirection, field.hexCode, field.useAlternative);
+                            field.flipDirection, field.hexCode, field.useAlternative, field.fontGap);
 
                     draw.draw(renderText);
                 }
