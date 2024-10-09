@@ -18,10 +18,12 @@ public class TextRenderOptions {
     public final boolean fullbright;
     public final int textureHeight;
     public final boolean useAlternative;
+    public final int lineSpacingPixels;
+    public final int offset;
 
     public TextRenderOptions(Identifier id, String newText, int resX, int resY, Font.TextAlign align, boolean flipped,
                              String componentId, int fontSize, int fontX, int fontGap, Identifier overlay, String hexCode,
-                             boolean fullbright, int textureHeight, boolean useAlternative) {
+                             boolean fullbright, int textureHeight, boolean useAlternative, int lineSpacingPixels, int offset) {
         this.id = id;
         this.newText = newText;
         this.resX = resX;
@@ -37,5 +39,7 @@ public class TextRenderOptions {
         this.fullbright = fullbright;
         this.textureHeight = textureHeight;
         this.useAlternative = useAlternative;
+        this.lineSpacingPixels = lineSpacingPixels;
+        this.offset = offset;
     }
 }

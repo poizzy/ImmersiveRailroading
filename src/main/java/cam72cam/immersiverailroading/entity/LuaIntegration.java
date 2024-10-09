@@ -8,6 +8,7 @@ import cam72cam.mod.ModCore;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.resource.Identifier;
+import net.minecraft.world.biome.Biome;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.luaj.vm2.*;
@@ -29,7 +30,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     private boolean wakeLuaScriptCalled = false;
     LuaTable luaFunction = new LuaTable();
     private final Map<String, InputStream> moduleMap = new HashMap<>();
-    private String oldText;
+    private Map<String, String> componentTextMap = new HashMap<>();
 
     @Override
     public void onTick() {
@@ -411,6 +412,8 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         boolean fullbright = textField.get("fullbright") != null ? textField.get("fullbright").asBoolean() : false;
         boolean allStock = textField.get("global") != null ? textField.get("global").asBoolean() : false;
         boolean useAlternative = textField.get("useAltAlignment") != null ? textField.get("useAltAlignment").asBoolean() : false;
+        int lineSpacingPixels = textField.get("lineSpacing") != null ? textField.get("lineSpacing").asInteger() : 1;
+        int offset = textField.get("offset") != null ? textField.get("offset").asInteger() : 0;
 
         Font.TextAlign align;
         if (textField.get("align") != null) {
@@ -429,7 +432,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         String text = textField.get("text") != null ? textField.get("text").asString() : "";
         try {
             TextRenderOptions options = new TextRenderOptions(
-                    font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, overlay, hexCode, fullbright, textureHeight, useAlternative
+                    font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, overlay, hexCode, fullbright, textureHeight, useAlternative, lineSpacingPixels, offset
             );
             if (allStock) {
                 setAllText(options);
@@ -464,7 +467,11 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     }
 
     private void setText(TextRenderOptions options) throws IOException {
-        if (!options.newText.equals(oldText)) {
+        // Get the current text for this component
+        String currentText = componentTextMap.get(options.componentId);
+
+        // If the text has changed for this specific component, update it
+        if (currentText == null || !options.newText.equals(currentText)) {
             LinkedHashMap<String, OBJGroup> group = this.getDefinition().getModel().groups;
             for (Map.Entry<String, OBJGroup> entry : group.entrySet()) {
                 if (entry.getKey().contains(String.format("TEXTFIELD_%s", options.componentId))) {
@@ -477,12 +484,16 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                     String jsonPath = file.getName();
                     Identifier jsonId = options.id.getRelative(jsonPath.replaceAll(".png", ".json"));
                     InputStream json = jsonId.getResourceStream();
+
+                    // Render the text for the current component
                     renderText.setText(
                             options.componentId, options.newText, options.id, vec3dmin, vec3dmax, json,
                             options.resX, options.resY, options.align, options.flipped, options.fontSize, options.fontX,
-                            options.fontGap, options.overlay, vec3dNormal, options.hexCode, options.fullbright, options.textureHeight, options.useAlternative
+                            options.fontGap, options.overlay, vec3dNormal, options.hexCode, options.fullbright, options.textureHeight, options.useAlternative, options.lineSpacingPixels, options.offset
                     );
-                    oldText = options.newText;
+
+                    // Update the map with the new text for this component
+                    componentTextMap.put(options.componentId, options.newText);
                 }
             }
         }

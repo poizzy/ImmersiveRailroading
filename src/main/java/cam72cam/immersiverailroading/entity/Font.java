@@ -77,7 +77,7 @@ public class Font {
         LEFT, CENTER, RIGHT
     }
 
-    public void drawText(DirectDraw draw, String text, Vec3d minVector, Vec3d maxVector, RenderState state, int resolutionWidth, int resolutionHeight, TextAlign alignment, Vec3d normal, boolean switchPlusMinus, String fontColor, boolean useAlternative, int fontGap) {
+    public void drawText(DirectDraw draw, String text, Vec3d minVector, Vec3d maxVector, RenderState state, int resolutionWidth, int resolutionHeight, TextAlign alignment, Vec3d normal, boolean switchPlusMinus, String fontColor, boolean useAlternative, int lineSpacingPixels, int offset) {
         normal = normal.normalize();
         Vec3d up = new Vec3d(0, 1, 0);
 
@@ -100,77 +100,103 @@ public class Font {
         double scaleX = boxWidth / resolutionWidth;
         double scaleY = boxHeight / resolutionHeight;
 
-        double totalTextWidth = 0;
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            Glyph glyph = getGlyphForChar(c);
-            if (glyph != null) {
-                totalTextWidth += (glyph.width + gap) * scaleX;
-            }
-        }
-        if (totalTextWidth > 0) {
-            totalTextWidth -= gap * scaleX;
-        }
+        double lineSpacingWorld = lineSpacingPixels * scaleY;
+        double offsetWorld = offset * scaleY;
+
+        String[] lines = text.split("\n");
 
         double glyphHeightScaled = glyphHeight * scaleY;
-        double totalTextHeight = glyphHeightScaled;
-        double verticalOffset = (boxHeight - totalTextHeight) / 2;
-        double yOffset = (boxHeight + totalTextHeight) / 2;
+        double totalTextHeight = glyphHeightScaled * lines.length + (lines.length - 1) * lineSpacingWorld * scaleY;
+        double verticalOffset = (boxHeight - totalTextHeight) / 2 + offsetWorld;
+        double yOffset = (boxHeight + totalTextHeight) / 2 - offsetWorld;
 
         Vec3d startPos;
-        double horizontalOffset;
-        switch (alignment) {
-            case RIGHT:
-                horizontalOffset = boxWidth2 - totalTextWidth;
-                break;
-            case CENTER:
-                horizontalOffset = (boxWidth2 - totalTextWidth) / 2;
-                break;
-            case LEFT:
-            default:
-                horizontalOffset = 0;
-                break;
-        }
-
         if (!switchPlusMinus) {
             startPos = minVector
-                    .add(directionX.scale(horizontalOffset))
                     .add(directionY.scale(verticalOffset));
         } else {
             startPos = maxVector
-                    .add(directionX.scale(horizontalOffset))
                     .subtract(directionY.scale(yOffset));
         }
 
         Vec3d currentPos = startPos;
 
+//        double totalTextWidth = 0;
+//        for (int i = 0; i < text.length(); i++) {
+//            char c = text.charAt(i);
+//            Glyph glyph = getGlyphForChar(c);
+//            if (glyph != null) {
+//                totalTextWidth += (glyph.width + gap) * scaleX;
+//            }
+//        }
+//        if (totalTextWidth > 0) {
+//            totalTextWidth -= gap * scaleX;
+//        }
+
         Buffers.FloatBuffer vertexBuffer = new Buffers.FloatBuffer(text.length() * 12 * 4);
+        for (String line : lines) {
+            // Calculate total width for each line for alignment
+            double totalTextWidth = 0;
+            for (int i = 0; i < line.length(); i++) {
+                char c = line.charAt(i);
+                Glyph glyph = getGlyphForChar(c);
+                if (glyph != null) {
+                    totalTextWidth += (glyph.width + gap) * scaleX;
+                }
+            }
+            if (totalTextWidth > 0) {
+                totalTextWidth -= gap * scaleX;
+            }
 
-        for (char c : text.toCharArray()) {
-            Glyph glyph = getGlyphForChar(c);
-            if (glyph == null) continue;
+            double horizontalOffset;
+            switch (alignment) {
+                case RIGHT:
+                    horizontalOffset = boxWidth2 - totalTextWidth;
+                    break;
+                case CENTER:
+                    horizontalOffset = (boxWidth2 - totalTextWidth) / 2;
+                    break;
+                case LEFT:
+                default:
+                    horizontalOffset = 0;
+                    break;
+            }
 
-            double u = glyph.x / textureWidth;
-            double u1 = (glyph.x + glyph.width) / textureWidth;
-            double v = (glyph.y + glyphHeight) / textureHeight;
-            double v1 = glyph.y / textureHeight;
+            Vec3d lineStartPos = currentPos.add(directionX.scale(horizontalOffset));
 
-            double scaledGlyphWidth = glyph.width * scaleX;
-            double scaledGlyphHeight = glyphHeightScaled;
+            Vec3d currentLinePos = lineStartPos;
 
-            Vec3d bottomLeftPos = currentPos;
-            Vec3d bottomRightPos = currentPos.add(directionX.scale(scaledGlyphWidth));
-            Vec3d topRightPos = bottomRightPos.add(directionY.scale(scaledGlyphHeight));
-            Vec3d topLeftPos = bottomLeftPos.add(directionY.scale(scaledGlyphHeight));
+            for (char c : line.toCharArray()) {
+                Glyph glyph = getGlyphForChar(c);
+                if (glyph == null) continue;
 
-            addVertexToBuffer(vertexBuffer, bottomLeftPos, u, v);
-            addVertexToBuffer(vertexBuffer, bottomRightPos, u1, v);
-            addVertexToBuffer(vertexBuffer, topRightPos, u1, v1);
-            addVertexToBuffer(vertexBuffer, topLeftPos, u, v1);
+                double u = glyph.x / textureWidth;
+                double u1 = (glyph.x + glyph.width) / textureWidth;
+                double v = (glyph.y + glyphHeight) / textureHeight;
+                double v1 = glyph.y / textureHeight;
 
-            currentPos = currentPos.add(directionX.scale(scaledGlyphWidth + gap * scaleX));
+                double scaledGlyphWidth = glyph.width * scaleX;
+                double scaledGlyphHeight = glyphHeightScaled;
+
+                Vec3d bottomLeftPos = currentLinePos;
+                Vec3d bottomRightPos = currentLinePos.add(directionX.scale(scaledGlyphWidth));
+                Vec3d topRightPos = bottomRightPos.add(directionY.scale(scaledGlyphHeight));
+                Vec3d topLeftPos = bottomLeftPos.add(directionY.scale(scaledGlyphHeight));
+
+                addVertexToBuffer(vertexBuffer, bottomLeftPos, u, v);
+                addVertexToBuffer(vertexBuffer, bottomRightPos, u1, v);
+                addVertexToBuffer(vertexBuffer, topRightPos, u1, v1);
+                addVertexToBuffer(vertexBuffer, topLeftPos, u, v1);
+
+                currentLinePos = currentLinePos.add(directionX.scale(scaledGlyphWidth + gap * scaleX));
+            }
+
+            // Move to the next line (apply line spacing)
+            currentPos = currentPos.subtract(directionY.scale(glyphHeightScaled + lineSpacingWorld));
+
         }
 
+        assert vertexBuffer != null;
         float[] vertexData = vertexBuffer.array();
         int stride = 5;
 

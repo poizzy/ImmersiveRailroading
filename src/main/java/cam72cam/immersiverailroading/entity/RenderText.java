@@ -51,11 +51,13 @@ public class RenderText {
         Font myFont;
         boolean fontInitialized = false;
         boolean useAlternative;
+        int lineSpacingPixels;
+        int offset;
 
         TextField(String text, Identifier id, Vec3d vec3dmin, Vec3d vec3dmax,
                   InputStream json, int resX, int resY, Font.TextAlign align,
                   boolean flipDir, int fontSize, int fontLength, int fontGap,
-                  Identifier overlayId, Vec3d normal, String hexCode, boolean fullbright, int texY, boolean useAlternative) {
+                  Identifier overlayId, Vec3d normal, String hexCode, boolean fullbright, int texY, boolean useAlternative, int lineSpacingPixels, int offset) {
             this.text = text;
             this.id = id;
             this.vec3dmin = vec3dmin;
@@ -74,6 +76,8 @@ public class RenderText {
             this.fullbright = fullbright;
             this.texY = texY;
             this.useAlternative = useAlternative;
+            this.lineSpacingPixels = lineSpacingPixels;
+            this.offset = offset;
         }
 
         void initializeFont() {
@@ -88,8 +92,8 @@ public class RenderText {
     public void setText(String componentId, String text, Identifier id, Vec3d vec3dmin, Vec3d vec3dmax,
                         InputStream json, int resX, int resY, Font.TextAlign align,
                         boolean flipDir, int fontSize, int fontLength, int fontGap,
-                        Identifier overlayId, Vec3d normal, String hexCode, boolean fullbright, int texY, boolean useAlternative) {
-        textFields.put(componentId, new TextField(text, id, vec3dmin, vec3dmax, json, resX, resY, align, flipDir, fontSize, fontLength, fontGap, overlayId, normal, hexCode, fullbright, texY, useAlternative));
+                        Identifier overlayId, Vec3d normal, String hexCode, boolean fullbright, int texY, boolean useAlternative, int lineSpacingPixels, int offset) {
+        textFields.put(componentId, new TextField(text, id, vec3dmin, vec3dmax, json, resX, resY, align, flipDir, fontSize, fontLength, fontGap, overlayId, normal, hexCode, fullbright, texY, useAlternative, lineSpacingPixels, offset));
     }
 
     public void textRender(RenderState state, List<StockAnimation> animations, EntityRollingStock stock, float partialTicks) {
@@ -142,14 +146,14 @@ public class RenderText {
                     draw = new DirectDraw();
                     field.myFont.drawText(draw, field.text, animatedVec3dmin, animatedVec3dmax, renderText,
                             field.resX, field.resY, field.textAlign, field.normal,
-                            field.flipDirection, field.hexCode, field.useAlternative, field.fontGap);
+                            field.flipDirection, field.hexCode, field.useAlternative, field.lineSpacingPixels, field.offset);
 
                     draw.draw(renderText);
                 } else {
                     draw = new DirectDraw();
                     field.myFont.drawText(draw, field.text, field.vec3dmin, field.vec3dmax, renderText,
                             field.resX, field.resY, field.textAlign, field.normal,
-                            field.flipDirection, field.hexCode, field.useAlternative, field.fontGap);
+                            field.flipDirection, field.hexCode, field.useAlternative, field.lineSpacingPixels, field.offset);
 
                     draw.draw(renderText);
                 }
