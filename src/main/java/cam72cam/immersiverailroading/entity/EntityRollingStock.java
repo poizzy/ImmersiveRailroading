@@ -346,6 +346,8 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 
 	public void setEntityTag(String tag){
 		this.tag = tag;
+		// I know I should use it... But I don't want to change UMC
+		this.internal.setCustomNameTag(tag);
 	}
 
 
