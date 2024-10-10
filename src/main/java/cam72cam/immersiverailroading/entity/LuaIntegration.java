@@ -8,7 +8,6 @@ import cam72cam.mod.ModCore;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.resource.Identifier;
-import net.minecraft.world.biome.Biome;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.luaj.vm2.*;
@@ -319,6 +318,13 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 return LuaValue.valueOf(getEngineState());
             }
         });
+        luaFunction.set("setTag", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue tag) {
+                setEntityTag(tag.tojstring());
+                return LuaValue.NIL;
+            }
+        });
     }
 
     public float getControlGroup(String control) {
@@ -467,10 +473,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     }
 
     private void setText(TextRenderOptions options) throws IOException {
-        // Get the current text for this component
         String currentText = componentTextMap.get(options.componentId);
-
-        // If the text has changed for this specific component, update it
         if (currentText == null || !options.newText.equals(currentText)) {
             LinkedHashMap<String, OBJGroup> group = this.getDefinition().getModel().groups;
             for (Map.Entry<String, OBJGroup> entry : group.entrySet()) {
@@ -485,7 +488,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                     Identifier jsonId = options.id.getRelative(jsonPath.replaceAll(".png", ".json"));
                     InputStream json = jsonId.getResourceStream();
 
-                    // Render the text for the current component
                     renderText.setText(
                             options.componentId, options.newText, options.id, vec3dmin, vec3dmax, json,
                             options.resX, options.resY, options.align, options.flipped, options.fontSize, options.fontX,
