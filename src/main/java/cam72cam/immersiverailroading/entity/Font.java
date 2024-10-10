@@ -2,10 +2,7 @@ package cam72cam.immersiverailroading.entity;
 
 import cam72cam.mod.ModCore;
 import cam72cam.mod.math.Vec3d;
-import cam72cam.mod.model.obj.Buffers;
 import cam72cam.mod.model.obj.VertexBuffer;
-import cam72cam.mod.render.opengl.DirectDraw;
-import cam72cam.mod.render.opengl.RenderState;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -77,7 +74,10 @@ public class Font {
         LEFT, CENTER, RIGHT
     }
 
-    public void drawText(DirectDraw draw, String text, Vec3d minVector, Vec3d maxVector, RenderState state, int resolutionWidth, int resolutionHeight, TextAlign alignment, Vec3d normal, boolean switchPlusMinus, String fontColor, boolean useAlternative, int lineSpacingPixels, int offset) {
+    public VertexBuffer drawText(String text, Vec3d minVector, Vec3d maxVector, int resolutionWidth, int resolutionHeight,
+                                 Font.TextAlign alignment, Vec3d normal, boolean switchPlusMinus, String fontColor,
+                                 boolean useAlternative, int lineSpacingPixels, int offset) {
+
         normal = normal.normalize();
         Vec3d up = new Vec3d(0, 1, 0);
 
@@ -106,39 +106,32 @@ public class Font {
         String[] lines = text.split("\n");
 
         double glyphHeightScaled = glyphHeight * scaleY;
-        double totalTextHeight = glyphHeightScaled * lines.length + (lines.length - 1) * lineSpacingWorld * scaleY;
+        double totalTextHeight = glyphHeightScaled * lines.length + (lines.length - 1) * lineSpacingWorld;
         double verticalOffset = (boxHeight - totalTextHeight) / 2 + offsetWorld;
         double yOffset = (boxHeight + totalTextHeight) / 2 - offsetWorld;
 
-        Vec3d startPos;
-        if (!switchPlusMinus) {
-            startPos = minVector
-                    .add(directionY.scale(verticalOffset));
-        } else {
-            startPos = maxVector
-                    .subtract(directionY.scale(yOffset));
-        }
-
+        Vec3d startPos = !switchPlusMinus ? minVector.add(directionY.scale(verticalOffset)) : maxVector.subtract(directionY.scale(yOffset));
         Vec3d currentPos = startPos;
 
-//        double totalTextWidth = 0;
-//        for (int i = 0; i < text.length(); i++) {
-//            char c = text.charAt(i);
-//            Glyph glyph = getGlyphForChar(c);
-//            if (glyph != null) {
-//                totalTextWidth += (glyph.width + gap) * scaleX;
-//            }
-//        }
-//        if (totalTextWidth > 0) {
-//            totalTextWidth -= gap * scaleX;
-//        }
+        int r = 0, g = 0, b = 0;
+        if (fontColor != null && fontColor.matches("^#([A-Fa-f0-9]{6})$")) {
+            r = Integer.parseInt(fontColor.substring(1, 3), 16);
+            g = Integer.parseInt(fontColor.substring(3, 5), 16);
+            b = Integer.parseInt(fontColor.substring(5, 7), 16);
+        }
 
-        Buffers.FloatBuffer vertexBuffer = new Buffers.FloatBuffer(text.length() * 12 * 4);
+        float rFloat = r / 255.0f;
+        float gFloat = g / 255.0f;
+        float bFloat = b / 255.0f;
+        float alpha = 1.0f;
+
+        int maxVertices = text.length() * 6;
+        VertexBuffer vb = new VertexBuffer(maxVertices, true);
+        int index = 0; // Index for the vertex buffer
+
         for (String line : lines) {
-            // Calculate total width for each line for alignment
             double totalTextWidth = 0;
-            for (int i = 0; i < line.length(); i++) {
-                char c = line.charAt(i);
+            for (char c : line.toCharArray()) {
                 Glyph glyph = getGlyphForChar(c);
                 if (glyph != null) {
                     totalTextWidth += (glyph.width + gap) * scaleX;
@@ -163,7 +156,6 @@ public class Font {
             }
 
             Vec3d lineStartPos = currentPos.add(directionX.scale(horizontalOffset));
-
             Vec3d currentLinePos = lineStartPos;
 
             for (char c : line.toCharArray()) {
@@ -183,40 +175,43 @@ public class Font {
                 Vec3d topRightPos = bottomRightPos.add(directionY.scale(scaledGlyphHeight));
                 Vec3d topLeftPos = bottomLeftPos.add(directionY.scale(scaledGlyphHeight));
 
-                addVertexToBuffer(vertexBuffer, bottomLeftPos, u, v);
-                addVertexToBuffer(vertexBuffer, bottomRightPos, u1, v);
-                addVertexToBuffer(vertexBuffer, topRightPos, u1, v1);
-                addVertexToBuffer(vertexBuffer, topLeftPos, u, v1);
+                index = addVertexToBuffer(vb.data, index, bottomLeftPos, u, v, rFloat, gFloat, bFloat, alpha, normal);
+                index = addVertexToBuffer(vb.data, index, bottomRightPos, u1, v, rFloat, gFloat, bFloat, alpha, normal);
+                index = addVertexToBuffer(vb.data, index, topRightPos, u1, v1, rFloat, gFloat, bFloat, alpha, normal);
+
+                index = addVertexToBuffer(vb.data, index, bottomLeftPos, u, v, rFloat, gFloat, bFloat, alpha, normal);
+                index = addVertexToBuffer(vb.data, index, topRightPos, u1, v1, rFloat, gFloat, bFloat, alpha, normal);
+                index = addVertexToBuffer(vb.data, index, topLeftPos, u, v1, rFloat, gFloat, bFloat, alpha, normal);
 
                 currentLinePos = currentLinePos.add(directionX.scale(scaledGlyphWidth + gap * scaleX));
             }
-
-            // Move to the next line (apply line spacing)
             currentPos = currentPos.subtract(directionY.scale(glyphHeightScaled + lineSpacingWorld));
-
         }
 
-        assert vertexBuffer != null;
-        float[] vertexData = vertexBuffer.array();
-        int stride = 5;
-
-        for (int i = 0; i < vertexData.length; i += stride) {
-            draw.vertex(
-                    vertexData[i],     // x
-                    vertexData[i + 1], // y
-                    vertexData[i + 2]  // z
-            ).uv(
-                    vertexData[i + 3], // u
-                    vertexData[i + 4]  // v
-            );
-        }
+        return vb;
     }
 
-    private void addVertexToBuffer(Buffers.FloatBuffer buffer, Vec3d pos, double u, double v) {
-        buffer.add((float) pos.x);
-        buffer.add((float) pos.y);
-        buffer.add((float) pos.z);
-        buffer.add((float) u);
-        buffer.add((float) v);
+
+    private int addVertexToBuffer(float[] buffer, int index, Vec3d position, double u, double v,
+                                  float r, float g, float b, float a, Vec3d normal) {
+        buffer[index++] = (float) position.x;
+        buffer[index++] = (float) position.y;
+        buffer[index++] = (float) position.z;
+
+        buffer[index++] = (float) u;
+        buffer[index++] = (float) v;
+
+        buffer[index++] = r;
+        buffer[index++] = g;
+        buffer[index++] = b;
+        buffer[index++] = a;
+
+        if (normal != null) {
+            buffer[index++] = (float) normal.x;
+            buffer[index++] = (float) normal.y;
+            buffer[index++] = (float) normal.z;
+        }
+
+        return index;
     }
 }

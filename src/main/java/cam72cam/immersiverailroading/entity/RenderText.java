@@ -3,6 +3,7 @@ package cam72cam.immersiverailroading.entity;
 import cam72cam.immersiverailroading.model.animation.StockAnimation;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.OBJGroup;
+import cam72cam.mod.model.obj.VertexBuffer;
 import cam72cam.mod.render.opengl.*;
 import cam72cam.mod.resource.Identifier;
 import org.lwjgl.opengl.GLContext;
@@ -54,6 +55,22 @@ public class RenderText {
         int lineSpacingPixels;
         int offset;
 
+        private VBO cachedVBO = null;
+        private VertexBuffer cachedVertexBuffer = null;
+        private String lastText = null;
+        private Vec3d lastVec3dmin = null;
+        private Vec3d lastVec3dmax = null;
+        private int lastResX = -1;
+        private int lastResY = -1;
+
+        public void markDirty() {
+            if (cachedVBO != null) {
+                cachedVBO.free(); // Free the old VBO
+                cachedVBO = null;
+            }
+            cachedVertexBuffer = null;
+        }
+
         TextField(String text, Identifier id, Vec3d vec3dmin, Vec3d vec3dmax,
                   InputStream json, int resX, int resY, Font.TextAlign align,
                   boolean flipDir, int fontSize, int fontLength, int fontGap,
@@ -93,7 +110,9 @@ public class RenderText {
                         InputStream json, int resX, int resY, Font.TextAlign align,
                         boolean flipDir, int fontSize, int fontLength, int fontGap,
                         Identifier overlayId, Vec3d normal, String hexCode, boolean fullbright, int texY, boolean useAlternative, int lineSpacingPixels, int offset) {
-        textFields.put(componentId, new TextField(text, id, vec3dmin, vec3dmax, json, resX, resY, align, flipDir, fontSize, fontLength, fontGap, overlayId, normal, hexCode, fullbright, texY, useAlternative, lineSpacingPixels, offset));
+        TextField textData = new TextField(text, id, vec3dmin, vec3dmax, json, resX, resY, align, flipDir, fontSize, fontLength, fontGap, overlayId, normal, hexCode, fullbright, texY, useAlternative, lineSpacingPixels, offset);
+        textFields.put(componentId, textData);
+        textData.markDirty();
     }
 
     public void textRender(RenderState state, List<StockAnimation> animations, EntityRollingStock stock, float partialTicks) {
@@ -111,21 +130,6 @@ public class RenderText {
                     .lightmap(field.fullbright ? 1 : 0, 1)
                     .blend(new BlendMode(BlendMode.GL_SRC_ALPHA, BlendMode.GL_ONE_MINUS_SRC_ALPHA));
 
-            int r = 0, g = 0, b = 0;
-            if (field.hexCode != null && field.hexCode.matches("^#([A-Fa-f0-9]{6})$")) {
-                r = Integer.parseInt(field.hexCode.substring(1, 3), 16);
-                g = Integer.parseInt(field.hexCode.substring(3, 5), 16);
-                b = Integer.parseInt(field.hexCode.substring(5, 7), 16);
-            }
-
-            float rFloat = r / 255.0f;
-            float gFloat = g / 255.0f;
-            float bFloat = b / 255.0f;
-            float alpha = 1.0f;
-
-            renderText.color(rFloat, gFloat, bFloat, alpha);
-
-            // This is so fuckin ugly I can't even put it into words
             Matrix4 transformationMatrix = null;
             for (StockAnimation animation : animations) {
                 LinkedHashMap<String, OBJGroup> group = stock.getDefinition().getModel().groups;
@@ -138,24 +142,42 @@ public class RenderText {
                         }
                     }
                 }
+            }
 
-                if (transformationMatrix != null) {
-                    Vec3d animatedVec3dmin = transformationMatrix.apply(field.vec3dmin);
-                    Vec3d animatedVec3dmax = transformationMatrix.apply(field.vec3dmax);
+            Vec3d animatedVec3dmin = transformationMatrix != null ? transformationMatrix.apply(field.vec3dmin) : field.vec3dmin;
+            Vec3d animatedVec3dmax = transformationMatrix != null ? transformationMatrix.apply(field.vec3dmax) : field.vec3dmax;
 
-                    draw = new DirectDraw();
-                    field.myFont.drawText(draw, field.text, animatedVec3dmin, animatedVec3dmax, renderText,
-                            field.resX, field.resY, field.textAlign, field.normal,
-                            field.flipDirection, field.hexCode, field.useAlternative, field.lineSpacingPixels, field.offset);
+            boolean needsUpdate = field.cachedVBO == null ||
+                    field.cachedVertexBuffer == null ||
+                    !field.text.equals(field.lastText) ||
+                    !animatedVec3dmin.equals(field.lastVec3dmin) ||
+                    !animatedVec3dmax.equals(field.lastVec3dmax) ||
+                    field.resX != field.lastResX ||
+                    field.resY != field.lastResY;
 
-                    draw.draw(renderText);
-                } else {
-                    draw = new DirectDraw();
-                    field.myFont.drawText(draw, field.text, field.vec3dmin, field.vec3dmax, renderText,
-                            field.resX, field.resY, field.textAlign, field.normal,
-                            field.flipDirection, field.hexCode, field.useAlternative, field.lineSpacingPixels, field.offset);
+            if (needsUpdate) {
+                field.lastText = field.text;
+                field.lastVec3dmin = animatedVec3dmin;
+                field.lastVec3dmax = animatedVec3dmax;
+                field.lastResX = field.resX;
+                field.lastResY = field.resY;
 
-                    draw.draw(renderText);
+                field.cachedVertexBuffer = field.myFont.drawText(field.text, animatedVec3dmin, animatedVec3dmax,
+                        field.resX, field.resY, field.textAlign,
+                        field.normal, field.flipDirection, field.hexCode,
+                        field.useAlternative, field.lineSpacingPixels,
+                        field.offset);
+
+                if (field.cachedVBO != null) {
+                    field.cachedVBO.free();
+                }
+                field.cachedVBO = new VBO(() -> field.cachedVertexBuffer, renderState -> {
+                });
+            }
+
+            if (field.cachedVBO != null) {
+                try (VBO.Binding binding = field.cachedVBO.bind(renderText)) {
+                    binding.draw();
                 }
             }
         }
