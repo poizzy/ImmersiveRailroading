@@ -491,7 +491,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                     renderText.setText(
                             options.componentId, options.newText, options.id, vec3dmin, vec3dmax, json,
                             options.resX, options.resY, options.align, options.flipped, options.fontSize, options.fontX,
-                            options.fontGap, options.overlay, vec3dNormal, options.hexCode, options.fullbright, options.textureHeight, options.useAlternative, options.lineSpacingPixels, options.offset
+                            options.fontGap, options.overlay, vec3dNormal, options.hexCode, options.fullbright, options.textureHeight, options.useAlternative, options.lineSpacingPixels, options.offset, entry.getKey()
                     );
 
                     // Update the map with the new text for this component

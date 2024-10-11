@@ -10,10 +10,7 @@ import org.lwjgl.opengl.GLContext;
 import util.Matrix4;
 
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -22,6 +19,11 @@ public class RenderText {
     private DirectDraw draw;
     private final ConcurrentMap<String, TextField> textFields = new ConcurrentHashMap<>();
 
+    private RenderState cachedRenderState;
+    private Identifier cachedFieldId;
+    private boolean cachedFullbright;
+
+    private final ConcurrentMap<String, String> precomputedGroupNames = new ConcurrentHashMap<>();
 
     public RenderText() {
         draw = new DirectDraw();
@@ -62,6 +64,7 @@ public class RenderText {
         private Vec3d lastVec3dmax = null;
         private int lastResX = -1;
         private int lastResY = -1;
+        public Map<String, String> groupNames = new HashMap<>();
 
         public void markDirty() {
             if (cachedVBO != null) {
@@ -69,6 +72,10 @@ public class RenderText {
                 cachedVBO = null;
             }
             cachedVertexBuffer = null;
+        }
+
+        public void cacheGroupName(){
+
         }
 
         TextField(String text, Identifier id, Vec3d vec3dmin, Vec3d vec3dmax,
@@ -109,10 +116,26 @@ public class RenderText {
     public void setText(String componentId, String text, Identifier id, Vec3d vec3dmin, Vec3d vec3dmax,
                         InputStream json, int resX, int resY, Font.TextAlign align,
                         boolean flipDir, int fontSize, int fontLength, int fontGap,
-                        Identifier overlayId, Vec3d normal, String hexCode, boolean fullbright, int texY, boolean useAlternative, int lineSpacingPixels, int offset) {
+                        Identifier overlayId, Vec3d normal, String hexCode, boolean fullbright, int texY, boolean useAlternative, int lineSpacingPixels, int offset, String entry) {
         TextField textData = new TextField(text, id, vec3dmin, vec3dmax, json, resX, resY, align, flipDir, fontSize, fontLength, fontGap, overlayId, normal, hexCode, fullbright, texY, useAlternative, lineSpacingPixels, offset);
         textFields.put(componentId, textData);
         textData.markDirty();
+        precomputedGroupNames.put(componentId, entry);
+    }
+
+    public RenderState getRenderState(TextField field, RenderState state) {
+        // Check if the state needs to be updated
+        if (cachedRenderState == null || !field.id.equals(cachedFieldId) || field.fullbright != cachedFullbright) {
+            // Update the cached values
+            cachedFieldId = field.id;
+            cachedFullbright = field.fullbright;
+
+            // Create a new RenderState and cache it
+            cachedRenderState = state.clone()
+                    .texture(Texture.wrap(field.id))
+                    .lightmap(field.fullbright ? 1 : 0, 1);
+        }
+        return cachedRenderState;
     }
 
     public void textRender(RenderState state, List<StockAnimation> animations, EntityRollingStock stock, float partialTicks) {
@@ -122,24 +145,21 @@ public class RenderText {
 
         for (Map.Entry<String, TextField> entry : textFields.entrySet()) {
             TextField field = entry.getValue();
-
             field.initializeFont();
 
-            RenderState renderText = state.clone()
-                    .texture(Texture.wrap(field.id))
-                    .lightmap(field.fullbright ? 1 : 0, 1)
-                    .blend(new BlendMode(BlendMode.GL_SRC_ALPHA, BlendMode.GL_ONE_MINUS_SRC_ALPHA));
+            RenderState renderText = getRenderState(field, state);
 
             Matrix4 transformationMatrix = null;
-            for (StockAnimation animation : animations) {
-                LinkedHashMap<String, OBJGroup> group = stock.getDefinition().getModel().groups;
-                for (Map.Entry<String, OBJGroup> groupEntry : group.entrySet()) {
-                    if (groupEntry.getKey().contains(entry.getKey())) {
-                        Matrix4 animMatrix = animation.getMatrix(stock, groupEntry.getKey(), partialTicks);
-                        if (animMatrix != null) {
-                            transformationMatrix = animMatrix;
-                            break;
-                        }
+            String entryKey = entry.getKey();
+
+            String matchingGroupName = precomputedGroupNames.get(entryKey);
+
+            // Attempt to find the transformation matrix using the precomputed group name
+            if (matchingGroupName != null) {
+                for (StockAnimation animation : animations) {
+                    transformationMatrix = animation.getMatrix(stock, matchingGroupName, partialTicks);
+                    if (transformationMatrix != null) {
+                        break;
                     }
                 }
             }
@@ -162,23 +182,22 @@ public class RenderText {
                 field.lastResX = field.resX;
                 field.lastResY = field.resY;
 
-                field.cachedVertexBuffer = field.myFont.drawText(field.text, animatedVec3dmin, animatedVec3dmax,
+                field.cachedVertexBuffer = field.myFont.drawText(
+                        field.text, animatedVec3dmin, animatedVec3dmax,
                         field.resX, field.resY, field.textAlign,
                         field.normal, field.flipDirection, field.hexCode,
                         field.useAlternative, field.lineSpacingPixels,
-                        field.offset);
+                        field.offset
+                );
 
                 if (field.cachedVBO != null) {
                     field.cachedVBO.free();
                 }
-                field.cachedVBO = new VBO(() -> field.cachedVertexBuffer, renderState -> {
-                });
+                field.cachedVBO = new VBO(() -> field.cachedVertexBuffer, renderState -> {});
             }
 
-            if (field.cachedVBO != null) {
-                try (VBO.Binding binding = field.cachedVBO.bind(renderText)) {
-                    binding.draw();
-                }
+            try (VBO.Binding binding = field.cachedVBO.bind(renderText)) {
+                binding.draw();
             }
         }
     }
