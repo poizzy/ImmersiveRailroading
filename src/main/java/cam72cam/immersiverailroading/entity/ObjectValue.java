@@ -4,6 +4,7 @@ import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.mod.resource.Identifier;
 
+import java.util.List;
 import java.util.Map;
 
 public class ObjectValue implements DataBlock.Value {
@@ -67,5 +68,26 @@ public class ObjectValue implements DataBlock.Value {
     public Identifier asIdentifier() {
         String value = asString();
         return value != null ? new Identifier(ImmersiveRailroading.MODID, new Identifier(value).getPath()) : null;
+    }
+
+    public DataBlock asDataBlock() {
+        if (object instanceof DataBlock) {
+            return (DataBlock) object;
+        }
+        return null;
+    }
+
+    public List<DataBlock> asDataBlockList() {
+        if (object instanceof List) {
+            return (List<DataBlock>) object;
+        }
+        return null;
+    }
+
+    public List<DataBlock.Value> asValueList() {
+        if (object instanceof List) {
+            return (List<DataBlock.Value>) object;
+        }
+        return null;
     }
 }

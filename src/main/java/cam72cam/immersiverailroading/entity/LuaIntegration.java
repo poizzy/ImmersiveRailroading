@@ -2,6 +2,9 @@ package cam72cam.immersiverailroading.entity;
 
 import cam72cam.immersiverailroading.gui.overlay.ReadoutsEventHandler;
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
+import cam72cam.immersiverailroading.library.ModelComponentType;
+import cam72cam.immersiverailroading.model.components.ModelComponent;
+import cam72cam.immersiverailroading.model.part.CustomParticleConfig;
 import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.mod.ModCore;
@@ -30,6 +33,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     LuaTable luaFunction = new LuaTable();
     private final Map<String, InputStream> moduleMap = new HashMap<>();
     private Map<String, String> componentTextMap = new HashMap<>();
+    private int oldId;
 
     @Override
     public void onTick() {
@@ -38,7 +42,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 if (ConfigPerformance.luaScriptSleep > 0) {
                     long currentTime = System.currentTimeMillis();
                     long elapsedTime = currentTime - lastExecutionTime;
-                    
+
                     if (!isSleeping && elapsedTime >= ConfigPerformance.luaScriptSleep * 1000L) {
                         isSleeping = true;
                     }
@@ -325,6 +329,13 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 return LuaValue.NIL;
             }
         });
+        luaFunction.set("newParticle", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue luaValue) {
+                particleDefinition(luaValue);
+                return LuaValue.NIL;
+            }
+        });
     }
 
     public float getControlGroup(String control) {
@@ -602,23 +613,111 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         }
     }
 
-    private static Object convertLuaValue(LuaValue value) {
-        if (value.isboolean()) {
-            return value.toboolean();
-        } else if (value.isnumber()) {
-            return value.todouble();
-        } else if (value.isstring()) {
-            return value.tojstring();
-        } else if (value.istable()) {
-            Map<String, Object> nestedMap = new HashMap<>();
-            for (LuaValue key : value.checktable().keys()) {
-                LuaValue val = value.get(key);
-                nestedMap.put(key.tojstring(), convertLuaValue(val));
-            }
-            return nestedMap;
-        } else {
-            return value; // Return raw LuaValue if type is unknown
+    private void particleDefinition(LuaValue result) {
+        if (result.istable()) {
+            DataBlock data = luaTableToDataBlock(result);
+
+            Identifier texture = data.getValue("texture").asIdentifier();
+            int id = data.getValue("id").asInteger();
+            List<DataBlock.Value> motionData = data.getValuesMap().get("motion");
+            Vec3d motion = motionData != null ? new Vec3d(motionData.get(2).asDouble(), motionData.get(1).asDouble(), motionData.get(0).asDouble()) : new Vec3d(0, 1, 0);
+            int lifespan = data.getValue("lifespan") != null ? data.getValue("lifespan").asInteger() : 0;
+            float darken = data.getValue("darken") != null ? data.getValue("darken").asFloat() : 0;
+            float thickness = data.getValue("thickness") != null ? data.getValue("thickness").asFloat() : 1;
+            double diameter = data.getValue("diameter") != null ? data.getValue("diameter").asDouble() : 1;
+            boolean alwaysRunning = data.getValue("alwaysRunning") != null ? data.getValue("alwaysRunning").asBoolean() : false;
+
+            newParticle(texture, id, motion, lifespan, darken, thickness, diameter, alwaysRunning);
         }
+    }
+
+    private void newParticle(Identifier texture, int id, Vec3d motion, int lifespan, float darken, float thickness, double diameter, boolean alwaysRunning) {
+        if (id != oldId) {
+            oldId = id;
+            List<ModelComponent> components = this.getDefinition().getModel().allComponents;
+            ModelComponent component = components.stream().filter(c -> c.id == id && c.type == ModelComponentType.CUSTOM_PARTICLE_X).findFirst().orElse(null);
+            if (component == null) {
+                ModCore.error(String.format("Custom particle object CUSTOM_PARTICLE_%s couldn't be found in model %s", id, this.getDefinition().modelLoc.toString()));
+                return;
+            }
+            CustomParticleConfig customParticleConfig = CustomParticleConfig.getInstance(component);
+            Vec3d position = component.center;
+            customParticleConfig.setConfig(position, motion, lifespan, darken, thickness, diameter, texture, alwaysRunning);
+        }
+    }
+
+    private static DataBlock luaTableToDataBlock(LuaValue luaTable) {
+        return new DataBlock() {
+            private final Map<String, Value> valueMap = new HashMap<>();
+            private final Map<String, List<Value>> valuesMap = new HashMap<>();
+            private final Map<String, DataBlock> blockMap = new HashMap<>();
+            private final Map<String, List<DataBlock>> blocksMap = new HashMap<>();
+            {
+                for (LuaValue key : luaTable.checktable().keys()) {
+                    String keyString = key.tojstring();
+                    LuaValue value = luaTable.get(key);
+                    if (value.istable()) {
+                        if (isListTable(value)) {
+                            List<Value> valueList = new ArrayList<>();
+                            for (int i = 1; i <= value.length(); i++) {
+                                valueList.add(new ObjectValue(convertLuaValue(value.get(i))));
+                            }
+                            valuesMap.put(keyString, valueList);
+                        } else {
+                            blockMap.put(keyString, luaTableToDataBlock(value));
+                        }
+                    } else {
+                        valueMap.put(keyString, new ObjectValue(convertLuaValue(value)));
+                    }
+                }
+            }
+
+            @Override
+            public Map<String, Value> getValueMap() {
+                return valueMap;
+            }
+
+            @Override
+            public Map<String, List<Value>> getValuesMap() {
+                return valuesMap;
+            }
+
+            @Override
+            public Map<String, DataBlock> getBlockMap() {
+                return blockMap;
+            }
+
+            @Override
+            public Map<String, List<DataBlock>> getBlocksMap() {
+                return blocksMap;
+            }
+        };
+    }
+
+    private static boolean isListTable(LuaValue luaTable) {
+        int index = 1;
+        for (LuaValue key : luaTable.checktable().keys()) {
+            if (!key.isint() || key.toint() != index) {
+                return false;
+            }
+            index++;
+        }
+        return true;
+    }
+
+    private static Object convertLuaValue(LuaValue luaValue) {
+        if (luaValue.isboolean()) {
+            return luaValue.toboolean();
+        } else if (luaValue.isint()) {
+            return luaValue.toint();
+        } else if (luaValue.isnumber()) {
+            return luaValue.todouble();
+        } else if (luaValue.isstring()) {
+            return luaValue.tojstring();
+        } else if (luaValue.istable()) {
+            return luaTableToDataBlock(luaValue);
+        }
+        return null;
     }
 
     private static Object convertLuaValueText(LuaValue k, LuaValue value) {
@@ -681,6 +780,8 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     public void setTurnedOnLua(boolean b) {
     }
 
+
+    @Override
     public boolean getEngineState() {
         return false;
     }

@@ -66,6 +66,8 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
     private final FlangeSound flangeSound;
     private final SwaySimulator sway;
 
+    private CustomParticleEmitter customParticles;
+
     public StockModel(DEFINITION def) throws Exception {
         super(def.modelLoc, def.darken, def.internal_model_scale, def.textureNames.keySet(), ConfigGraphics.textureCacheSeconds, i -> {
             List<Integer> lodSizes = new ArrayList<>();
@@ -232,6 +234,8 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
 
         this.shell = provider.parse(ModelComponentType.SHELL);
         rocking.include(shell);
+
+        customParticles = CustomParticleEmitter.get(provider);
     }
 
     protected boolean unifiedBogies() {
@@ -249,6 +253,8 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
         doors.forEach(c -> c.effects(stock));
         gauges.forEach(c -> c.effects(stock));
         animations.forEach(c -> c.effects(stock));
+
+        customParticles.effects(stock);
 
 
         float adjust = (float) Math.abs(stock.getCurrentSpeed().metric()) / 300;
