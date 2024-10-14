@@ -6,7 +6,7 @@ import cam72cam.immersiverailroading.library.ModelComponentType;
 import cam72cam.immersiverailroading.library.Particles;
 import cam72cam.immersiverailroading.model.components.ComponentProvider;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
-import cam72cam.immersiverailroading.render.SmokeParticle;
+import cam72cam.immersiverailroading.render.CustomParticle;
 import cam72cam.immersiverailroading.util.VecUtil;
 import cam72cam.mod.math.Vec3d;
 import util.Matrix4;
@@ -58,10 +58,20 @@ public class CustomParticleEmitter {
                 if (!stock.getEngineState() && !particleConfig.alwaysRunning) {
                     continue;
                 }
+                if(!particleConfig.shouldRender) {
+                    continue;
+                }
+
+                double diameter = particleConfig.diameter;
+                if (particleConfig.normalWidth) {
+                    diameter = component.width() * stock.gauge.scale();
+                }
+
                 Vec3d particlePos = stock.getPosition().add(VecUtil.rotateWrongYaw(particleConfig.pos.scale(stock.gauge.scale()), stock.getRotationYaw() + 180));
                 Vec3d fakeMotion = transformWorldToObject(particleConfig.motion, stock.getLookVector(), new Vec3d(0, 1, 0));
                 try {
-                    Particles.SMOKE.accept(new SmokeParticle.SmokeParticleData(stock.getWorld(), particlePos, fakeMotion, particleConfig.lifespan, particleConfig.darken, particleConfig.thickness, particleConfig.diameter, particleConfig.texture));
+//                    Particles.SMOKE.accept(new SmokeParticle.SmokeParticleData(stock.getWorld(), particlePos, fakeMotion, particleConfig.lifespan, particleConfig.darken, particleConfig.thickness, particleConfig.diameter, particleConfig.texture));
+                    Particles.CUSTOM.accept(new CustomParticle.CustomParticleData(stock.getWorld(), particlePos, fakeMotion, particleConfig.lifespan, particleConfig.darken, particleConfig.thickness, diameter, particleConfig.texture, particleConfig.expansionRate, particleConfig.rgba));
                 } catch (Exception ignored) {
                 }
             }

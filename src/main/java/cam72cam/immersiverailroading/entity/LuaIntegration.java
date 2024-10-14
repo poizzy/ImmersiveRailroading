@@ -1,5 +1,6 @@
 package cam72cam.immersiverailroading.entity;
 
+import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.gui.overlay.ReadoutsEventHandler;
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
 import cam72cam.immersiverailroading.library.ModelComponentType;
@@ -32,51 +33,48 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     private boolean wakeLuaScriptCalled = false;
     LuaTable luaFunction = new LuaTable();
     private final Map<String, InputStream> moduleMap = new HashMap<>();
-    private Map<String, String> componentTextMap = new HashMap<>();
-    private int oldId;
+    private final Map<String, String> componentTextMap = new HashMap<>();
+    private final Map<Integer, ParticleState> particleStates = new HashMap<>();
+    private final Map<Integer, ParticleState> oldParticleState = new HashMap<>();
 
     @Override
     public void onTick() {
-        if (getDefinition().script != null) {
-            if (!ConfigPerformance.disableLuaScript) {
-                if (ConfigPerformance.luaScriptSleep > 0) {
-                    long currentTime = System.currentTimeMillis();
-                    long elapsedTime = currentTime - lastExecutionTime;
+        super.onTick();
+        if (getDefinition().script != null && !ConfigPerformance.disableLuaScript) {
+            long currentTime = System.currentTimeMillis();
 
-                    if (!isSleeping && elapsedTime >= ConfigPerformance.luaScriptSleep * 1000L) {
-                        isSleeping = true;
-                    }
+            // Handle sleep logic if luaScriptSleep is greater than 0
+            if (ConfigPerformance.luaScriptSleep > 0) {
+                long elapsedTime = currentTime - lastExecutionTime;
 
-                    if (isSleeping) {
-                        if (wakeLuaScriptCalled || getPassengerCount() > 0) {
-                            wakeLuaScriptCalled = false;
-                            isSleeping = false;
-                            lastExecutionTime = currentTime;
-                        } else {
-                            return;
-                        }
-                    }
+                if (!isSleeping && elapsedTime >= ConfigPerformance.luaScriptSleep * 1000L) {
+                    isSleeping = true;
                 }
 
-                if (ConfigPerformance.luaScriptSleep == 0) {
-                    isSleeping = false;
-                    lastExecutionTime = System.currentTimeMillis();
-                }
-
-
-                if (!isSleeping || ConfigPerformance.luaScriptSleep == 0) {
-
-                    try {
-                        if (LoadLuaFile()) return;
-                        callFuction();
-                        getReadout();
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
+                if (isSleeping) {
+                    if (wakeLuaScriptCalled || getPassengerCount() > 0) {
+                        wakeLuaScriptCalled = false;
+                        isSleeping = false;
+                        lastExecutionTime = currentTime;
+                    } else {
+                        return;
                     }
                 }
+            } else {
+                // If luaScriptSleep is 0, reset sleep state
+                isSleeping = false;
+                lastExecutionTime = currentTime;
+            }
+
+            // Execute Lua script if not sleeping or luaScriptSleep is 0
+            try {
+                if (LoadLuaFile()) return;
+                callFuction();
+                getReadout();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
         }
-        super.onTick();
     }
 
     public boolean LoadLuaFile() throws IOException {
@@ -505,7 +503,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                             options.fontGap, options.overlay, vec3dNormal, options.hexCode, options.fullbright, options.textureHeight, options.useAlternative, options.lineSpacingPixels, options.offset, entry.getKey()
                     );
 
-                    // Update the map with the new text for this component
                     componentTextMap.put(options.componentId, options.newText);
                 }
             }
@@ -613,37 +610,114 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         }
     }
 
+    static class ParticleState {
+        Vec3d motion;
+        int lifespan;
+        float darken;
+        float thickness;
+        double diameter;
+        boolean alwaysRunning;
+        Identifier texture;
+        boolean render;
+        int r;
+        int g;
+        int b;
+        double a;
+        double expansionRate;
+        boolean normalWidth;
+
+        ParticleState(Vec3d motion, int lifespan, float darken, float thickness, double diameter,Identifier texture, boolean alwaysRunning, boolean render, int r, int g, int b, double a, double expansionRate, boolean normalWidth) {
+            this.motion = motion;
+            this.lifespan = lifespan;
+            this.darken = darken;
+            this.thickness = thickness;
+            this.diameter = diameter;
+            this.alwaysRunning = alwaysRunning;
+            this.texture = texture;
+            this.render = render;
+            this.r = r;
+            this.g = g;
+            this.b = b;
+            this.a = a;
+            this.expansionRate = expansionRate;
+            this.normalWidth = normalWidth;
+
+        }
+        boolean equals(ParticleState other) {
+            if (other == null) return false;
+            return this.motion.equals(other.motion) &&
+                    this.lifespan == other.lifespan &&
+                    this.darken == other.darken &&
+                    this.thickness == other.thickness &&
+                    this.diameter == other.diameter &&
+                    this.texture.equals(other.texture) &&
+                    this.alwaysRunning == other.alwaysRunning;
+        }
+    }
+
     private void particleDefinition(LuaValue result) {
         if (result.istable()) {
             DataBlock data = luaTableToDataBlock(result);
 
-            Identifier texture = data.getValue("texture").asIdentifier();
-            int id = data.getValue("id").asInteger();
+            Identifier texture = data.getValue("texture").asIdentifier(new Identifier(ImmersiveRailroading.MODID, "textures/light.png"));
+            int id = data.getValue("id").asInteger(1);
             List<DataBlock.Value> motionData = data.getValuesMap().get("motion");
-            Vec3d motion = motionData != null ? new Vec3d(motionData.get(2).asDouble(), motionData.get(1).asDouble(), motionData.get(0).asDouble()) : new Vec3d(0, 1, 0);
-            int lifespan = data.getValue("lifespan") != null ? data.getValue("lifespan").asInteger() : 0;
-            float darken = data.getValue("darken") != null ? data.getValue("darken").asFloat() : 0;
-            float thickness = data.getValue("thickness") != null ? data.getValue("thickness").asFloat() : 1;
-            double diameter = data.getValue("diameter") != null ? data.getValue("diameter").asDouble() : 1;
-            boolean alwaysRunning = data.getValue("alwaysRunning") != null ? data.getValue("alwaysRunning").asBoolean() : false;
+            Vec3d motion = new Vec3d(motionData.get(2).asDouble(0), motionData.get(1).asDouble(1), motionData.get(0).asDouble(0));
+            int lifespan = data.getValue("lifespan").asInteger(25);
+//            float darken = data.getValue("darken").asFloat(0);
+            float thickness = data.getValue("thickness").asFloat(0.1f);
+            Double diameter = data.getValue("diameter").asDouble();
+            boolean normalWidth = diameter == null;
+            boolean alwaysRunning = data.getValue("alwaysRunning").asBoolean(false);
+            boolean render = data.getValue("renders").asBoolean(true);
+            List<DataBlock.Value> rgba = data.getValuesMap().get("colorRGBA");
+            int r;
+            int g;
+            int b;
+            double a;
+            if (rgba != null) {
+                r = rgba.get(0).asInteger(240);
+                g = rgba.get(1).asInteger(240);
+                b = rgba.get(2).asInteger(240);
+                a = rgba.get(3).asDouble(10);
+            } else {
+                r = 240;
+                g = 240;
+                b = 240;
+                a = 10;
+            }
+            String hex = data.getValue("colorHEX").asString();
+            if (hex != null && hex.matches("^#([A-Fa-f0-9]{6})$")) {
+                r = Integer.parseInt(hex.substring(1, 3), 16);
+                g = Integer.parseInt(hex.substring(3, 5), 16);
+                b = Integer.parseInt(hex.substring(5, 7), 16);
+            }
+            double expansionRate = data.getValue("expansionRate").asDouble(16);
 
-            newParticle(texture, id, motion, lifespan, darken, thickness, diameter, alwaysRunning);
+            particleStates.put(id, new ParticleState(motion, lifespan, 0f, thickness, diameter != null ? diameter : 0.25, texture, alwaysRunning, render, r, g, b, a, expansionRate, normalWidth));
+
+            newParticle(particleStates);
         }
     }
 
-    private void newParticle(Identifier texture, int id, Vec3d motion, int lifespan, float darken, float thickness, double diameter, boolean alwaysRunning) {
-        if (id != oldId) {
-            oldId = id;
-            List<ModelComponent> components = this.getDefinition().getModel().allComponents;
-            ModelComponent component = components.stream().filter(c -> c.id == id && c.type == ModelComponentType.CUSTOM_PARTICLE_X).findFirst().orElse(null);
-            if (component == null) {
-                ModCore.error(String.format("Custom particle object CUSTOM_PARTICLE_%s couldn't be found in model %s", id, this.getDefinition().modelLoc.toString()));
-                return;
+    private void newParticle(Map<Integer, ParticleState> particle) {
+        particle.forEach((id, particleState) -> {
+            if (!particleState.equals(oldParticleState.get(id))) {
+                List<ModelComponent> components = this.getDefinition().getModel().allComponents;
+                ModelComponent component = components.stream().filter(c -> c.id.equals(id) && c.type == ModelComponentType.CUSTOM_PARTICLE_X).findFirst().orElse(null);
+                if (component == null) {
+                    ModCore.error(String.format("Custom particle object CUSTOM_PARTICLE_%s couldn't be found in model %s", id, this.getDefinition().modelLoc.toString()));
+                    return;
+                }
+                CustomParticleConfig customParticleConfig = CustomParticleConfig.getInstance(component);
+                Vec3d position = component.center;
+                customParticleConfig.setConfig(
+                        position, particleState.motion, particleState.lifespan, particleState.darken,
+                        particleState.thickness, particleState.diameter, particleState.texture, particleState.alwaysRunning,
+                        particleState.render, particleState.r, particleState.g, particleState.b, particleState.a, particleState.expansionRate, particleState.normalWidth);
+                oldParticleState.put(id, particleState);
             }
-            CustomParticleConfig customParticleConfig = CustomParticleConfig.getInstance(component);
-            Vec3d position = component.center;
-            customParticleConfig.setConfig(position, motion, lifespan, darken, thickness, diameter, texture, alwaysRunning);
-        }
+        });
     }
 
     private static DataBlock luaTableToDataBlock(LuaValue luaTable) {

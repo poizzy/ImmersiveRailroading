@@ -18,6 +18,10 @@ public class CustomParticleConfig {
     public double diameter;
     public Identifier texture;
     public boolean alwaysRunning;
+    public boolean shouldRender;
+    public rgba rgba;
+    public double expansionRate;
+    public boolean normalWidth;
 
     private CustomParticleConfig(){}
 
@@ -25,7 +29,7 @@ public class CustomParticleConfig {
         return instances.computeIfAbsent(component, k -> new CustomParticleConfig());
     }
 
-    public void setConfig(Vec3d pos, Vec3d motion, int lifespan, float darken, float thickness, double diameter, Identifier texture, boolean alwaysRunning) {
+    public void setConfig(Vec3d pos, Vec3d motion, int lifespan, float darken, float thickness, double diameter, Identifier texture, boolean alwaysRunning, boolean shouldRender, int r, int g, int b, double a, double expansionRate, boolean normalWidth) {
         this.pos = pos;
         this.motion = motion;
         this.lifespan = lifespan;
@@ -34,5 +38,19 @@ public class CustomParticleConfig {
         this.diameter = diameter;
         this.texture = texture;
         this.alwaysRunning = alwaysRunning;
+        this.shouldRender = shouldRender;
+        this.rgba = new rgba(r, g, b, a);
+        this.expansionRate = expansionRate;
+        this.normalWidth = normalWidth;
+    }
+
+    public static class rgba{
+        public double r, g, b, a;
+        public rgba(int r, int g, int b, double a) {
+            this.r = r / 255f;
+            this.g = g / 255f;
+            this.b = b / 255f;
+            this.a = a;
+        }
     }
 }
