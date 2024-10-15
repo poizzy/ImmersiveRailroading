@@ -123,21 +123,6 @@ public class RenderText {
         precomputedGroupNames.put(componentId, entry);
     }
 
-    public RenderState getRenderState(TextField field, RenderState state) {
-        // Check if the state needs to be updated
-        if (cachedRenderState == null || !field.id.equals(cachedFieldId) || field.fullbright != cachedFullbright) {
-            // Update the cached values
-            cachedFieldId = field.id;
-            cachedFullbright = field.fullbright;
-
-            // Create a new RenderState and cache it
-            cachedRenderState = state.clone()
-                    .texture(Texture.wrap(field.id))
-                    .lightmap(field.fullbright ? 1 : 0, 1);
-        }
-        return cachedRenderState;
-    }
-
     public void textRender(RenderState state, List<StockAnimation> animations, EntityRollingStock stock, float partialTicks) {
         if (!GLContext.getCapabilities().OpenGL11) {
             return;
@@ -147,7 +132,9 @@ public class RenderText {
             TextField field = entry.getValue();
             field.initializeFont();
 
-            RenderState renderText = getRenderState(field, state);
+            RenderState renderText = state.clone()
+                    .texture(Texture.wrap(field.id))
+                    .lightmap(field.fullbright ? 1 : 0, 1);
 
             Matrix4 transformationMatrix = null;
             String entryKey = entry.getKey();
