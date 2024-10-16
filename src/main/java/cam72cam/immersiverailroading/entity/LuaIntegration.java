@@ -130,7 +130,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             setLuaFunctions();
 
             globals.set("IR", luaFunction);
-            nbtSync(globals);
 
             LuaValue chunk = globals.load(luaScript);
             chunk.call();
@@ -144,26 +143,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             ModCore.info("Lua environment initialized and script loaded successfully");
         }
         return false;
-    }
-
-    private void nbtSync(Globals globals) {
-        LuaTable _NBT = new LuaTable();
-        LuaTable NBT_metatable = new LuaTable();
-
-        NBT_metatable.set(LuaValue.INDEX, new TwoArgFunction() {
-            public LuaValue call(LuaValue t, LuaValue key) {
-                return getNBTTag(key.checkjstring());
-            }
-        });
-        NBT_metatable.set(LuaValue.NEWINDEX, new ThreeArgFunction() {
-            public LuaValue call(LuaValue t, LuaValue key, LuaValue value) {
-                setNBTTag(key.checkjstring(), value);
-                return LuaValue.NONE;
-            }
-        });
-
-        _NBT.setmetatable(NBT_metatable);
-        globals.set("_NBT", _NBT);
     }
 
     private void preloadModules(Globals globals, Map<String, InputStream> moduleStreams) {
