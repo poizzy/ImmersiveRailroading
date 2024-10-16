@@ -967,6 +967,18 @@ public abstract class EntityRollingStockDefinition {
     public void setMaxSpeed(double val) {
     }
 
+    public double getMaxSpeed() {
+        return 0d;
+    }
+
+    public double getTraction() {
+        return 0d;
+    }
+
+    public double getHorsepower() {
+        return 0d;
+    }
+
     public void setSounds(List<Map<String, DataBlock.Value>> newSound, EntityMoveableRollingStock stock) {
     }
 

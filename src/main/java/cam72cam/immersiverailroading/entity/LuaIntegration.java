@@ -9,12 +9,18 @@ import cam72cam.immersiverailroading.model.part.CustomParticleConfig;
 import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.mod.ModCore;
+import cam72cam.mod.entity.sync.TagSync;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.resource.Identifier;
+import cam72cam.mod.serialization.TagCompound;
+import cam72cam.mod.serialization.TagField;
+import cam72cam.mod.serialization.TagMapper;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.luaj.vm2.*;
+import org.luaj.vm2.lib.ThreeArgFunction;
+import org.luaj.vm2.lib.TwoArgFunction;
 import org.luaj.vm2.lib.jse.JsePlatform;
 import org.luaj.vm2.LuaValue;
 
@@ -36,6 +42,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     private final Map<String, String> componentTextMap = new HashMap<>();
     private final Map<Integer, ParticleState> particleStates = new HashMap<>();
     private final Map<Integer, ParticleState> oldParticleState = new HashMap<>();
+    private final TagCompound tagCompound = sync;
 
     @Override
     public void onTick() {
@@ -120,12 +127,13 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 preloadModules(globals, moduleMap);
             }
 
-            LuaValue chunk = globals.load(luaScript);
-            chunk.call();
-
             setLuaFunctions();
 
             globals.set("IR", luaFunction);
+            nbtSync(globals);
+
+            LuaValue chunk = globals.load(luaScript);
+            chunk.call();
 
             tickEvent = globals.get("tickEvent");
             if (tickEvent.isnil()) {
@@ -136,6 +144,26 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             ModCore.info("Lua environment initialized and script loaded successfully");
         }
         return false;
+    }
+
+    private void nbtSync(Globals globals) {
+        LuaTable _NBT = new LuaTable();
+        LuaTable NBT_metatable = new LuaTable();
+
+        NBT_metatable.set(LuaValue.INDEX, new TwoArgFunction() {
+            public LuaValue call(LuaValue t, LuaValue key) {
+                return getNBTTag(key.checkjstring());
+            }
+        });
+        NBT_metatable.set(LuaValue.NEWINDEX, new ThreeArgFunction() {
+            public LuaValue call(LuaValue t, LuaValue key, LuaValue value) {
+                setNBTTag(key.checkjstring(), value);
+                return LuaValue.NONE;
+            }
+        });
+
+        _NBT.setmetatable(NBT_metatable);
+        globals.set("_NBT", _NBT);
     }
 
     private void preloadModules(Globals globals, Map<String, InputStream> moduleStreams) {
@@ -332,6 +360,25 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             public LuaValue call(LuaValue luaValue) {
                 particleDefinition(luaValue);
                 return LuaValue.NIL;
+            }
+        });
+        luaFunction.set("getPerformance", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue luaValue) {
+                return getPerformance(luaValue.tojstring());
+            }
+        });
+        luaFunction.set("setNBTTag", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue key, LuaValue value) {
+                setNBTTag(key.tojstring(), value);
+                return LuaValue.NIL;
+            }
+        });
+        luaFunction.set("getNBTTag", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue key) {
+                return getNBTTag(key.tojstring());
             }
         });
     }
@@ -559,6 +606,18 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         tickEvent.call();
     }
 
+    @TagSync
+    @TagField(value = "luaData", mapper = LuaDataMapper.class)
+    protected Map<String, Object> luaData = new HashMap<>();
+
+    public void setNBTTag(String key, LuaValue table) {
+        luaData.put(key, convertData(table));
+    }
+
+    private LuaValue getNBTTag(String key) {
+        return convertToLuaValue(luaData.get(key));
+    }
+
     public void setIndividualCG(LuaValue stockUnit) {
         List<List<EntityCoupleableRollingStock>> allUnit = getUnit(false);
         int unit = stockUnit.checktable().get(1).toint();
@@ -607,6 +666,19 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 newSound.add(soundDefinition);
             }
             getDefinition().setSounds(newSound, this);
+        }
+    }
+
+    private LuaValue getPerformance(String type) {
+        switch (type) {
+            case "max_speed_kmh":
+                return LuaValue.valueOf(getDefinition().getMaxSpeed());
+            case "horsepower":
+                return LuaValue.valueOf(getDefinition().getHorsepower());
+            case "traction":
+                return LuaValue.valueOf(getDefinition().getTraction());
+            default:
+                return LuaValue.valueOf(0);
         }
     }
 
@@ -866,6 +938,222 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             setText(options);
         } catch (IOException e) {
             ModCore.error("An error occurred while creating textfields", e);
+        }
+    }
+
+    public static class Data {
+        boolean b;
+        int i;
+        long l;
+        double d;
+        String s;
+        Map<?, ?> map = new HashMap<>();
+        List<?> list;
+
+        Data(LuaValue value) {
+            if (value.istable()) {
+                LuaTable table = value.checktable();
+                boolean isList = true;
+                for (LuaValue key : table.keys()) {
+                    if (!key.isint()) {
+                        isList = false;
+                        break;
+                    }
+                }
+
+                if (isList) {
+                    List<Object> tempList = new ArrayList<>();
+                    for (int i = 1; i <= table.length(); i++) {
+                        LuaValue element = table.get(i);
+                        tempList.add(convertData(element));
+                    }
+                    this.list = tempList;
+                } else {
+                    Map<Object, Object> tempMap = new HashMap<>();
+                    for (LuaValue key : table.keys()) {
+                        LuaValue val = table.get(key);
+                        tempMap.put(convertData(key), convertData(val));
+                    }
+                    this.map = tempMap;
+                }
+            } else if (value.isboolean()) {
+                this.b = value.toboolean();
+            } else if (value.isint()) {
+                this.i = value.toint();
+            } else if (value.islong()) {
+                this.l = value.tolong();
+            } else if (value.isnumber()) {
+                this.d = value.todouble();
+            } else if (value.isstring()) {
+                this.s = value.tojstring();
+            }
+        }
+        public LuaValue toLuaValue() {
+            LuaTable table = new LuaTable();
+
+            // Add each field to the Lua table if it is non-null
+            if (this.s != null) {
+                table.set("s", LuaValue.valueOf(this.s));
+            }
+            if (this.b) {
+                table.set("b", LuaValue.valueOf(this.b));
+            }
+            if (this.i != 0) {
+                table.set("i", LuaValue.valueOf(this.i));
+            }
+            if (this.l != 0L) {
+                table.set("l", LuaValue.valueOf(this.l));
+            }
+            if (this.d != 0.0) {
+                table.set("d", LuaValue.valueOf(this.d));
+            }
+
+            // Handle map
+            if (this.map != null && !this.map.isEmpty()) {
+                LuaTable mapTable = new LuaTable();
+                for (Map.Entry<?, ?> entry : this.map.entrySet()) {
+                    LuaValue key = convertToLuaValue(entry.getKey());
+                    LuaValue val = convertToLuaValue(entry.getValue());
+                    mapTable.set(key, val);
+                }
+                table.set("map", mapTable);
+            }
+
+            // Handle list
+            if (this.list != null && !this.list.isEmpty()) {
+                LuaTable listTable = new LuaTable();
+                int index = 1; // Lua lists are 1-based index
+                for (Object element : this.list) {
+                    LuaValue luaElement = convertToLuaValue(element);
+                    listTable.set(index++, luaElement);
+                }
+                table.set("list", listTable);
+            }
+
+            return table;
+        }
+
+        private LuaValue convertToLuaValue(Object value) {
+            if (value == null) {
+                return LuaValue.NIL;
+            } else if (value instanceof String) {
+                return LuaValue.valueOf((String) value);
+            } else if (value instanceof Boolean) {
+                return LuaValue.valueOf((Boolean) value);
+            } else if (value instanceof Integer) {
+                return LuaValue.valueOf((Integer) value);
+            } else if (value instanceof Long) {
+                return LuaValue.valueOf((Long) value);
+            } else if (value instanceof Double) {
+                return LuaValue.valueOf((Double) value);
+            } else if (value instanceof Data) {
+                return ((Data) value).toLuaValue();
+            } else if (value instanceof List) {
+                LuaTable listTable = new LuaTable();
+                int index = 1;
+                for (Object element : (List<?>) value) {
+                    listTable.set(index++, convertToLuaValue(element));
+                }
+                return listTable;
+            } else if (value instanceof Map) {
+                LuaTable mapTable = new LuaTable();
+                for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+                    LuaValue key = convertToLuaValue(entry.getKey());
+                    LuaValue val = convertToLuaValue(entry.getValue());
+                    mapTable.set(key, val);
+                }
+                return mapTable;
+            }
+
+            return LuaValue.NIL;
+        }
+    }
+
+    private static Object convertData(LuaValue value) {
+        if (value.isboolean()) {
+            return value.toboolean();
+        } else if (value.isint()) {
+            return value.toint();
+        } else if (value.islong()) {
+            return value.tolong();
+        } else if (value.isnumber()) {
+            return value.todouble();
+        } else if (value.isstring()) {
+            return value.tojstring();
+        } else if (value.istable()) {
+            return new Data(value);
+        }
+        return null;
+    }
+
+    private static LuaValue convertToLuaValue(Object obj) {
+        if (obj instanceof Boolean) {
+            return LuaValue.valueOf((Boolean) obj);
+        } else if (obj instanceof Integer) {
+            return LuaValue.valueOf((Integer) obj);
+        } else if (obj instanceof Long) {
+            return LuaValue.valueOf((Long) obj);
+        } else if (obj instanceof Double) {
+            return LuaValue.valueOf((Double) obj);
+        } else if (obj instanceof String) {
+            return LuaValue.valueOf((String) obj);
+        } else if (obj instanceof Data) {
+            return ((Data) obj).toLuaValue();
+        }
+        return LuaValue.NIL;  // If the type doesn't match, return Lua NIL
+    }
+
+    private static class LuaDataMapper implements TagMapper<Map<String, Object>> {
+        @Override
+        public TagAccessor<Map<String, Object>> apply(Class<Map<String, Object>> type, String fieldName, TagField tag) {
+            return new TagAccessor<>(
+                    (tagCompound, map) -> {
+                        // Serializer logic
+                        tagCompound.setMap(fieldName, map, String::toString, value -> convertToNBT(value));
+                    },
+                    tagCompound -> {
+                        // Deserializer logic
+                        return tagCompound.getMap(fieldName, key -> key, compound -> convertToLuaValue(compound));
+                    }
+            );
+        }
+
+        private TagCompound convertToNBT(Object value) {
+            TagCompound tag = new TagCompound();
+
+            if (value instanceof String) {
+                tag.setString("value", (String) value);
+            } else if (value instanceof Integer) {
+                tag.setInteger("value", (Integer) value);
+            } else if (value instanceof Boolean) {
+                tag.setBoolean("value", (Boolean) value);
+            } else if (value instanceof Double) {
+                tag.setDouble("value", (Double) value);
+            } else if (value instanceof Map) {
+                // If it's a map, we recursively convert the map's content
+                Map<String, Object> map = (Map<String, Object>) value;
+                tag.setMap("value", map, String::toString, this::convertToNBT);
+            }
+            // Add handling for other Lua types as needed
+
+            return tag;
+        }
+
+        private Object convertToLuaValue(TagCompound compound) {
+            if (compound.hasKey("value")) {
+                if (compound.getString("value") != null) {
+                    return compound.getString("value");
+                } else if (compound.getInteger("value") != null) {
+                    return compound.getInteger("value");
+                } else if (compound.getBoolean("value") != null) {
+                    return compound.getBoolean("value");
+                } else if (compound.getDouble("value") != null) {
+                    return compound.getDouble("value");
+                } else if (compound.get("value") != null) {
+                    return compound.getMap("value", key -> key, this::convertToLuaValue);
+                }
+            }
+            return null;
         }
     }
 }

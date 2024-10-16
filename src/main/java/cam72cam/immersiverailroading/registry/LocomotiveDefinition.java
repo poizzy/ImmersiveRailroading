@@ -138,4 +138,19 @@ public abstract class LocomotiveDefinition extends FreightDefinition {
     public void setMaxSpeed(double val) {
         this.maxSpeed = Speed.fromMetric(val);
     }
+
+    @Override
+    public double getMaxSpeed() {
+        return this.maxSpeed.metric();
+    }
+
+    @Override
+    public double getTraction() {
+        return traction;
+    }
+
+    @Override
+    public double getHorsepower() {
+        return this.power;
+    }
 }
