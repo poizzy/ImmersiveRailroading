@@ -25,6 +25,7 @@ import cam72cam.mod.serialization.TagMapped;
 import cam72cam.mod.sound.ISound;
 import cam72cam.mod.text.TextUtil;
 import cam72cam.mod.world.World;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
@@ -109,6 +110,11 @@ public abstract class EntityRollingStockDefinition {
     public Map<String, DataBlock> widgetConfig;
 
     public final Map<String, Position> normals = new HashMap<>();
+    public Map<String, List<Vec3d>> floorHeight = new HashMap<>();
+    public Map<String, List<int[]>> faces = new HashMap<>();
+    public final Map<String, Map<int[], List<Vec3d>>> floorMap = new HashMap<>();
+    public final Map<String, Pair<Double, Double>> yLevel = new HashMap<>();
+    private final LinkedList<Vec3d> allVertices = new LinkedList<>();
 
     public static class SoundDefinition {
         public final Identifier start;
@@ -998,8 +1004,12 @@ public abstract class EntityRollingStockDefinition {
         String line;
         String object = null;
         boolean withingTextFieldObject = false;
+        boolean isFloorObject = false;
         float index = 0;
+
         List<Vec3d> currentVertices = new ArrayList<>();
+        List<Vec3d> height = new ArrayList<>();
+        List<int[]> currentFace = new ArrayList<>();
         Map<String, List<Vec3d>> objectVertices = new HashMap<>();
 
         try {
@@ -1011,20 +1021,38 @@ public abstract class EntityRollingStockDefinition {
                     }
 
                     withingTextFieldObject = line.contains("TEXTFIELD_");
-                    if (withingTextFieldObject) {
-                        object = line.replace("o ", ""); // This is not great either
+                    isFloorObject = line.contains("FLOOR");
+
+                    if (withingTextFieldObject || isFloorObject) {
+                        object = line.replace("o ", "");
                         currentVertices.clear();
+                        height.clear();
+                        currentFace.clear();
                     }
                 }
 
-                if (withingTextFieldObject && line.startsWith("v ")) {
+                if ((withingTextFieldObject || isFloorObject) && line.startsWith("v ")) {
                     String[] tokens = line.split("\\s");
                     float x = Float.parseFloat(tokens[1]);
                     float y = Float.parseFloat(tokens[2]);
                     float z = Float.parseFloat(tokens[3]);
 
                     Vec3d point = new Vec3d(x, y, z);
-                    currentVertices.add(point);
+                    height.add(point);
+
+                    if (!isFloorObject) {
+                        currentVertices.add(point);
+                    }
+                }
+
+                if (line.startsWith("v ")) {
+                    String[] tokens = line.split("\\s");
+                    float x = Float.parseFloat(tokens[1]);
+                    float y = Float.parseFloat(tokens[2]);
+                    float z = Float.parseFloat(tokens[3]);
+
+                    Vec3d point = new Vec3d(x, y, z);
+                    allVertices.add(point);
                 }
 
                 if (withingTextFieldObject && line.startsWith("vn ")) {
@@ -1037,12 +1065,95 @@ public abstract class EntityRollingStockDefinition {
                     normals.put(object, new Position(normalVector, new ArrayList<>(currentVertices)));
                 }
 
-                if (object != null) {
+                if (isFloorObject && line.startsWith("f ")) {
+                    String[] faceComponents = line.split("\\s");
+                    int [] face = new int[faceComponents.length -1];
+                    for (int i = 1; i < faceComponents.length; i++) {
+                        String[] vertexInfo = faceComponents[i].split("/");
+                        int vertexIndex = Integer.parseInt(vertexInfo[0]) -1;
+                        face[i-1] = vertexIndex;
+                    }
+                    currentFace.add(face);
+                }
+
+                if (object != null && !isFloorObject) {
                     objectVertices.put(object, new ArrayList<>(currentVertices));
+                } else if (object != null) {
+                    floorHeight.put(object, new ArrayList<>(height));
+                    faces.put(object, new ArrayList<>(currentFace));
                 }
             }
         } catch (IOException e) {
-            ModCore.info("An error occured while loading Normals: ", e);
+            ModCore.info("An error occurred while loading Normals: ", e);
         }
+        mapFacesToVertices();
+    }
+
+    private void mapFacesToVertices() {
+        for (Map.Entry<String, List<int[]>> entry : faces.entrySet()) {
+            String object = entry.getKey();
+            List<int[]> objectFaces = entry.getValue();
+            Map<int[], List<Vec3d>> faceVertexMap = new HashMap<>();
+            for (int[] face : objectFaces) {
+                List<Vec3d> faceVertices = new ArrayList<>();
+                for (int vertexIndex : face) {
+                    Vec3d vertex = allVertices.get(vertexIndex);
+                    faceVertices.add(vertex);
+                }
+
+                faceVertexMap.put(face, faceVertices);
+            }
+            floorMap.put(object, faceVertexMap);
+        }
+        precomputeYLevel();
+    }
+
+    public boolean isPlayerInsideTriangle(Vec3d playerPosition, Vec3d v1, Vec3d v2, Vec3d v3) {
+        Vec3d p = new Vec3d(playerPosition.x, playerPosition.z, 0);
+
+        Vec3d a = new Vec3d(v1.x, v1.z, 0);
+        Vec3d b = new Vec3d(v2.x, v2.z, 0);
+        Vec3d c = new Vec3d(v3.x, v3.z, 0);
+
+        Vec3d v0 = b.subtract(a);
+        Vec3d v1Vec = c.subtract(a);
+        Vec3d v2Vec = p.subtract(a);
+
+        double dot00 = dotProduct(v0, v0);
+        double dot01 = dotProduct(v0, v1Vec);
+        double dot02 = dotProduct(v0, v2Vec);
+        double dot11 = dotProduct(v1Vec, v1Vec);
+        double dot12 = dotProduct(v1Vec, v2Vec);
+
+        double invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
+        double u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+        double v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+
+        return (u >= 0) && (v >= 0) && (u + v <= 1);
+    }
+
+    public void precomputeYLevel() {
+        floorMap.forEach((floor, face) -> {
+            List<Vec3d> level = new ArrayList<>();
+            face.forEach((f, v) -> level.addAll(v));
+            Optional<Double> minY = level.stream().map(vec -> vec.y).min(Double::compareTo);
+            Optional<Double> maxY = level.stream().map(vec -> vec.y).max(Double::compareTo);
+            minY.ifPresent(yMin -> maxY.ifPresent(yMax -> yLevel.put(floor, Pair.of(yMin, yMax))));
+
+        });
+    }
+
+
+    public double calculateHeightInTriangle(Vec3d playerPosition, Vec3d v1, Vec3d v2, Vec3d v3) {
+        double denominator = (v2.z - v3.z) * (v1.x - v3.x) + (v3.x - v2.x) * (v1.z - v3.z);
+        double w1 = ((v2.z - v3.z) * (playerPosition.x - v3.x) + (v3.x - v2.x) * (playerPosition.z - v3.z)) / denominator;
+        double w2 = ((v3.z - v1.z) * (playerPosition.x - v3.x) + (v1.x - v3.x) * (playerPosition.z - v3.z)) / denominator;
+        double w3 = 1 - w1 - w2;
+
+        return w1 * v1.y + w2 * v2.y + w3 * v3.y;
+    }
+
+    public static double dotProduct(Vec3d v1, Vec3d v2) {
+        return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
     }
 }

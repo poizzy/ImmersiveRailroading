@@ -18,6 +18,7 @@ import cam72cam.mod.serialization.SerializationException;
 import cam72cam.mod.serialization.TagCompound;
 import cam72cam.mod.serialization.TagField;
 import cam72cam.mod.serialization.TagMapper;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -36,6 +37,9 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 
 	// Hack to remount players if they were seated
 	private Map<UUID, Vec3d> remount = new HashMap<>();
+
+	private String currentFloor = null; // Stores the current floor
+	private double transitionFactor = 2; // Factor for smoothing the transition
 
 
 
@@ -68,6 +72,74 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 				.findFirst().orElse(null);
 	}
 
+	/*
+	 * Get the current floor the player is standing on.
+	 */
+
+	private String getCurrentFloor(Vec3d playerPos) {
+		double tolerance = 0.05;
+		Map<String, Pair<Double, Double>> level = getDefinition().yLevel;
+
+		String closestFloor = null;
+		double closestDistance = Double.MAX_VALUE;
+
+		for (String floor : level.keySet()) {
+			Pair<Double, Double> heightRange = level.get(floor);
+			double minHeight = heightRange.getLeft();
+			double maxHeight = heightRange.getRight();
+
+			double adjustedMin = minHeight - tolerance;
+			double adjustedMax = maxHeight + tolerance;
+
+			if (playerPos.y >= adjustedMin && playerPos.y <= adjustedMax) {
+				double distanceToMin = Math.abs(playerPos.y - minHeight);
+				double distanceToMax = Math.abs(playerPos.y - maxHeight);
+				double preferredDistance = Math.min(distanceToMin, distanceToMax);
+
+				if (preferredDistance <= closestDistance) {
+					closestDistance = preferredDistance;
+					closestFloor = floor;
+				}
+			}
+		}
+
+		return closestFloor != null ? closestFloor : level.keySet().iterator().next();
+	}
+
+	// Atm not implemented TODO implement!
+	private Vec3d restrictPlayerMovement(Vec3d playerPos, Vec3d offset, List<Vec3d> faces) {
+		Vec3d newPosition = playerPos.add(offset);
+		if (getDefinition().isPlayerInsideTriangle(newPosition, faces.get(0), faces.get(1), faces.get(2))) {
+			return offset;
+		} else {
+			return offset;
+		}
+	}
+
+	/*
+	 * get the y-offset for the player Position
+	 */
+
+	public double getHeightAtPlayerPosition(Vec3d playerPosition) {
+		playerPosition = new Vec3d(playerPosition.z * - 1, playerPosition.y, playerPosition.x);
+		String floor = getCurrentFloor(playerPosition);
+		Map<int[], List<Vec3d>> faces = getDefinition().floorMap.get(floor);
+		for (int[] faceIndices : faces.keySet()) {
+			List<Vec3d> vertices = faces.get(faceIndices);
+			if (vertices.size() >= 3) {
+				Vec3d v1 = vertices.get(0);
+				Vec3d v2 = vertices.get(1);
+				Vec3d v3 = vertices.get(2);
+				if (getDefinition().isPlayerInsideTriangle(playerPosition, v1, v2, v3)) {
+					return getDefinition().calculateHeightInTriangle(playerPosition, v1, v2, v3);
+				}
+			}
+		}
+		return -1;
+	}
+
+
+
 	@Override
 	public Vec3d getMountOffset(Entity passenger, Vec3d off) {
 		if (passenger.isVillager() && !payingPassengerPositions.containsKey(passenger.getUUID())) {
@@ -88,9 +160,12 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 			return seat;
 		}
 
+		double yOffset = getHeightAtPlayerPosition(off);
+
 		int wiggle = passenger.isVillager() ? 10 : 0;
 		off = off.add((Math.random()-0.5) * wiggle, 0, (Math.random()-0.5) * wiggle);
 		off = this.getDefinition().correctPassengerBounds(gauge, off, shouldRiderSit(passenger));
+		off = new Vec3d(off.x, yOffset, off.z);
 
 		return off;
 	}
@@ -115,6 +190,11 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 			offset = playerMovement(passenger.asPlayer(), offset);
 		}
 
+		double yOffset = 1;
+		if (passenger.getWorld().isClient) {
+			yOffset = getHeightAtPlayerPosition(offset);
+		}
+
 		Vec3d seat = getSeatPosition(passenger.getUUID());
 		if (seat != null) {
 			offset = seat;
@@ -123,6 +203,9 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 		}
 		offset = offset.add(0, Math.sin(Math.toRadians(this.getRotationPitch())) * offset.z, 0);
 
+		if (seat == null) {
+			offset = new Vec3d(offset.x, yOffset, offset.z); // TODO search better way to implement this
+		}
 		return offset;
 	}
 
@@ -143,13 +226,24 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
             movement = movement.scale(3);
         }
         */
+
         if (movement.length() < 0.1) {
             return offset;
         }
 
         movement = new Vec3d(movement.x, 0, movement.z).rotateYaw(this.getRotationYaw() - source.getRotationYawHead());
 
-        offset = offset.add(movement);
+		offset = offset.add(movement);
+
+		Vec3d playerPos = new Vec3d(offset.z * - 1, offset.y, offset.x);
+		String floor = getCurrentFloor(playerPos);
+		if (floor != null) {
+			Map<int[], List<Vec3d>> faces = getDefinition().floorMap.get(floor);
+			for (Map.Entry<int[], List<Vec3d>> entry : faces.entrySet()) {
+				List<Vec3d> faceVertecies = entry.getValue();
+				offset = restrictPlayerMovement(playerPos, offset, faceVertecies);
+			}
+		}
 
         if (this instanceof EntityCoupleableRollingStock) {
 			EntityCoupleableRollingStock couplable = (EntityCoupleableRollingStock) this;
