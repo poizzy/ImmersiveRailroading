@@ -2,7 +2,6 @@ package cam72cam.immersiverailroading.entity;
 
 import cam72cam.immersiverailroading.model.animation.StockAnimation;
 import cam72cam.mod.math.Vec3d;
-import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.model.obj.VertexBuffer;
 import cam72cam.mod.render.opengl.*;
 import cam72cam.mod.resource.Identifier;
@@ -16,17 +15,11 @@ import java.util.concurrent.ConcurrentMap;
 
 public class RenderText {
     private static final Map<String, RenderText> instances = new HashMap<>();
-    private DirectDraw draw;
     private final ConcurrentMap<String, TextField> textFields = new ConcurrentHashMap<>();
-
-    private RenderState cachedRenderState;
-    private Identifier cachedFieldId;
-    private boolean cachedFullbright;
 
     private final ConcurrentMap<String, String> precomputedGroupNames = new ConcurrentHashMap<>();
 
     public RenderText() {
-        draw = new DirectDraw();
     }
 
     public static RenderText getInstance(String name) {
@@ -64,18 +57,13 @@ public class RenderText {
         private Vec3d lastVec3dmax = null;
         private int lastResX = -1;
         private int lastResY = -1;
-        public Map<String, String> groupNames = new HashMap<>();
 
         public void markDirty() {
             if (cachedVBO != null) {
-                cachedVBO.free(); // Free the old VBO
+                cachedVBO.free();
                 cachedVBO = null;
             }
             cachedVertexBuffer = null;
-        }
-
-        public void cacheGroupName(){
-
         }
 
         TextField(String text, Identifier id, Vec3d vec3dmin, Vec3d vec3dmax,
@@ -141,7 +129,6 @@ public class RenderText {
 
             String matchingGroupName = precomputedGroupNames.get(entryKey);
 
-            // Attempt to find the transformation matrix using the precomputed group name
             if (matchingGroupName != null) {
                 for (StockAnimation animation : animations) {
                     transformationMatrix = animation.getMatrix(stock, matchingGroupName, partialTicks);

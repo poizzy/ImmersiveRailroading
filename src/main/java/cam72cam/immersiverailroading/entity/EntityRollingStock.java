@@ -23,8 +23,10 @@ import cam72cam.mod.sound.SoundCategory;
 import cam72cam.mod.text.PlayerMessage;
 import cam72cam.mod.util.SingleCache;
 import org.apache.commons.lang3.tuple.Pair;
+import scala.Int;
 import util.Matrix4;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -346,8 +348,6 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 
 	public void setEntityTag(String tag){
 		this.tag = tag;
-		// I know I should use it... But I don't want to change UMC
-		this.internal.setCustomNameTag(tag);
 	}
 
 

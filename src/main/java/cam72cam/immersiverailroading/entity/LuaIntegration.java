@@ -9,18 +9,13 @@ import cam72cam.immersiverailroading.model.part.CustomParticleConfig;
 import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.mod.ModCore;
-import cam72cam.mod.entity.sync.TagSync;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.resource.Identifier;
-import cam72cam.mod.serialization.TagCompound;
-import cam72cam.mod.serialization.TagField;
-import cam72cam.mod.serialization.TagMapper;
+import cam72cam.mod.serialization.*;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.luaj.vm2.*;
-import org.luaj.vm2.lib.ThreeArgFunction;
-import org.luaj.vm2.lib.TwoArgFunction;
 import org.luaj.vm2.lib.jse.JsePlatform;
 import org.luaj.vm2.LuaValue;
 
@@ -42,7 +37,61 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     private final Map<String, String> componentTextMap = new HashMap<>();
     private final Map<Integer, ParticleState> particleStates = new HashMap<>();
     private final Map<Integer, ParticleState> oldParticleState = new HashMap<>();
-    private final TagCompound tagCompound = sync;
+
+    private final List<TextRenderOptions> textFields = new ArrayList<>();
+
+    /**
+     *
+     * Sad to say that this doesn't work, the data required for the text fields needs to much memory to save to NBT data,
+     * maybe I will come back to it later.
+     * TODO find another way of saving data from the text fields.
+     *
+     */
+
+//    @Override
+//    public void load(TagCompound data) {
+//        super.load(data);
+//        int index = 0;
+//        while (data.hasKey("textField_" + index)) {
+//            TagCompound optionNBT = data.get("textField_" + index);
+//            TextRenderOptions textRenderOptions = null;
+//            try {
+//                textRenderOptions = new TextRenderOptions(optionNBT);
+//            } catch (IOException e) {
+//                throw new RuntimeException(e);
+//            }
+//            textFields.add(textRenderOptions);
+//            index++;
+//        }
+//        textFields.forEach(o -> {
+//            if (o.global) {
+//                setAllText(o);
+//            } else {
+//                try {
+//                    setText(o);
+//                } catch (IOException e) {
+//                    throw new RuntimeException(e);
+//                }
+//            }
+//        });
+//    }
+//
+//    @Override
+//    public void save(TagCompound data) {
+//        super.save(data);
+//
+//        for (int i = 0; i < textFields.size(); i++) {
+//            TagCompound optionNBT = new TagCompound();
+//            try {
+//                textFields.get(i).serializeTextRenderOptions(optionNBT);
+//            } catch (IOException e) {
+//                throw new RuntimeException(e);
+//            }
+//            data.set("textField_" + i, optionNBT);
+//        }
+//    }
+
+
 
     @Override
     public void onTick() {
@@ -473,8 +522,9 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         String text = textField.get("text") != null ? textField.get("text").asString() : "";
         try {
             TextRenderOptions options = new TextRenderOptions(
-                    font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, overlay, hexCode, fullbright, textureHeight, useAlternative, lineSpacingPixels, offset
+                    font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, overlay, hexCode, fullbright, textureHeight, useAlternative, lineSpacingPixels, offset, allStock
             );
+            textFields.add(options);
             if (allStock) {
                 setAllText(options);
             } else {
@@ -509,7 +559,7 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
 
     private void setText(TextRenderOptions options) throws IOException {
         String currentText = componentTextMap.get(options.componentId);
-        if (currentText == null || !options.newText.equals(currentText)) {
+        if (!options.newText.equals(currentText)) {
             LinkedHashMap<String, OBJGroup> group = this.getDefinition().getModel().groups;
             for (Map.Entry<String, OBJGroup> entry : group.entrySet()) {
                 if (entry.getKey().contains(String.format("TEXTFIELD_%s", options.componentId))) {
@@ -585,7 +635,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
         tickEvent.call();
     }
 
-    @TagSync
     @TagField(value = "luaData", mapper = LuaDataMapper.class)
     protected Map<String, Object> luaData = new HashMap<>();
 
@@ -658,6 +707,20 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 return LuaValue.valueOf(getDefinition().getTraction());
             default:
                 return LuaValue.valueOf(0);
+        }
+    }
+
+    private void accept(Boolean key, List<TextRenderOptions> options) {
+        if (key.equals(true)) {
+            options.forEach(this::setAllText);
+        } else {
+            try {
+                for (TextRenderOptions option : options) {
+                    setText(option);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -907,11 +970,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
 
 
     @Override
-    public boolean getEngineState() {
-        return false;
-    }
-
-    @Override
     public void setTextTrain(TextRenderOptions options) {
         try {
             setText(options);
@@ -987,7 +1045,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 table.set("d", LuaValue.valueOf(this.d));
             }
 
-            // Handle map
             if (this.map != null && !this.map.isEmpty()) {
                 LuaTable mapTable = new LuaTable();
                 for (Map.Entry<?, ?> entry : this.map.entrySet()) {
@@ -998,7 +1055,6 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
                 table.set("map", mapTable);
             }
 
-            // Handle list
             if (this.list != null && !this.list.isEmpty()) {
                 LuaTable listTable = new LuaTable();
                 int index = 1; // Lua lists are 1-based index
@@ -1088,11 +1144,11 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             return new TagAccessor<>(
                     (tagCompound, map) -> {
                         // Serializer logic
-                        tagCompound.setMap(fieldName, map, String::toString, value -> convertToNBT(value));
+                        tagCompound.setMap(fieldName, map, String::toString, this::convertToNBT);
                     },
                     tagCompound -> {
                         // Deserializer logic
-                        return tagCompound.getMap(fieldName, key -> key, compound -> convertToLuaValue(compound));
+                        return tagCompound.getMap(fieldName, key -> key, this::convertToLuaValue);
                     }
             );
         }
@@ -1109,11 +1165,9 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
             } else if (value instanceof Double) {
                 tag.setDouble("value", (Double) value);
             } else if (value instanceof Map) {
-                // If it's a map, we recursively convert the map's content
                 Map<String, Object> map = (Map<String, Object>) value;
                 tag.setMap("value", map, String::toString, this::convertToNBT);
             }
-            // Add handling for other Lua types as needed
 
             return tag;
         }
