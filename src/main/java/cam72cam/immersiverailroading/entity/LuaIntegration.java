@@ -96,6 +96,9 @@ public abstract class LuaIntegration extends EntityCoupleableRollingStock implem
     @Override
     public void onTick() {
         super.onTick();
+        if (!getWorld().isServer) {
+            return;
+        }
         if (getDefinition().script != null && !ConfigPerformance.disableLuaScript) {
             long currentTime = System.currentTimeMillis();
 
