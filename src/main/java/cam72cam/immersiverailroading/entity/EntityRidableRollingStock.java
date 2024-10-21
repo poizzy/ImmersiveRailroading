@@ -38,12 +38,8 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 	// Hack to remount players if they were seated
 	private Map<UUID, Vec3d> remount = new HashMap<>();
 
-	private String currentFloor = null; // Stores the current floor
-	private double transitionFactor = 2; // Factor for smoothing the transition
 
-
-
-	@Override
+    @Override
 	public ClickResult onClick(Player player, Player.Hand hand) {
 		ClickResult clickRes = super.onClick(player, hand);
 		if (clickRes != ClickResult.PASS) {
@@ -78,7 +74,7 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 
 	private String getCurrentFloor(Vec3d playerPos) {
 		double tolerance = 0.05;
-		Map<String, Pair<Double, Double>> level = getDefinition().yLevel;
+		Map<String, Pair<Double, Double>> level = getDefinition().yMap;
 
 		String closestFloor = null;
 		double closestDistance = Double.MAX_VALUE;
@@ -106,13 +102,15 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 		return closestFloor != null ? closestFloor : level.keySet().iterator().next();
 	}
 
-	// Atm not implemented TODO implement!
-	private Vec3d restrictPlayerMovement(Vec3d playerPos, Vec3d offset, List<Vec3d> faces) {
-		Vec3d newPosition = playerPos.add(offset);
-		if (getDefinition().isPlayerInsideTriangle(newPosition, faces.get(0), faces.get(1), faces.get(2))) {
-			return offset;
+	private Vec3d restrictPlayerMovement(Vec3d playerPos, Vec3d playerMovement) {
+		if (getHeightAtPlayerPosition(playerMovement) != -1) {
+			return playerMovement;
 		} else {
-			return offset;
+			if (getHeightAtPlayerPosition(new Vec3d(playerMovement.x, playerMovement.y -0.3, playerMovement.z)) != -1) {
+				return playerMovement;
+			} else {
+				return playerPos;
+			}
 		}
 	}
 
@@ -160,11 +158,11 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 			return seat;
 		}
 
-		double yOffset = getHeightAtPlayerPosition(off);
 
 		int wiggle = passenger.isVillager() ? 10 : 0;
 		off = off.add((Math.random()-0.5) * wiggle, 0, (Math.random()-0.5) * wiggle);
 		off = this.getDefinition().correctPassengerBounds(gauge, off, shouldRiderSit(passenger));
+		double yOffset = getDefinition().yMap.isEmpty() ? off.y : getHeightAtPlayerPosition(off);
 		off = new Vec3d(off.x, yOffset, off.z);
 
 		return off;
@@ -191,7 +189,7 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 		}
 
 		double yOffset = 1;
-		if (passenger.getWorld().isClient) {
+		if (passenger.getWorld().isClient && !getDefinition().yMap.isEmpty()) {
 			yOffset = getHeightAtPlayerPosition(offset);
 		}
 
@@ -203,8 +201,8 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 		}
 		offset = offset.add(0, Math.sin(Math.toRadians(this.getRotationPitch())) * offset.z, 0);
 
-		if (seat == null) {
-			offset = new Vec3d(offset.x, yOffset, offset.z); // TODO search better way to implement this
+		if (seat == null && !getDefinition().yMap.isEmpty()) {
+			offset = new Vec3d(offset.x, yOffset, offset.z);
 		}
 		return offset;
 	}
@@ -233,18 +231,13 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 
         movement = new Vec3d(movement.x, 0, movement.z).rotateYaw(this.getRotationYaw() - source.getRotationYawHead());
 
-		offset = offset.add(movement);
+		Vec3d offsetM = offset.add(movement);
 
-		Vec3d playerPos = new Vec3d(offset.z * - 1, offset.y, offset.x);
-		String floor = getCurrentFloor(playerPos);
-		if (floor != null) {
-			Map<int[], List<Vec3d>> faces = getDefinition().floorMap.get(floor);
-			for (Map.Entry<int[], List<Vec3d>> entry : faces.entrySet()) {
-				List<Vec3d> faceVertecies = entry.getValue();
-				offset = restrictPlayerMovement(playerPos, offset, faceVertecies);
-			}
+		if (!getDefinition().yMap.isEmpty()) {
+			offset = restrictPlayerMovement(offset, offsetM);
+		}else {
+			offset = offsetM;
 		}
-
         if (this instanceof EntityCoupleableRollingStock) {
 			EntityCoupleableRollingStock couplable = (EntityCoupleableRollingStock) this;
 

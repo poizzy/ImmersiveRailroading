@@ -36,6 +36,7 @@ import java.io.InputStreamReader;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -115,6 +116,7 @@ public abstract class EntityRollingStockDefinition {
     public final Map<String, Map<int[], List<Vec3d>>> floorMap = new HashMap<>();
     public final Map<String, Pair<Double, Double>> yLevel = new HashMap<>();
     private final LinkedList<Vec3d> allVertices = new LinkedList<>();
+    public final LinkedHashMap<String, Pair<Double, Double>> yMap = new LinkedHashMap<>();
 
     public static class SoundDefinition {
         public final Identifier start;
@@ -1090,10 +1092,13 @@ public abstract class EntityRollingStockDefinition {
     }
 
     private void mapFacesToVertices() {
+        Map<String, Map<int[], List<Vec3d>>> tempFloorMap = new HashMap<>();
         for (Map.Entry<String, List<int[]>> entry : faces.entrySet()) {
             String object = entry.getKey();
             List<int[]> objectFaces = entry.getValue();
-            Map<int[], List<Vec3d>> faceVertexMap = new HashMap<>();
+            int number = extractFloorNumber(object);
+            String key = "FLOOR_" + number;
+            Map<int[], List<Vec3d>> faceVertexMap = tempFloorMap.computeIfAbsent(key, k -> new HashMap<>());
             for (int[] face : objectFaces) {
                 List<Vec3d> faceVertices = new ArrayList<>();
                 for (int vertexIndex : face) {
@@ -1103,9 +1108,11 @@ public abstract class EntityRollingStockDefinition {
 
                 faceVertexMap.put(face, faceVertices);
             }
-            floorMap.put(object, faceVertexMap);
         }
+        floorMap.putAll(tempFloorMap);
         precomputeYLevel();
+        allVertices.clear();
+        filterFloorMap(floorMap);
     }
 
     public boolean isPlayerInsideTriangle(Vec3d playerPosition, Vec3d v1, Vec3d v2, Vec3d v3) {
@@ -1139,8 +1146,69 @@ public abstract class EntityRollingStockDefinition {
             Optional<Double> minY = level.stream().map(vec -> vec.y).min(Double::compareTo);
             Optional<Double> maxY = level.stream().map(vec -> vec.y).max(Double::compareTo);
             minY.ifPresent(yMin -> maxY.ifPresent(yMax -> yLevel.put(floor, Pair.of(yMin, yMax))));
-
         });
+        sortFloorMap(yLevel).forEach(yMap::put);
+    }
+
+    public Map<String, Pair<Double, Double>> sortFloorMap(Map<String, Pair<Double, Double>> map) {
+        List<Map.Entry<String, Pair<Double, Double>>> entryList = new ArrayList<>(map.entrySet());
+        entryList.sort(Comparator.comparingInt(entry -> extractFloorNumber(entry.getKey())));
+        Map<String, Pair<Double, Double>> sortedMap = new LinkedHashMap<>();
+        for (Map.Entry<String, Pair<Double, Double>> entry : entryList) {
+            sortedMap.put(entry.getKey(), entry.getValue());
+        }
+
+        return sortedMap;
+    }
+
+    public static int extractFloorNumber(String key) {
+        // Regular expression to find "FLOOR_X" in the string where X is the number
+        Pattern pattern = Pattern.compile("FLOOR_(\\d+)");
+        Matcher matcher = pattern.matcher(key);
+
+        if (matcher.find()) {
+            // Extract the number after "FLOOR_" and convert to integer
+            return Integer.parseInt(matcher.group(1));
+        } else {
+            return Integer.MAX_VALUE;  // If no "FLOOR_X" found, place at the end of sorting
+        }
+    }
+
+    /**
+     * Fancy Lamda stuff, that no one can read... Basicly what this method does is it takes the map of the floors
+     * and filters it for doubled faces, and puts those who are higher back into the map.
+     * @param floorMap
+     */
+
+    public void filterFloorMap(Map<String, Map<int[], List<Vec3d>>> floorMap) {
+        floorMap.replaceAll((floor, trianglesMap) ->
+                trianglesMap.entrySet().stream()
+                        .collect(Collectors.groupingBy(
+                                entry -> entry.getValue().stream()
+                                        .map(vertex -> new double[]{vertex.x, vertex.z})
+                                        .sorted(Comparator.comparingDouble(a -> a[0]))
+                                        .collect(Collectors.toList()),
+                                Collectors.collectingAndThen(
+                                        Collectors.maxBy(Comparator.comparingDouble(e -> getMaxY(e.getValue()))),
+                                        optionalEntry -> new Entry(optionalEntry.get().getKey(), optionalEntry.get().getValue())
+                                )
+                        )).values().stream()
+                        .collect(Collectors.toMap(e -> e.face, e -> e.vertices))
+        );
+    }
+
+    private double getMaxY(List<Vec3d> vertices) {
+        return vertices.stream().mapToDouble(v -> v.y).max().orElse(Double.NEGATIVE_INFINITY);
+    }
+
+    public static class Entry {
+        public int[] face;
+        public List<Vec3d> vertices;
+
+        public Entry(int[] face, List<Vec3d> vertices) {
+            this.face = face;
+            this.vertices = vertices;
+        }
     }
 
 
