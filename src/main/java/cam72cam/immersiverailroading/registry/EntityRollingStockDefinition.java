@@ -1112,7 +1112,7 @@ public abstract class EntityRollingStockDefinition {
         floorMap.putAll(tempFloorMap);
         precomputeYLevel();
         allVertices.clear();
-        filterFloorMap(floorMap);
+        filterFloorMap();
     }
 
     public boolean isPlayerInsideTriangle(Vec3d playerPosition, Vec3d v1, Vec3d v2, Vec3d v3) {
@@ -1162,38 +1162,40 @@ public abstract class EntityRollingStockDefinition {
     }
 
     public static int extractFloorNumber(String key) {
-        // Regular expression to find "FLOOR_X" in the string where X is the number
         Pattern pattern = Pattern.compile("FLOOR_(\\d+)");
         Matcher matcher = pattern.matcher(key);
 
         if (matcher.find()) {
-            // Extract the number after "FLOOR_" and convert to integer
             return Integer.parseInt(matcher.group(1));
         } else {
-            return Integer.MAX_VALUE;  // If no "FLOOR_X" found, place at the end of sorting
+            return Integer.MAX_VALUE;
         }
     }
 
     /**
      * Fancy Lamda stuff, that no one can read... Basicly what this method does is it takes the map of the floors
      * and filters it for doubled faces, and puts those who are higher back into the map.
-     * @param floorMap
      */
 
-    public void filterFloorMap(Map<String, Map<int[], List<Vec3d>>> floorMap) {
+    public void filterFloorMap() {
         floorMap.replaceAll((floor, trianglesMap) ->
                 trianglesMap.entrySet().stream()
                         .collect(Collectors.groupingBy(
                                 entry -> entry.getValue().stream()
-                                        .map(vertex -> new double[]{vertex.x, vertex.z})
-                                        .sorted(Comparator.comparingDouble(a -> a[0]))
+                                        .map(vec -> Arrays.asList(vec.x, vec.z))
+                                        .sorted(Comparator.comparingDouble(v -> v.get(0)))
                                         .collect(Collectors.toList()),
                                 Collectors.collectingAndThen(
                                         Collectors.maxBy(Comparator.comparingDouble(e -> getMaxY(e.getValue()))),
-                                        optionalEntry -> new Entry(optionalEntry.get().getKey(), optionalEntry.get().getValue())
+                                        optionalEntry -> optionalEntry.orElse(null)
                                 )
-                        )).values().stream()
-                        .collect(Collectors.toMap(e -> e.face, e -> e.vertices))
+                        ))
+                        .values().stream()
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toMap(
+                                Map.Entry::getKey,
+                                Map.Entry::getValue
+                        ))
         );
     }
 
