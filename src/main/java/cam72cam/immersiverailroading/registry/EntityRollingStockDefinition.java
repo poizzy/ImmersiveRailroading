@@ -71,7 +71,7 @@ public abstract class EntityRollingStockDefinition {
     public Identifier modelLoc;
     protected StockModel<?, ?> model;
     public Identifier script;
-    private Vec3d passengerCenter;
+    public Vec3d passengerCenter;
     private float bogeyFront;
     private float bogeyRear;
     private float couplerOffsetFront;
@@ -109,6 +109,8 @@ public abstract class EntityRollingStockDefinition {
     public List<AnimationDefinition> animations;
     public Map<String, Float> cgDefaults;
     public Map<String, DataBlock> widgetConfig;
+
+    public WalkableSpaceDefinition walkableSpaceDefinition;
 
     public final Map<String, Position> normals = new HashMap<>();
     public Map<String, List<Vec3d>> floorHeight = new HashMap<>();
@@ -1088,142 +1090,8 @@ public abstract class EntityRollingStockDefinition {
         } catch (IOException e) {
             ModCore.info("An error occurred while loading Normals: ", e);
         }
-        mapFacesToVertices();
-    }
-
-    private void mapFacesToVertices() {
-        Map<String, Map<int[], List<Vec3d>>> tempFloorMap = new HashMap<>();
-        for (Map.Entry<String, List<int[]>> entry : faces.entrySet()) {
-            String object = entry.getKey();
-            List<int[]> objectFaces = entry.getValue();
-            int number = extractFloorNumber(object);
-            String key = "FLOOR_" + number;
-            Map<int[], List<Vec3d>> faceVertexMap = tempFloorMap.computeIfAbsent(key, k -> new HashMap<>());
-            for (int[] face : objectFaces) {
-                List<Vec3d> faceVertices = new ArrayList<>();
-                for (int vertexIndex : face) {
-                    Vec3d vertex = allVertices.get(vertexIndex);
-                    faceVertices.add(vertex);
-                }
-
-                faceVertexMap.put(face, faceVertices);
-            }
-        }
-        floorMap.putAll(tempFloorMap);
-        precomputeYLevel();
+        walkableSpaceDefinition = new WalkableSpaceDefinition(faces, allVertices, floorHeight,this);
+        walkableSpaceDefinition.mapFacesToVertices();
         allVertices.clear();
-        filterFloorMap();
-    }
-
-    public boolean isPlayerInsideTriangle(Vec3d playerPosition, Vec3d v1, Vec3d v2, Vec3d v3) {
-        Vec3d p = new Vec3d(playerPosition.x, playerPosition.z, 0);
-
-        Vec3d a = new Vec3d(v1.x, v1.z, 0);
-        Vec3d b = new Vec3d(v2.x, v2.z, 0);
-        Vec3d c = new Vec3d(v3.x, v3.z, 0);
-
-        Vec3d v0 = b.subtract(a);
-        Vec3d v1Vec = c.subtract(a);
-        Vec3d v2Vec = p.subtract(a);
-
-        double dot00 = dotProduct(v0, v0);
-        double dot01 = dotProduct(v0, v1Vec);
-        double dot02 = dotProduct(v0, v2Vec);
-        double dot11 = dotProduct(v1Vec, v1Vec);
-        double dot12 = dotProduct(v1Vec, v2Vec);
-
-        double invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
-        double u = (dot11 * dot02 - dot01 * dot12) * invDenom;
-        double v = (dot00 * dot12 - dot01 * dot02) * invDenom;
-
-        return (u >= 0) && (v >= 0) && (u + v <= 1);
-    }
-
-    public void precomputeYLevel() {
-        floorMap.forEach((floor, face) -> {
-            List<Vec3d> level = new ArrayList<>();
-            face.forEach((f, v) -> level.addAll(v));
-            Optional<Double> minY = level.stream().map(vec -> vec.y).min(Double::compareTo);
-            Optional<Double> maxY = level.stream().map(vec -> vec.y).max(Double::compareTo);
-            minY.ifPresent(yMin -> maxY.ifPresent(yMax -> yLevel.put(floor, Pair.of(yMin, yMax))));
-        });
-        sortFloorMap(yLevel).forEach(yMap::put);
-    }
-
-    public Map<String, Pair<Double, Double>> sortFloorMap(Map<String, Pair<Double, Double>> map) {
-        List<Map.Entry<String, Pair<Double, Double>>> entryList = new ArrayList<>(map.entrySet());
-        entryList.sort(Comparator.comparingInt(entry -> extractFloorNumber(entry.getKey())));
-        Map<String, Pair<Double, Double>> sortedMap = new LinkedHashMap<>();
-        for (Map.Entry<String, Pair<Double, Double>> entry : entryList) {
-            sortedMap.put(entry.getKey(), entry.getValue());
-        }
-
-        return sortedMap;
-    }
-
-    public static int extractFloorNumber(String key) {
-        Pattern pattern = Pattern.compile("FLOOR_(\\d+)");
-        Matcher matcher = pattern.matcher(key);
-
-        if (matcher.find()) {
-            return Integer.parseInt(matcher.group(1));
-        } else {
-            return Integer.MAX_VALUE;
-        }
-    }
-
-    /**
-     * Fancy Lamda stuff, that no one can read... Basicly what this method does is it takes the map of the floors
-     * and filters it for doubled faces, and puts those who are higher back into the map.
-     */
-
-    public void filterFloorMap() {
-        floorMap.replaceAll((floor, trianglesMap) ->
-                trianglesMap.entrySet().stream()
-                        .collect(Collectors.groupingBy(
-                                entry -> entry.getValue().stream()
-                                        .map(vec -> Arrays.asList(vec.x, vec.z))
-                                        .sorted(Comparator.comparingDouble(v -> v.get(0)))
-                                        .collect(Collectors.toList()),
-                                Collectors.collectingAndThen(
-                                        Collectors.maxBy(Comparator.comparingDouble(e -> getMaxY(e.getValue()))),
-                                        optionalEntry -> optionalEntry.orElse(null)
-                                )
-                        ))
-                        .values().stream()
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toMap(
-                                Map.Entry::getKey,
-                                Map.Entry::getValue
-                        ))
-        );
-    }
-
-    private double getMaxY(List<Vec3d> vertices) {
-        return vertices.stream().mapToDouble(v -> v.y).max().orElse(Double.NEGATIVE_INFINITY);
-    }
-
-    public static class Entry {
-        public int[] face;
-        public List<Vec3d> vertices;
-
-        public Entry(int[] face, List<Vec3d> vertices) {
-            this.face = face;
-            this.vertices = vertices;
-        }
-    }
-
-
-    public double calculateHeightInTriangle(Vec3d playerPosition, Vec3d v1, Vec3d v2, Vec3d v3) {
-        double denominator = (v2.z - v3.z) * (v1.x - v3.x) + (v3.x - v2.x) * (v1.z - v3.z);
-        double w1 = ((v2.z - v3.z) * (playerPosition.x - v3.x) + (v3.x - v2.x) * (playerPosition.z - v3.z)) / denominator;
-        double w2 = ((v3.z - v1.z) * (playerPosition.x - v3.x) + (v1.x - v3.x) * (playerPosition.z - v3.z)) / denominator;
-        double w3 = 1 - w1 - w2;
-
-        return w1 * v1.y + w2 * v2.y + w3 * v3.y;
-    }
-
-    public static double dotProduct(Vec3d v1, Vec3d v2) {
-        return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
     }
 }

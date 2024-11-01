@@ -6,6 +6,7 @@ import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.Coupler
 import cam72cam.immersiverailroading.library.Permissions;
 import cam72cam.immersiverailroading.model.part.Door;
 import cam72cam.immersiverailroading.model.part.Seat;
+import cam72cam.immersiverailroading.registry.WalkableSpaceDefinition;
 import cam72cam.immersiverailroading.render.ExpireableMap;
 import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Player;
@@ -18,6 +19,7 @@ import cam72cam.mod.serialization.SerializationException;
 import cam72cam.mod.serialization.TagCompound;
 import cam72cam.mod.serialization.TagField;
 import cam72cam.mod.serialization.TagMapper;
+import dan200.computercraft.shared.util.Palette;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.*;
@@ -35,8 +37,16 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 	@TagSync
 	private Map<String, UUID> seatedPassengers = new HashMap<>();
 
+    @TagField(value = "lastPassengerPosition", mapper = PassengerMapper.class)
+    @TagSync
+    private Map<UUID, Vec3d> lastPassengerPosition = new HashMap<>();
+
 	// Hack to remount players if they were seated
 	private Map<UUID, Vec3d> remount = new HashMap<>();
+
+	private final WalkableSpaceDefinition walkableSpaceDefinition = getDefinition().walkableSpaceDefinition;
+
+	private double lastHeight = -1;
 
 
     @Override
@@ -102,16 +112,146 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 		return closestFloor != null ? closestFloor : level.keySet().iterator().next();
 	}
 
-	private Vec3d restrictPlayerMovement(Vec3d playerPos, Vec3d playerMovement) {
-		if (getHeightAtPlayerPosition(playerMovement) != -1) {
-			return playerMovement;
-		} else {
-			if (getHeightAtPlayerPosition(new Vec3d(playerMovement.x, playerMovement.y -0.3, playerMovement.z)) != -1) {
-				return playerMovement;
-			} else {
-				return playerPos;
+	public Vec3d restrictMovement(Vec3d playerPosition, Vec3d playerVelocity, List<Vec3d> triangleVertices, Map<int[], List<Vec3d>> walkableTriangles) {
+		// Calculate the normal of the triangle
+		Vec3d normal = calculateNormal(triangleVertices);
+
+		// Project player's velocity onto the plane of the triangle
+		Vec3d projectedVelocity = projectOntoPlane(playerVelocity, normal);
+		playerPosition = new Vec3d(playerPosition.z * -1, playerPosition.y, playerPosition.x);
+
+		// Define triangle edges
+		Vec3d[] edge1 = {triangleVertices.get(0), triangleVertices.get(1)};
+		Vec3d[] edge2 = {triangleVertices.get(1), triangleVertices.get(2)};
+		Vec3d[] edge3 = {triangleVertices.get(2), triangleVertices.get(0)};
+
+		// Process each edge individually and restrict movement if necessary
+		projectedVelocity = restrictOnEdge(projectedVelocity, playerPosition, edge1, walkableTriangles);
+		projectedVelocity = restrictOnEdge(projectedVelocity, playerPosition, edge2, walkableTriangles);
+		projectedVelocity = restrictOnEdge(projectedVelocity, playerPosition, edge3, walkableTriangles);
+
+		return projectedVelocity;
+	}
+
+	private Vec3d restrictOnEdge(Vec3d velocity, Vec3d playerPos, Vec3d[] edge, Map<int[], List<Vec3d>> walkableTriangles) {
+		if (isBoundaryEdge(edge, walkableTriangles) && isCollidingWithEdge(playerPos, velocity, edge[0], edge[1])) {
+			// Restrict velocity along the direction of the edge
+			return WalkableSpaceDefinition.projectOnto(velocity, edge[1].subtract(edge[0]));
+		}
+		return velocity;
+	}
+
+	// Check if the player's movement is within the edge boundaries
+	private boolean isCollidingWithEdge(Vec3d playerPos, Vec3d velocity, Vec3d edgeStart, Vec3d edgeEnd) {
+		// Edge vector and length squared
+		Vec3d edgeVector = edgeEnd.subtract(edgeStart);
+		double edgeLengthSquared = edgeVector.lengthSquared();
+
+		// Vector from edge start to the player's position
+		Vec3d playerToEdgeStart = playerPos.subtract(edgeStart);
+
+		// Project player position onto the edge
+		double projection = dotProduct(playerToEdgeStart, edgeVector) / edgeLengthSquared;
+
+		// Check if the projected point is within the bounds of the edge
+		if (projection < 0 || projection > 1) {
+			return false;  // Player position projection is outside edge bounds
+		}
+
+		// Closest point on the edge to the player's position
+		Vec3d closestPointOnEdge = edgeStart.add(edgeVector.scale(projection));
+
+		// Perpendicular distance from player position to the edge
+		double distanceToEdge = playerPos.distanceTo(closestPointOnEdge);
+
+		// Check if the player is close enough to the edge (within precision) to be considered "colliding"
+		if (distanceToEdge > 1) {
+			return false;
+		}
+
+		// Check if the player's velocity moves it over the edge
+		Vec3d playerEndPos = playerPos.add(velocity);
+		Vec3d playerToEdgeEnd = playerEndPos.subtract(edgeStart);
+
+		// Project end position onto the edge to check if it overshoots
+		double endProjection = dotProduct(playerToEdgeEnd, edgeVector) / edgeLengthSquared;
+		if (endProjection < 0 || endProjection > 1) {
+			return false;
+		}
+
+		// Ensure velocity is directed towards the edge
+		Vec3d playerToClosestPoint = closestPointOnEdge.subtract(playerPos);
+		return dotProduct(playerToClosestPoint, velocity) > 0;
+	}
+
+
+
+	// Method to calculate the normal vector of a triangle
+	private Vec3d calculateNormal(List<Vec3d> triangleVertices) {
+		Vec3d v0 = triangleVertices.get(1).subtract(triangleVertices.get(0));
+		Vec3d v1 = triangleVertices.get(2).subtract(triangleVertices.get(0));
+		return crossProduct(v0, v1).normalize();
+	}
+
+	// Project a vector onto a plane defined by its normal
+	private Vec3d projectOntoPlane(Vec3d vector, Vec3d normal) {
+		double dotProduct = dotProduct(vector, normal);
+		return vector.subtract(normal.scale(dotProduct)); // Removes component along the normal
+	}
+
+	public double dotProduct(Vec3d v1, Vec3d v2) {
+		return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+	}
+
+	private boolean isBoundaryEdge(Vec3d[] edge, Map<int[], List<Vec3d>> walkableTriangles) {
+		int sharedCount = 0;
+
+		// Iterate through triangles to check if this edge is shared with any other triangle
+		for (List<Vec3d> triangle : walkableTriangles.values()) {
+			if (triangleContainsEdge(triangle, edge)) {
+				sharedCount++;
+				if (sharedCount > 1) return false; // More than one triangle shares this edge
 			}
 		}
+
+		return true; // Edge is a boundary if it is not shared with another triangle
+	}
+
+	private boolean triangleContainsEdge(List<Vec3d> triangle, Vec3d[] edge) {
+		return (triangle.contains(edge[0]) && triangle.contains(edge[1]));
+	}
+
+	// Method to determine if the player is currently within a triangle
+	public List<Vec3d> getCurrentTriangle(Vec3d playerPosition, Map<int[], List<Vec3d>> walkableTriangles) {
+		for (List<Vec3d> vertices : walkableTriangles.values()) {
+			if (walkableSpaceDefinition.isPlayerInsideTriangle(playerPosition, vertices.get(0), vertices.get(1), vertices.get(2))) {
+				return vertices; // Return the triangle the player is in
+			}
+		}
+		return new ArrayList<>(); // Return null if the player is not in any walkable triangle
+	}
+
+	// Check if player is colliding with an edge of a triangle
+	private boolean isColliding(Vec3d playerPosition, Vec3d playerVelocity, Vec3d edgeStart, Vec3d edgeEnd) {
+		Vec3d edgeVector = edgeEnd.subtract(edgeStart);
+		Vec3d playerToEdgeStart = playerPosition.subtract(edgeStart);
+
+		// Calculate perpendicular distance of player's path to the edge
+		Vec3d crossProduct = crossProduct(edgeVector, playerVelocity);
+		double area = crossProduct.length();
+		double edgeLength = edgeVector.length();
+		double distance = area / edgeLength; // perpendicular distance
+
+		// Check if the distance is small enough to consider a collision
+		return distance < 0.1; // Adjust threshold based on desired precision
+	}
+
+	// Vec3d helper method
+	private Vec3d crossProduct(Vec3d vec1, Vec3d vec2) {
+		double crossX = vec1.y * vec2.z - vec1.z * vec2.y;
+		double crossY = vec1.z * vec2.x - vec1.x * vec2.z;
+		double crossZ = vec1.x * vec2.y - vec1.y * vec2.x;
+		return new Vec3d(crossX, crossY, crossZ);
 	}
 
 	/*
@@ -128,8 +268,9 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 				Vec3d v1 = vertices.get(0);
 				Vec3d v2 = vertices.get(1);
 				Vec3d v3 = vertices.get(2);
-				if (getDefinition().isPlayerInsideTriangle(playerPosition, v1, v2, v3)) {
-					return getDefinition().calculateHeightInTriangle(playerPosition, v1, v2, v3);
+				if (walkableSpaceDefinition.isPlayerInsideTriangle(playerPosition, v1, v2, v3)) {
+					lastHeight = walkableSpaceDefinition.calculateHeightInTriangle(playerPosition, v1, v2, v3);
+					return walkableSpaceDefinition.calculateHeightInTriangle(playerPosition, v1, v2, v3);
 				}
 			}
 		}
@@ -158,11 +299,18 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 			return seat;
 		}
 
-
 		int wiggle = passenger.isVillager() ? 10 : 0;
 		off = off.add((Math.random()-0.5) * wiggle, 0, (Math.random()-0.5) * wiggle);
 		off = this.getDefinition().correctPassengerBounds(gauge, off, shouldRiderSit(passenger));
+
 		double yOffset = getDefinition().yMap.isEmpty() ? off.y : getHeightAtPlayerPosition(off);
+		if (!getDefinition().yMap.isEmpty()) {
+			off = walkableSpaceDefinition.getNearestWalkablePoint(new Vec3d(off.z * -1, off.y, off.x));
+			yOffset = getHeightAtPlayerPosition(off);
+			off = new Vec3d(off.z, yOffset, off.x * -1);
+			return off;
+		}
+
 		off = new Vec3d(off.x, yOffset, off.z);
 
 		return off;
@@ -207,7 +355,7 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 		return offset;
 	}
 
-	private boolean isNearestDoorOpen(Player source) {
+	 private boolean isNearestDoorOpen(Player source) {
 		// Find any doors that are close enough that are closed (and then negate)
 		return !this.getDefinition().getModel().getDoors().stream()
 				.filter(d -> d.type == Door.Types.CONNECTING)
@@ -234,7 +382,13 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 		Vec3d offsetM = offset.add(movement);
 
 		if (!getDefinition().yMap.isEmpty()) {
-			offset = restrictPlayerMovement(offset, offsetM);
+			Map<int[], List<Vec3d>> faces = getDefinition().floorMap.get(getCurrentFloor(offset));
+			List<Vec3d> edges = getCurrentTriangle(new Vec3d(offset.z * -1, offset.y, offset.x), faces);
+			Vec3d velocity = offsetM.subtract(offset);
+			if (!edges.isEmpty()) {
+				offset = offset.add(restrictMovement(offset, velocity, edges, faces));
+//				offset = new Vec3d(offset.z, offset.y, offset.x * -1);
+			} else {offset = offsetM;}
 		}else {
 			offset = offsetM;
 		}
@@ -243,6 +397,10 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 
 			boolean atFront = this.getDefinition().isAtFront(gauge, offset);
 			boolean atBack = this.getDefinition().isAtRear(gauge, offset);
+			if (!getDefinition().yMap.isEmpty()) {
+				atFront = this.walkableSpaceDefinition.isAtRearNew(gauge, offset);
+				atBack = this.walkableSpaceDefinition.isAtFrontNew(gauge, offset);
+			}
 			// TODO config for strict doors
 			boolean atDoor = isNearestDoorOpen(source);
 
@@ -342,6 +500,7 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 		}
 
 		seatedPassengers.put(seat, player.getUUID());
+		lastPassengerPosition.put(player.getUUID(), player.getPosition().subtract(this.getPosition()).rotateYaw(this.getRotationYaw()));
 	}
 
 	private static class PassengerMapper implements TagMapper<Map<UUID, Vec3d>> {
