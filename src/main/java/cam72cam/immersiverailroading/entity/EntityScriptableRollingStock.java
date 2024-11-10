@@ -25,7 +25,7 @@ import java.util.*;
 
 import org.luaj.vm2.LuaFunction;
 
-public abstract class LuaIntegration extends EntityCoupleableRollingStock implements ReadoutsEventHandler {
+public abstract class EntityScriptableRollingStock extends EntityCoupleableRollingStock implements ReadoutsEventHandler {
 
     private LuaValue tickEvent;
     public boolean isLuaLoaded = false;
