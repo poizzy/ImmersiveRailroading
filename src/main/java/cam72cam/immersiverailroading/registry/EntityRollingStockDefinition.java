@@ -113,12 +113,9 @@ public abstract class EntityRollingStockDefinition {
     public WalkableSpaceDefinition walkableSpaceDefinition;
 
     public final Map<String, Position> normals = new HashMap<>();
-    public Map<String, List<Vec3d>> floorHeight = new HashMap<>();
-    public Map<String, List<int[]>> faces = new HashMap<>();
-    public final Map<String, Map<int[], List<Vec3d>>> floorMap = new HashMap<>();
-    public final Map<String, Pair<Double, Double>> yLevel = new HashMap<>();
+    private final Map<String, List<Vec3d>> floorHeight = new HashMap<>();
+    private final Map<String, List<int[]>> faces = new HashMap<>();
     private final LinkedList<Vec3d> allVertices = new LinkedList<>();
-    public final LinkedHashMap<String, Pair<Double, Double>> yMap = new LinkedHashMap<>();
 
     public static class SoundDefinition {
         public final Identifier start;

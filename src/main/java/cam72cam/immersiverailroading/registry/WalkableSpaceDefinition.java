@@ -19,6 +19,8 @@ public class WalkableSpaceDefinition {
     public final Map<String, Pair<Double, Double>> yLevel = new HashMap<>();
     private final LinkedList<Vec3d> allVertices = new LinkedList<>();
     public final LinkedHashMap<String, Pair<Double, Double>> yMap = new LinkedHashMap<>();
+    public List<TriangleRegion> regions = new ArrayList<>();
+    public Map<Vec3d[], List<Vec3d>> adjacentTriangles = new HashMap<>();
 
     /*
      * Vec3d helper Methods
@@ -39,6 +41,18 @@ public class WalkableSpaceDefinition {
         double dotProduct = dotProduct(vector, onto);
         double ontoLengthSquared = dotProduct (onto, onto);
         return onto.scale(dotProduct / ontoLengthSquared);
+    }
+
+    public int compareTo(Vec3d v1, Vec3d other) {
+        int xComparison = Double.compare(v1.x, other.x);
+        if (xComparison != 0) {
+            return xComparison;
+        }
+        int yComparison = Double.compare(v1.y, other.y);
+        if (yComparison != 0) {
+            return yComparison;
+        }
+        return Double.compare(v1.z, other.z);
     }
 
     /*
@@ -109,6 +123,69 @@ public class WalkableSpaceDefinition {
             minY.ifPresent(yMin -> maxY.ifPresent(yMax -> yLevel.put(floor, Pair.of(yMin, yMax))));
         });
         yMap.putAll(sortFloorMap(yLevel));
+        precomputeRegions();
+    }
+
+    private void precomputeRegions() {
+        for (Map<int[], List<Vec3d>> floorTriangles : floorMap.values()) {
+            List<List<Vec3d>> triangles = new ArrayList<>();
+
+            // Iterate over each triangle within the floor
+            for (List<Vec3d> triangleVertices : floorTriangles.values()) {
+                triangles.add(triangleVertices);
+            }
+
+            // Create a TriangleRegion with these triangles
+            regions.add(new TriangleRegion(triangles));
+        }
+        buildAdjacentTriangles();
+    }
+
+    public void buildAdjacentTriangles() {
+        // Temporary map to store edges and the triangles that share each edge
+        Map<Vec3d[], List<List<Vec3d>>> edgeToTrianglesMap = new HashMap<>();
+
+        // Iterate over all triangles in the floorMap
+        for (Map<int[], List<Vec3d>> floorTriangles : floorMap.values()) {
+            for (List<Vec3d> triangle : floorTriangles.values()) {
+                // Extract edges from the current triangle
+                Vec3d[][] edges = {
+                        {triangle.get(0), triangle.get(1)},
+                        {triangle.get(1), triangle.get(2)},
+                        {triangle.get(2), triangle.get(0)}
+                };
+
+                // Normalize edges by sorting vertices to ensure consistency (smallest vertex first)
+                for (Vec3d[] edge : edges) {
+                    if (compareTo(edge[0], edge[1]) > 0) {
+                        // Swap edge vertices to enforce a consistent order (smallest vertex first)
+                        Vec3d temp = edge[0];
+                        edge[0] = edge[1];
+                        edge[1] = temp;
+                    }
+
+                    // Add the current triangle to the list of triangles for this edge
+                    edgeToTrianglesMap.computeIfAbsent(edge, k -> new ArrayList<>()).add(triangle);
+                }
+            }
+        }
+
+        // Filter edgeToTrianglesMap to keep only edges that have exactly two triangles (indicating adjacency)
+        Map<Vec3d[], List<Vec3d>> adjacentTrianglesMap = new HashMap<>();
+        for (Map.Entry<Vec3d[], List<List<Vec3d>>> entry : edgeToTrianglesMap.entrySet()) {
+            List<List<Vec3d>> triangles = entry.getValue();
+
+            // Only consider edges that are shared by exactly two triangles
+            if (triangles.size() == 2) {
+                Vec3d[] edge = entry.getKey();
+
+                // Map this edge to the adjacent triangle
+                // We can pick either one as the "adjacent" since both are connected by the edge
+                adjacentTrianglesMap.put(edge, triangles.get(1));
+            }
+        }
+
+        adjacentTriangles.putAll(adjacentTrianglesMap);
     }
 
     public Map<String, Pair<Double, Double>> sortFloorMap(Map<String, Pair<Double, Double>> map) {
@@ -255,8 +332,8 @@ public class WalkableSpaceDefinition {
         return new double[] {maxX, minX};
     }
 
-    public Vec3d getNearestWalkablePoint(Vec3d playerPosition) {
-        Vec3d nearestPoint = null;
+    public Point getNearestWalkablePoint(Vec3d playerPosition) {
+        Point nearestPoint = null;
         double minDistance = Double.MAX_VALUE;
 
         for (Map.Entry<String, Map<int[], List<Vec3d>>> floorEntry : floorMap.entrySet()) {
@@ -266,21 +343,32 @@ public class WalkableSpaceDefinition {
                 List<Vec3d> vertices = entry.getValue();
 
                 if (vertices.size() == 3) {
-                    Vec3d closestPoint = getClosestPointOnTriangle(playerPosition, vertices.get(0), vertices.get(1), vertices.get(2));
+                    Vec3d closestPoint = getClosestPointOnTriangle(playerPosition, vertices.get(0), vertices.get(1), vertices.get(2), 0.1);
                     double distance = playerPosition.distanceTo(closestPoint);
 
                     if (distance < minDistance) {
                         minDistance = distance;
-                        nearestPoint = closestPoint;
+                        nearestPoint = new Point(floorEntry.getKey(), closestPoint);
                     }
                 }
             }
         }
+
         return nearestPoint;
     }
 
+    public static class Point {
+        public String floor;
+        public Vec3d point;
 
-    private Vec3d getClosestPointOnTriangle(Vec3d p, Vec3d a, Vec3d b, Vec3d c) {
+        Point(String floor, Vec3d point) {
+            this.floor = floor;
+            this.point = point;
+        }
+    }
+
+
+    private Vec3d getClosestPointOnTriangle(Vec3d p, Vec3d a, Vec3d b, Vec3d c, double edgeOffset) {
         Vec3d ab = b.subtract(a);
         Vec3d ac = c.subtract(a);
         Vec3d ap = p.subtract(a);
@@ -305,26 +393,35 @@ public class WalkableSpaceDefinition {
         double vc = d1 * d4 - d3 * d2;
         if (vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0) {
             double v = d1 / (d1 - d3);
-            return a.add(ab.scale(v));
+            Vec3d closestPoint = a.add(ab.scale(v));
+            Vec3d edgeNormal = crossProduct(ab, ac).normalize();
+            return closestPoint.add(edgeNormal.scale(edgeOffset));
         }
 
         double vb = d5 * d2 - d1 * d6;
         if (vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0) {
             double w = d2 / (d2 - d6);
-            return a.add(ac.scale(w));
+            Vec3d closestPoint = a.add(ac.scale(w));
+            Vec3d edgeNormal = crossProduct(ac, ab).normalize();
+            return closestPoint.add(edgeNormal.scale(edgeOffset));
         }
 
         double va = d3 * d6 - d5 * d4;
         if (va <= 0.0 && (d4 - d3) >= 0.0 && (d5 - d6) >= 0.0) {
             double w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-            return b.add((c.subtract(b)).scale(w));
+            Vec3d closestPoint = b.add((c.subtract(b)).scale(w));
+            Vec3d edgeNormal = crossProduct(c.subtract(b), ab).normalize();
+            return closestPoint.add(edgeNormal.scale(edgeOffset));
         }
 
         double denom = 1.0 / (va + vb + vc);
         double v = vb * denom;
         double w = vc * denom;
-        return a.add(ab.scale(v)).add(ac.scale(w));
+        Vec3d closestPoint = a.add(ab.scale(v)).add(ac.scale(w));
+
+        return closestPoint;
     }
+
 
     public static class Entry {
         public int[] face;
@@ -358,4 +455,102 @@ public class WalkableSpaceDefinition {
 
         return w1 * v1.y + w2 * v2.y + w3 * v3.y;
     }
+
+    public static class TriangleRegion {
+        public List<List<Vec3d>> triangles;
+        public Vec3d minBound;
+        public Vec3d maxBound;
+
+        public TriangleRegion(List<List<Vec3d>> triangles) {
+            this.triangles = triangles;
+            calculateBounds();
+        }
+
+        private void calculateBounds() {
+            double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE, minZ = Double.MAX_VALUE;
+            double maxX = Double.MIN_VALUE, maxY = Double.MIN_VALUE, maxZ = Double.MIN_VALUE;
+
+            for (List<Vec3d> triangle : triangles) {
+                for (Vec3d vertex : triangle) {
+                    if (vertex.x < minX) minX = vertex.x;
+                    if (vertex.y < minY) minY = vertex.y;
+                    if (vertex.z < minZ) minZ = vertex.z;
+                    if (vertex.x > maxX) maxX = vertex.x;
+                    if (vertex.y > maxY) maxY = vertex.y;
+                    if (vertex.z > maxZ) maxZ = vertex.z;
+                }
+            }
+            minBound = new Vec3d(minX, minY, minZ);
+            maxBound = new Vec3d(maxX, maxY, maxZ);
+        }
+
+        public boolean isWithinBounds(Vec3d position) {
+            return position.x >= minBound.x && position.x <= maxBound.x &&
+                    position.y >= minBound.y && position.y <= maxBound.y &&
+                    position.z >= minBound.z && position.z <= maxBound.z;
+        }
+    }
+
+    public static class BoundingBox {
+        private final Vec3d min;
+        private final Vec3d max;
+
+        public BoundingBox(Vec3d min, Vec3d max) {
+            this.min = min;
+            this.max = max;
+        }
+
+        public double getDistanceTo(Vec3d playerPosition) {
+            double clampedX = Math.max(min.x, Math.min(playerPosition.x, max.x));
+            double clampedY = Math.max(min.y, Math.min(playerPosition.y, max.y));
+            double clampedZ = Math.max(min.z, Math.min(playerPosition.z, max.z));
+
+            double dx = clampedX - playerPosition.x;
+            double dy = clampedY - playerPosition.y;
+            double dz = clampedZ - playerPosition.z;
+
+            return Math.sqrt(dx * dx + dy * dy + dz * dz);
+        }
+
+        public boolean doesMovementCross(Vec3d startPosition, Vec3d movement) {
+            Vec3d endPosition = startPosition.add(movement);
+
+            double tmin = 0.0;
+            double tmax = 1.0;
+
+            for (int i = 0; i < 2; i++) {
+                double start = i == 0 ? startPosition.x : startPosition.z;
+                double end = i == 0 ? endPosition.x : endPosition.z;
+                double boxMin = i == 0 ? min.x : min.z;
+                double boxMax = i == 0 ? max.x : max.z;
+
+                double direction = end - start;
+
+                if (Math.abs(direction) < 1e-8) {
+                    if (start < boxMin || start > boxMax) {
+                        return false;
+                    }
+                } else {
+                    double t1 = (boxMin - start) / direction;
+                    double t2 = (boxMax - start) / direction;
+
+                    if (t1 > t2) {
+                        double temp = t1;
+                        t1 = t2;
+                        t2 = temp;
+                    }
+
+                    tmin = Math.max(tmin, t1);
+                    tmax = Math.min(tmax, t2);
+
+                    if (tmin > tmax) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+    }
+
 }
