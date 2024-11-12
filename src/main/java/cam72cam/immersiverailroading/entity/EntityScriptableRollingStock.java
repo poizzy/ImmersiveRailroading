@@ -1,14 +1,19 @@
 package cam72cam.immersiverailroading.entity;
 
+import cam72cam.immersiverailroading.IRItems;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.gui.overlay.ReadoutsEventHandler;
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
+import cam72cam.immersiverailroading.items.ItemGoldenSpike;
+import cam72cam.immersiverailroading.library.GuiTypes;
 import cam72cam.immersiverailroading.library.ModelComponentType;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
 import cam72cam.immersiverailroading.model.part.CustomParticleConfig;
 import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.mod.ModCore;
+import cam72cam.mod.entity.Player;
+import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.resource.Identifier;
@@ -134,6 +139,15 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    @Override
+    public ClickResult onClick(Player player, Player.Hand hand) {
+        if (player.getHeldItem(hand).is(IRItems.ITEM_GOLDEN_SPIKE)) {
+            GuiTypes.TEXT_FIELD.open(player);
+            return ClickResult.ACCEPTED;
+        }
+        return super.onClick(player, hand);
     }
 
     public boolean LoadLuaFile() throws IOException {

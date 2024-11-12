@@ -106,6 +106,8 @@ public abstract class EntityRollingStockDefinition {
     public double rollingResistanceCoefficient;
     public double directFrictionCoefficient;
 
+    public Map<String, TextRenderOptions> textFieldDef = new HashMap<>();
+
     public List<AnimationDefinition> animations;
     public Map<String, Float> cgDefaults;
     public Map<String, DataBlock> widgetConfig;
@@ -531,7 +533,14 @@ public abstract class EntityRollingStockDefinition {
         hasPressureBrake = properties.getValue("pressure_brake").asBoolean();
         // Locomotives default to linear brake control
         isLinearBrakeControl = properties.getValue("linear_brake_control").asBoolean();
+
         script = data.getValue("script").asIdentifier();
+
+        List<DataBlock> textField = data.getBlocks("textfield");
+        if (textField != null) {
+            List<TextRenderOptions> options = textField.stream().map(this::loadTextField).collect(Collectors.toList());
+            options.forEach(o -> textFieldDef.put(o.componentId, o));
+        }
 
         brakeCoefficient = PhysicalMaterials.STEEL.kineticFriction(PhysicalMaterials.CAST_IRON);
         try {
@@ -997,6 +1006,45 @@ public abstract class EntityRollingStockDefinition {
             this.normal = normal;
             this.vertices = vertices;
         }
+    }
+
+    private TextRenderOptions loadTextField(DataBlock textField) {
+        Identifier font = textField.getValue("font").asIdentifier(null);
+        String textFieldId = textField.getValue("ID").asString(null);
+        int resX = textField.getValue("resX").asInteger(0);
+        int resY = textField.getValue("resY").asInteger(0);
+        boolean flipped = textField.getValue("flipped") != null && textField.getValue("flipped").asBoolean();
+        int textureHeight = textField.getValue("textureHeight").asInteger(12);
+        int fontSize = textField.getValue("fontSize").asInteger(textureHeight);
+        int fontLength = textField.getValue("textureWidth").asInteger(512);
+        int fontGap = textField.getValue("fontGap").asInteger(1);
+        Identifier overlay = textField.getValue("overlay").asIdentifier(null);
+        String hexCode = textField.getValue("color").asString(null);
+        boolean fullbright = textField.getValue("fullbright").asBoolean(false);
+        boolean allStock = textField.getValue("global").asBoolean(false);
+        boolean useAlternative = textField.getValue("useAltAlignment").asBoolean(false);
+        int lineSpacingPixels = textField.getValue("lineSpacing").asInteger(1);
+        int offset = textField.getValue("offset").asInteger(0);
+
+        Font.TextAlign align;
+        if (textField.getValue("align") != null) {
+            String alignStr = textField.getValue("align").asString();
+            if (alignStr.equalsIgnoreCase("right")) {
+                align = Font.TextAlign.RIGHT;
+            } else if (alignStr.equalsIgnoreCase("center")) {
+                align = Font.TextAlign.CENTER;
+            } else {
+                align = Font.TextAlign.LEFT;
+            }
+        } else {
+            align = Font.TextAlign.LEFT;
+        }
+
+        String text = textField.getValue("text") != null ? textField.getValue("text").asString() : "";
+
+        return new TextRenderOptions(
+                font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, overlay, hexCode, fullbright, textureHeight, useAlternative, lineSpacingPixels, offset, allStock
+        );
     }
 
     // This is bad. But I don't want to change UMC

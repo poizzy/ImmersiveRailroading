@@ -11,10 +11,10 @@ import java.nio.charset.StandardCharsets;
 
 public class TextRenderOptions {
     public final Identifier id;
-    public final String newText;
+    public String newText;
     public final int resX;
     public final int resY;
-    public final Font.TextAlign align;
+    public Font.TextAlign align;
     public final boolean flipped;
     public final String componentId;
     public final int fontSize;
@@ -120,5 +120,10 @@ public class TextRenderOptions {
             byteArrayOutputStream.write(buffer, 0, bytesRead);
         }
         return byteArrayOutputStream.toString();
+    }
+
+    @Override
+    public String toString() {
+        return this.componentId;
     }
 }
