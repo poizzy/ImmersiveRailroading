@@ -145,10 +145,10 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 	}
 
 	private Vec3d restrictPlayerMovement(Vec3d playerPos, Vec3d playerMovement) {
-		if (getHeightAtPlayerPosition(playerMovement) != -1) {
+		if (getHeightAtPlayerPosition(playerMovement.subtract(0, Math.sin(Math.toRadians(this.getRotationPitch())) * playerMovement.z, 0)) != -1) {
 			return playerMovement;
 		} else {
-			if (getHeightAtPlayerPosition(new Vec3d(playerMovement.x, playerMovement.y -0.3, playerMovement.z)) != -1) {
+			if (getHeightAtPlayerPosition(new Vec3d(playerMovement.x, (playerMovement.y -0.3) - (Math.sin(Math.toRadians(this.getRotationPitch())) * playerMovement.z), playerMovement.z)) != -1) {
 				return playerMovement;
 			} else {
 				return playerPos;
@@ -348,7 +348,7 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 
 		double yOffset = 1;
 		if (passenger.getWorld().isClient && !walkableSpaceDefinition.yMap.isEmpty()) {
-			yOffset = getHeightAtPlayerPosition(offset);
+			yOffset = getHeightAtPlayerPosition(offset.subtract(0, Math.sin(Math.toRadians(this.getRotationPitch())) * (offset.z), 0));
 		}
 
 		Vec3d seat = getSeatPosition(passenger.getUUID());
@@ -361,6 +361,7 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 
 		if (seat == null && !walkableSpaceDefinition.yMap.isEmpty()) {
 			offset = new Vec3d(offset.x, yOffset, offset.z);
+			offset = offset.add(0, Math.sin(Math.toRadians(this.getRotationPitch())) * offset.z, 0);
 		}
 		return offset;
 	}

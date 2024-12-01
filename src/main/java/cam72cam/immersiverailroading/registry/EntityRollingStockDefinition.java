@@ -1089,6 +1089,20 @@ public abstract class EntityRollingStockDefinition {
         List<String> filter = new ArrayList<>();
         if (filterData != null) {
             filter = filterData.stream().map(DataBlock.Value::asString).collect(Collectors.toList());
+            List<String> rangeFilter = new ArrayList<>();
+            int padding = determinePadding(filter);
+            filter.forEach(s -> {
+                if (s.contains("-")) {
+                    String[] parts = s.split("-");
+                    int start = Integer.parseInt(parts[0]);
+                    int end = Integer.parseInt(parts[1]);
+                    for (int i = start; i <= end ; i++) {
+                        rangeFilter.add(String.format("%0" + padding + "d", i));
+                    }
+                }
+            });
+            filter = filter.stream().filter(n -> !n.contains("-")).collect(Collectors.toList());
+            filter.addAll(rangeFilter);
         }
 
         TextRenderOptions options = new TextRenderOptions(
@@ -1103,6 +1117,21 @@ public abstract class EntityRollingStockDefinition {
 
         return options;
     }
+
+    private static int determinePadding(List<String> input) {
+        int maxLength = 0;
+        for (String item : input) {
+            if (item.contains("-")) {
+                String[] parts = item.split("-");
+                maxLength = Math.max(maxLength, parts[0].length());
+                maxLength = Math.max(maxLength, parts[1].length());
+            } else {
+                maxLength = Math.max(maxLength, item.length());
+            }
+        }
+        return maxLength;
+    }
+
 
     // This is bad. But I don't want to change UMC
     public void LoadVertecies() throws IOException {
