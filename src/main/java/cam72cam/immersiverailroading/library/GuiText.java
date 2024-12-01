@@ -24,6 +24,12 @@ public enum GuiText {
 	SELECTOR_CAST_REPEAT("selector.cast_repeat"),
 	SELECTOR_ALIGNMENT("selector.alignment"),
 	SELECTOR_TEXTFIELD("selector.textfield"),
+	SELECTOR_FONT("selector.font"),
+
+	SLIDER_OFFSET("slider.offset"),
+	SLIDER_LINE_SPACING("slider.line_spacing"),
+
+	CHECKBOX_GLOBAL("checkbox.global"),
 
 	TRACK_TYPE("track.type"),
 	TRACK_LENGTH("track.length"),

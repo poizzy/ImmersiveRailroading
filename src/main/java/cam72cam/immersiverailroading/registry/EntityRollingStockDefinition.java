@@ -107,6 +107,7 @@ public abstract class EntityRollingStockDefinition {
     public double directFrictionCoefficient;
 
     public Map<String, TextRenderOptions> textFieldDef = new HashMap<>();
+    public LinkedList<Fonts> fontDef = new LinkedList<>();
 
     public List<AnimationDefinition> animations;
     public Map<String, Float> cgDefaults;
@@ -118,6 +119,9 @@ public abstract class EntityRollingStockDefinition {
     private final Map<String, List<Vec3d>> floorHeight = new HashMap<>();
     private final Map<String, List<int[]>> faces = new HashMap<>();
     private final LinkedList<Vec3d> allVertices = new LinkedList<>();
+
+    // used for unique text fields to check if text field input is already assigned
+    public Map<UUID, String> inputs = new HashMap<>();
 
     public static class SoundDefinition {
         public final Identifier start;
@@ -535,6 +539,11 @@ public abstract class EntityRollingStockDefinition {
         isLinearBrakeControl = properties.getValue("linear_brake_control").asBoolean();
 
         script = data.getValue("script").asIdentifier();
+
+        List<DataBlock> fonts = data.getBlocks("fonts");
+        if (fonts != null) {
+            fontDef = fonts.stream().map(this::loadFontData).collect(Collectors.toCollection(LinkedList::new));;
+        }
 
         List<DataBlock> textField = data.getBlocks("textfield");
         if (textField != null) {
@@ -1008,6 +1017,29 @@ public abstract class EntityRollingStockDefinition {
         }
     }
 
+    public static class Fonts {
+        public Identifier font;
+        public int resX;
+        public int resY;
+        public int size;
+
+        Fonts(Identifier i, int x, int y, int s) {
+            this.font = i;
+            this.resX = x;
+            this.resY = y;
+            this.size = s;
+        }
+    }
+
+    private Fonts loadFontData (DataBlock font) {
+        Identifier identifier = font.getValue("font").asIdentifier();
+        int resX = font.getValue("textureWidth").asInteger(512);
+        int resY = font.getValue("textureHeight").asInteger(12);
+        int size = font.getValue("fontSize").asInteger(12);
+
+        return new Fonts(identifier, resX, resY, size);
+    }
+
     private TextRenderOptions loadTextField(DataBlock textField) {
         Identifier font = textField.getValue("font").asIdentifier(null);
         String textFieldId = textField.getValue("ID").asString(null);
@@ -1018,7 +1050,12 @@ public abstract class EntityRollingStockDefinition {
         int fontSize = textField.getValue("fontSize").asInteger(textureHeight);
         int fontLength = textField.getValue("textureWidth").asInteger(512);
         int fontGap = textField.getValue("fontGap").asInteger(1);
-        Identifier overlay = textField.getValue("overlay").asIdentifier(null);
+        List<DataBlock.Value> fontList = textField.getValues("fontId");
+        List<Integer> fontId = new ArrayList<>();
+        if (fontList != null) {
+            fontId = fontList.stream().map(DataBlock.Value::asInteger).collect(Collectors.toList());
+        }
+//        int fontId = textField.getValue("overlay").asInteger(0);
         String hexCode = textField.getValue("color").asString(null);
         boolean fullbright = textField.getValue("fullbright").asBoolean(false);
         boolean allStock = textField.getValue("global").asBoolean(false);
@@ -1040,11 +1077,31 @@ public abstract class EntityRollingStockDefinition {
             align = Font.TextAlign.LEFT;
         }
 
+        List<DataBlock.Value> linkedData = textField.getValues("linked");
+        List<String> linked = new ArrayList<>();
+        if (linkedData != null) {
+            linked = linkedData.stream().map(DataBlock.Value::asString).collect(Collectors.toList());
+        }
+
         String text = textField.getValue("text") != null ? textField.getValue("text").asString() : "";
 
-        return new TextRenderOptions(
-                font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, overlay, hexCode, fullbright, textureHeight, useAlternative, lineSpacingPixels, offset, allStock
+        List<DataBlock.Value> filterData = textField.getValues("filter");
+        List<String> filter = new ArrayList<>();
+        if (filterData != null) {
+            filter = filterData.stream().map(DataBlock.Value::asString).collect(Collectors.toList());
+        }
+
+        TextRenderOptions options = new TextRenderOptions(
+                font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, fontId, hexCode, fullbright, textureHeight, useAlternative, lineSpacingPixels, offset, allStock
         );
+
+        options.setLinked(linked);
+        options.setSelectable(textField.getValue("selectable").asBoolean(true));
+        options.setUnique(textField.getValue("unique").asBoolean(false));
+        options.setIsNumberPlate(textField.getValue("isNumberPlate").asBoolean(false));
+        options.setFilter(filter);
+
+        return options;
     }
 
     // This is bad. But I don't want to change UMC

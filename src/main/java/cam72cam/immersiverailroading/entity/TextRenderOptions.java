@@ -2,6 +2,8 @@ package cam72cam.immersiverailroading.entity;
 
 import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.TagCompound;
+
+import java.util.*;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.GZIPInputStream;
 import java.io.ByteArrayOutputStream;
@@ -10,27 +12,42 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 public class TextRenderOptions {
-    public final Identifier id;
+    public Identifier id;
     public String newText;
     public final int resX;
     public final int resY;
     public Font.TextAlign align;
     public final boolean flipped;
     public final String componentId;
-    public final int fontSize;
-    public final int fontX;
+    public int fontSize;
+    public int fontX;
     public final int fontGap;
-    public final Identifier overlay;
-    public final String hexCode;
+    public final List<Integer> fontId;
+    public String hexCode;
     public final boolean fullbright;
-    public final int textureHeight;
+    public int textureHeight;
     public final boolean useAlternative;
-    public final int lineSpacingPixels;
-    public final int offset;
-    public final boolean global;
+    public int lineSpacingPixels;
+    public int offset;
+    public boolean global;
+
+    public List<String> linked = new ArrayList<>();
+
+    public boolean selectable = true;
+
+    // Used for number plates etc...
+    public boolean unique = false;
+
+    public boolean isNumberPlate = false;
+
+    public String lastText = "";
+
+    public List<String> filter = new ArrayList<>();
+
+    public boolean assigned = false;
 
     public TextRenderOptions(Identifier id, String newText, int resX, int resY, Font.TextAlign align, boolean flipped,
-                             String componentId, int fontSize, int fontX, int fontGap, Identifier overlay, String hexCode,
+                             String componentId, int fontSize, int fontX, int fontGap, List<Integer> fontId, String hexCode,
                              boolean fullbright, int textureHeight, boolean useAlternative, int lineSpacingPixels, int offset, boolean global) {
         this.id = id;
         this.newText = newText;
@@ -42,7 +59,7 @@ public class TextRenderOptions {
         this.fontSize = fontSize;
         this.fontX = fontX;
         this.fontGap = fontGap;
-        this.overlay = overlay;
+        this.fontId = fontId;
         this.hexCode = hexCode;
         this.fullbright = fullbright;
         this.textureHeight = textureHeight;
@@ -50,6 +67,58 @@ public class TextRenderOptions {
         this.lineSpacingPixels = lineSpacingPixels;
         this.offset = offset;
         this.global = global;
+    }
+
+    private TextRenderOptions(TextRenderOptions options) {
+        this.id = options.id;
+        this.newText = options.newText;
+        this.resX = options.resX;
+        this.resY = options.resY;
+        this.align = options.align;
+        this.flipped = options.flipped;
+        this.componentId = options.componentId;
+        this.fontSize = options.fontSize;
+        this.fontX = options.fontX;
+        this.fontGap = options.fontGap;
+        this.fontId = options.fontId;
+        this.hexCode = options.hexCode;
+        this.fullbright = options.fullbright;
+        this.textureHeight = options.textureHeight;
+        this.useAlternative = options.useAlternative;
+        this.lineSpacingPixels = options.lineSpacingPixels;
+        this.offset = options.offset;
+        this.global = options.global;
+        this.linked = options.linked;
+        this.selectable = options.selectable;
+        this.unique = options.unique;
+        this.isNumberPlate = options.isNumberPlate;
+        this.filter = options.filter;
+        this.assigned = options.assigned;
+    }
+
+    public void setLinked(List<String> linked) {
+        this.linked.addAll(linked);
+    }
+
+    public void setSelectable(boolean selectable) {
+        this.selectable = selectable;
+    }
+
+    public void setUnique(boolean unique) {
+        this.unique = unique;
+    }
+
+    public void setIsNumberPlate(boolean numberPlate) {
+        this.isNumberPlate = numberPlate;
+        this.unique = true;
+    }
+
+    public void setFilter(List<String> filter) {
+        this.filter.addAll(filter);
+    }
+
+    public TextRenderOptions clone() {
+        return new TextRenderOptions(this);
     }
 
     public TextRenderOptions(TagCompound compound) throws IOException {
@@ -63,7 +132,7 @@ public class TextRenderOptions {
         this.fontSize = compound.getInteger("fS");
         this.fontX = compound.getInteger("fX");
         this.fontGap = compound.getInteger("fG");
-        this.overlay = null;
+        this.fontId = null;
         this.hexCode = decompressString(compound.getString("hC"));
         this.fullbright = compound.getBoolean("fb");
         this.textureHeight = compound.getInteger("tH");
@@ -84,8 +153,8 @@ public class TextRenderOptions {
         compound.setInteger("fS", this.fontSize);
         compound.setInteger("fX", this.fontX);
         compound.setInteger("fG", this.fontGap);
-        if (this.overlay != null) {
-            compound.setString("overlay", this.overlay.toString());
+        if (this.fontId != null) {
+            compound.setString("overlay", this.fontId.toString());
         }
         compound.setString("hC", compressString(this.hexCode));
         compound.setBoolean("fb", this.fullbright);

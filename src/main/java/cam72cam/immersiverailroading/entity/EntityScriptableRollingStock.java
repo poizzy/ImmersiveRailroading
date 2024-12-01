@@ -2,9 +2,9 @@ package cam72cam.immersiverailroading.entity;
 
 import cam72cam.immersiverailroading.IRItems;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
+import cam72cam.immersiverailroading.Mod;
 import cam72cam.immersiverailroading.gui.overlay.ReadoutsEventHandler;
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
-import cam72cam.immersiverailroading.items.ItemGoldenSpike;
 import cam72cam.immersiverailroading.library.GuiTypes;
 import cam72cam.immersiverailroading.library.ModelComponentType;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
@@ -27,9 +27,9 @@ import org.luaj.vm2.LuaValue;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import org.luaj.vm2.LuaFunction;
-
 public abstract class EntityScriptableRollingStock extends EntityCoupleableRollingStock implements ReadoutsEventHandler {
 
     private LuaValue tickEvent;
@@ -44,6 +44,8 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     private final Map<Integer, ParticleState> oldParticleState = new HashMap<>();
 
     private final List<TextRenderOptions> textFields = new ArrayList<>();
+
+    public Map<String, TextRenderOptions> textRenderOptions = new HashMap<>();
 
     /**
      *
@@ -148,6 +150,103 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             return ClickResult.ACCEPTED;
         }
         return super.onClick(player, hand);
+    }
+
+    @Override
+    public void kill() {
+        super.kill();
+        getDefinition().inputs.remove(getUUID());
+    }
+
+    @Override
+    public void load(TagCompound data) {
+        super.load(data);
+        Map<String, TextRenderOptions> settings = getDefinition().textFieldDef;
+        settings.forEach((s, t) -> textRenderOptions.put(s, t.clone()));
+
+        List<TextRenderOptions> textFields = new ArrayList<>(settings.values()).stream().filter(t -> t.linked.stream().anyMatch(m -> m.equals(t.componentId))).collect(Collectors.toList());
+
+        textRenderOptions.forEach((s, t) -> {
+            assert t.fontId != null;
+            t.id = getDefinition().fontDef.get(t.fontId.get(0)).font;
+            t.fontSize = getDefinition().fontDef.get(t.fontId.get(0)).size;
+            t.textureHeight = getDefinition().fontDef.get(t.fontId.get(0)).resY;
+            t.fontX = getDefinition().fontDef.get(t.fontId.get(0)).resX;
+
+            boolean assigned = data.getBoolean(String.format("TextField_%s_assigned", t.componentId)) != null;
+
+            if (assigned) {
+                t.assigned = data.getBoolean(String.format("TextField_%s_assigned", t.componentId));
+            }
+
+            if (t.assigned) {
+                t.newText = data.getString("TextField_" + t.componentId);
+                getDefinition().inputs.put(getUUID(), t.newText);
+            }
+
+            if (!t.filter.isEmpty() && t.unique && !t.assigned) {
+                List<String> text = t.filter.stream().filter(f -> !getDefinition().inputs.containsValue(f)).collect(Collectors.toList());
+
+                if (!text.isEmpty()) {
+                    t.newText = text.get((int) (Math.random() * (text.size() - 1)));
+
+                    getDefinition().inputs.put(getUUID(), t.newText);
+                    t.assigned = true;
+                }
+            }
+
+            if (!t.linked.isEmpty()) {
+                t.linked.forEach(l -> {
+                    TextRenderOptions options = settings.get(l);
+                    options.newText = t.newText;
+
+                    options.lastText = options.newText;
+
+                    assert options.fontId != null;
+                    options.fontId.forEach(id -> {
+                        Identifier font = getDefinition().fontDef.get(id).font;
+                        if (font.equals(t.id)) {
+                            options.id = t.id;
+                            options.fontSize = t.fontSize;
+                            options.textureHeight = t.textureHeight;
+                            options.fontX = t.fontX;
+                        }
+                    });
+
+                    if (options.id == null) {
+                        options.id = getDefinition().fontDef.get(options.fontId.get(0)).font;
+                        options.fontSize = getDefinition().fontDef.get(options.fontId.get(0)).size;
+                        options.textureHeight = getDefinition().fontDef.get(options.fontId.get(0)).resY;
+                        options.fontX = getDefinition().fontDef.get(options.fontId.get(0)).resX;
+                    }
+                    if (options.global) {
+                        setAllText(options);
+                    } else {
+                        setTextTrain(options);
+                    }
+                });
+            }
+            t.lastText = t.newText;
+
+            if (t.global) {
+                setAllText(t);
+            } else {
+                setTextTrain(t);
+            }
+        });
+    }
+
+    @Override
+    public void save(TagCompound data) {
+        super.save(data);
+        textRenderOptions.forEach((s, t) -> {
+            if (t.assigned) {
+                data.setString("TextField_" + t.componentId, getDefinition().inputs.get(getUUID()));
+                data.setBoolean(String.format("TextField_%s_assigned", t.componentId), true);
+            } else {
+                data.setBoolean(String.format("TextField_%s_assigned", t.componentId), false);
+            }
+        });
     }
 
     public boolean LoadLuaFile() throws IOException {
@@ -539,7 +638,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         String text = textField.get("text") != null ? textField.get("text").asString() : "";
         try {
             TextRenderOptions options = new TextRenderOptions(
-                    font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, overlay, hexCode, fullbright, textureHeight, useAlternative, lineSpacingPixels, offset, allStock
+                    font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, new ArrayList<>(), hexCode, fullbright, textureHeight, useAlternative, lineSpacingPixels, offset, allStock
             );
             textFields.add(options);
             if (allStock) {
@@ -574,7 +673,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         });
     }
 
-    private void setText(TextRenderOptions options) throws IOException {
+    public void setText(TextRenderOptions options) throws IOException {
         String currentText = componentTextMap.get(options.componentId);
         if (!options.newText.equals(currentText)) {
             LinkedHashMap<String, OBJGroup> group = this.getDefinition().getModel().groups;
@@ -593,7 +692,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                     renderText.setText(
                             options.componentId, options.newText, options.id, vec3dmin, vec3dmax, json,
                             options.resX, options.resY, options.align, options.flipped, options.fontSize, options.fontX,
-                            options.fontGap, options.overlay, vec3dNormal, options.hexCode, options.fullbright, options.textureHeight, options.useAlternative, options.lineSpacingPixels, options.offset, entry.getKey()
+                            options.fontGap, new Identifier(ImmersiveRailroading.MODID, "not_needed"), vec3dNormal, options.hexCode, options.fullbright, options.textureHeight, options.useAlternative, options.lineSpacingPixels, options.offset, entry.getKey()
                     );
 
                     componentTextMap.put(options.componentId, options.newText);
