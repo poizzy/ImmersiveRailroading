@@ -7,6 +7,7 @@ import cam72cam.immersiverailroading.gui.overlay.ReadoutsEventHandler;
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
 import cam72cam.immersiverailroading.library.GuiTypes;
 import cam72cam.immersiverailroading.library.ModelComponentType;
+import cam72cam.immersiverailroading.library.Permissions;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
 import cam72cam.immersiverailroading.model.part.CustomParticleConfig;
 import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
@@ -145,7 +146,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
 
     @Override
     public ClickResult onClick(Player player, Player.Hand hand) {
-        if (player.getHeldItem(hand).is(IRItems.ITEM_GOLDEN_SPIKE)) {
+        if (player.getHeldItem(hand).is(IRItems.ITEM_GOLDEN_SPIKE) && !textRenderOptions.isEmpty() && player.hasPermission(Permissions.LOCOMOTIVE_CONTROL)) {
             GuiTypes.TEXT_FIELD.open(player);
             return ClickResult.ACCEPTED;
         }
