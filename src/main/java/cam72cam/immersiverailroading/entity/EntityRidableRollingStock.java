@@ -7,6 +7,7 @@ import cam72cam.immersiverailroading.library.Permissions;
 import cam72cam.immersiverailroading.model.part.Door;
 import cam72cam.immersiverailroading.model.part.Seat;
 import cam72cam.immersiverailroading.registry.WalkableSpaceDefinition;
+import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.entity.custom.IRidable;
@@ -347,6 +348,12 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 		}
 
 		double yOffset = 1;
+
+		if (passenger.getWorld() == null || walkableSpaceDefinition.yMap == null) {
+			ModCore.error("Passenger.getWorld() returned null or walkableSpaceDefinition.yMap is null!");
+			return offset;
+		}
+
 		if (passenger.getWorld().isClient && !walkableSpaceDefinition.yMap.isEmpty()) {
 			yOffset = getHeightAtPlayerPosition(offset.subtract(0, Math.sin(Math.toRadians(this.getRotationPitch())) * (offset.z), 0));
 		}
