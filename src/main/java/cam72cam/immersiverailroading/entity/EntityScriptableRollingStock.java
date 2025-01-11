@@ -430,7 +430,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         luaFunction.set("setSound", new LuaFunction() {
             @Override
             public LuaValue call(LuaValue val) {
-                setNewSound(val);
+//                setNewSound(val);
                 return LuaValue.NIL;
             }
         });
@@ -605,50 +605,94 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             }
         }
 
-        Identifier font = textField.get("font") != null ? textField.get("font").asIdentifier() : null;
-        String textFieldId = textField.get("ID") != null ? textField.get("ID").asString() : null;
-        int resX = textField.get("resX") != null ? textField.get("resX").asInteger() : 0;
-        int resY = textField.get("resY") != null ? textField.get("resY").asInteger() : 0;
-        boolean flipped = textField.get("flipped") != null && textField.get("flipped").asBoolean();
-        int textureHeight = textField.get("textureHeight") != null ? textField.get("textureHeight").asInteger() : 12;
-        int fontSize = textField.get("fontSize") != null ? textField.get("fontSize").asInteger() : textureHeight;
-        int fontLength = textField.get("textureWidth") != null ? textField.get("textureWidth").asInteger() : 512;
-        int fontGap = textField.get("fontGap") != null ? textField.get("fontGap").asInteger() : 1;
-        Identifier overlay = textField.get("overlay") != null ? textField.get("overlay").asIdentifier() : null;
-        String hexCode = textField.get("color") != null ? textField.get("color").asString() : null;
-        boolean fullbright = textField.get("fullbright") != null ? textField.get("fullbright").asBoolean() : false;
-        boolean allStock = textField.get("global") != null ? textField.get("global").asBoolean() : false;
-        boolean useAlternative = textField.get("useAltAlignment") != null ? textField.get("useAltAlignment").asBoolean() : false;
-        int lineSpacingPixels = textField.get("lineSpacing") != null ? textField.get("lineSpacing").asInteger() : 1;
-        int offset = textField.get("offset") != null ? textField.get("offset").asInteger() : 0;
+        String textFieldID = textField.get("ID").asString();
 
-        Font.TextAlign align;
-        if (textField.get("align") != null) {
-            String alignStr = textField.get("align").asString();
-            if (alignStr.equalsIgnoreCase("right")) {
-                align = Font.TextAlign.RIGHT;
-            } else if (alignStr.equalsIgnoreCase("center")) {
-                align = Font.TextAlign.CENTER;
+        TextRenderOptions allOptions = null;
+
+        if (textRenderOptions.containsKey(textFieldID)) {
+            TextRenderOptions options  = textRenderOptions.get(textFieldID);
+
+            Optional.ofNullable(textField.get("font")).ifPresent(o -> options.id = o.asIdentifier());
+            Optional.ofNullable(textField.get("ID")).ifPresent(o -> options.componentId = o.asString());
+            Optional.ofNullable(textField.get("resX")).ifPresent(o -> options.resX = o.asInteger());
+            Optional.ofNullable(textField.get("resY")).ifPresent(o -> options.resY = o.asInteger());
+            Optional.ofNullable(textField.get("flipped")).ifPresent(o -> options.flipped = o.asBoolean());
+            Optional.ofNullable(textField.get("textureHeight")).ifPresent(o -> options.textureHeight = o.asInteger());
+            Optional.ofNullable(textField.get("fontSize")).ifPresent(o -> options.fontSize = o.asInteger());
+            Optional.ofNullable(textField.get("textureWidth")).ifPresent(o -> options.fontX = o.asInteger());
+            Optional.ofNullable(textField.get("fontGap")).ifPresent(o -> options.fontGap = o.asInteger());
+            Optional.ofNullable(textField.get("color")).ifPresent(o -> options.hexCode = o.asString());
+            Optional.ofNullable(textField.get("fullbright")).ifPresent(o -> options.fullbright = o.asBoolean());
+            Optional.ofNullable(textField.get("global")).ifPresent(o -> options.global = o.asBoolean());
+            Optional.ofNullable(textField.get("useAltAlignment")).ifPresent(o -> options.useAlternative = o.asBoolean());
+            Optional.ofNullable(textField.get("lineSpacing")).ifPresent(o -> options.lineSpacingPixels = o.asInteger());
+            Optional.ofNullable(textField.get("offset")).ifPresent(o -> options.offset = o.asInteger());
+            Optional.ofNullable(textField.get("align")).ifPresent(o -> {
+                if (o.asString().equalsIgnoreCase("right")) {
+                    options.align = Font.TextAlign.RIGHT;
+                } else if (o.asString().equalsIgnoreCase("center")) {
+                    options.align = Font.TextAlign.CENTER;
+                } else {
+                    options.align = Font.TextAlign.LEFT;
+                }
+            });
+            Optional.ofNullable(textField.get("text")).ifPresent(o -> options.newText = o.asString());
+
+            allOptions = options;
+        } else {
+            Identifier font = textField.get("font") != null ? textField.get("font").asIdentifier() : null;
+            String textFieldId = textField.get("ID") != null ? textField.get("ID").asString() : null;
+            int resX = textField.get("resX") != null ? textField.get("resX").asInteger() : 0;
+            int resY = textField.get("resY") != null ? textField.get("resY").asInteger() : 0;
+            boolean flipped = textField.get("flipped") != null && textField.get("flipped").asBoolean();
+            int textureHeight = textField.get("textureHeight") != null ? textField.get("textureHeight").asInteger() : 12;
+            int fontSize = textField.get("fontSize") != null ? textField.get("fontSize").asInteger() : textureHeight;
+            int fontLength = textField.get("textureWidth") != null ? textField.get("textureWidth").asInteger() : 512;
+            int fontGap = textField.get("fontGap") != null ? textField.get("fontGap").asInteger() : 1;
+            Identifier overlay = textField.get("overlay") != null ? textField.get("overlay").asIdentifier() : null;
+            String hexCode = textField.get("color") != null ? textField.get("color").asString() : null;
+            boolean fullbright = textField.get("fullbright") != null ? textField.get("fullbright").asBoolean() : false;
+            boolean allStock = textField.get("global") != null ? textField.get("global").asBoolean() : false;
+            boolean useAlternative = textField.get("useAltAlignment") != null ? textField.get("useAltAlignment").asBoolean() : false;
+            int lineSpacingPixels = textField.get("lineSpacing") != null ? textField.get("lineSpacing").asInteger() : 1;
+            int offset = textField.get("offset") != null ? textField.get("offset").asInteger() : 0;
+
+            Font.TextAlign align;
+            if (textField.get("align") != null) {
+                String alignStr = textField.get("align").asString();
+                if (alignStr.equalsIgnoreCase("right")) {
+                    align = Font.TextAlign.RIGHT;
+                } else if (alignStr.equalsIgnoreCase("center")) {
+                    align = Font.TextAlign.CENTER;
+                } else {
+                    align = Font.TextAlign.LEFT;
+                }
             } else {
                 align = Font.TextAlign.LEFT;
             }
-        } else {
-            align = Font.TextAlign.LEFT;
-        }
 
-        String text = textField.get("text") != null ? textField.get("text").asString() : "";
-        try {
-            TextRenderOptions options = new TextRenderOptions(
+            String text = textField.get("text") != null ? textField.get("text").asString() : "";
+
+            allOptions = new TextRenderOptions(
                     font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, new ArrayList<>(), hexCode, fullbright, textureHeight, useAlternative, lineSpacingPixels, offset, allStock
             );
-            textFields.add(options);
-            if (allStock) {
-                setAllText(options);
+        }
+
+        if (allOptions == null) {
+            return;
+        }
+
+        try {
+            textFields.add(allOptions);
+            textRenderOptions.put(allOptions.componentId, allOptions);
+
+            if (allOptions.global) {
+                setAllText(allOptions);
             } else {
-                setText(options);
+                setText(allOptions);
             }
         } catch (IOException e) {
-            ModCore.error(String.format("Couldn't load Font %s", font != null ? font.toString() : "null"));
+            ModCore.error("An error occurred while creating text field %s | An error occurred while loading font %s | error: %s", allOptions.componentId, allOptions.id, e);
         }
     }
 

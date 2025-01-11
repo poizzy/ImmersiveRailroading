@@ -14,19 +14,19 @@ import java.nio.charset.StandardCharsets;
 public class TextRenderOptions {
     public Identifier id;
     public String newText;
-    public final int resX;
-    public final int resY;
+    public int resX;
+    public int resY;
     public Font.TextAlign align;
-    public final boolean flipped;
-    public final String componentId;
+    public boolean flipped;
+    public String componentId;
     public int fontSize;
     public int fontX;
-    public final int fontGap;
-    public final List<Integer> fontId;
+    public int fontGap;
+    public List<Integer> fontId;
     public String hexCode;
-    public final boolean fullbright;
+    public boolean fullbright;
     public int textureHeight;
-    public final boolean useAlternative;
+    public boolean useAlternative;
     public int lineSpacingPixels;
     public int offset;
     public boolean global;
@@ -94,6 +94,10 @@ public class TextRenderOptions {
         this.isNumberPlate = options.isNumberPlate;
         this.filter = options.filter;
         this.assigned = options.assigned;
+    }
+
+    public TextRenderOptions() {
+
     }
 
     public void setLinked(List<String> linked) {
