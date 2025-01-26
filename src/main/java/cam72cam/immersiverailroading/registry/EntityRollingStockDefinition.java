@@ -25,6 +25,7 @@ import cam72cam.mod.serialization.TagMapped;
 import cam72cam.mod.sound.ISound;
 import cam72cam.mod.text.TextUtil;
 import cam72cam.mod.world.World;
+import org.apache.commons.lang3.Range;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.awt.geom.Path2D;
@@ -130,6 +131,14 @@ public abstract class EntityRollingStockDefinition {
         public final Identifier stop;
         public final Float distance;
         public final float volume;
+        public final float time;
+        public final float probability;
+        public final String next;
+        public final List<String> random;
+        public final float variation;
+        public final String condition;
+        public final Pair<Float, Float> speed;
+
 
         public SoundDefinition(Identifier fallback) {
             // Simple
@@ -139,6 +148,13 @@ public abstract class EntityRollingStockDefinition {
             stop = null;
             distance = null;
             volume = 1;
+            time = 0;
+            variation = 0;
+            probability = 1.0f;
+            next = null;
+            random = null;
+            condition = null;
+            speed = Pair.of(null, null);
         }
 
         public SoundDefinition(DataBlock obj) {
@@ -148,15 +164,18 @@ public abstract class EntityRollingStockDefinition {
             stop = obj.getValue("stop").asIdentifier();
             distance = obj.getValue("distance").asFloat();
             volume = obj.getValue("volume").asFloat(1.0f);
-        }
-
-        public SoundDefinition(ObjectValue newSound, Map<String, DataBlock.Value> sound) {
-            start = newSound.getValueMap("start", sound).asIdentifier();
-            main = newSound.getValueMap("main", sound).asIdentifier();
-            looping = newSound.getValueMap("looping", sound).asBoolean(true);
-            stop = newSound.getValueMap("stop", sound).asIdentifier();
-            distance = newSound.getValueMap("distance", sound).asFloat();
-            volume = newSound.getValueMap("volume", sound).asFloat(1.0f);
+            time = obj.getValue("time").asFloat(0.0f);
+            variation = obj.getValue("variation").asFloat(0.0f);
+            probability = obj.getValue("probability").asFloat(1.0f);
+            next = obj.getValue("nextSound").asString();
+            random = obj.getValues("random") != null ? obj.getValues("random").stream().map(DataBlock.Value::asString).collect(Collectors.toList()): null;
+            condition = obj.getValue("controlGroup").asString();
+            DataBlock speedRange = obj.getBlock("speed");
+            if (speedRange != null) {
+                speed = Pair.of(speedRange.getValue("min").asFloat(0), speedRange.getValue("max").asFloat(0));
+            } else {
+                speed = Pair.of(null, null);
+            }
         }
 
         public static SoundDefinition getOrDefault(DataBlock block, String key) {
@@ -170,43 +189,6 @@ public abstract class EntityRollingStockDefinition {
             }
             return null;
         }
-
-        public static SoundDefinition getOrDefault(ObjectValue value, Map<String, DataBlock.Value> sound) {
-            if (sound.containsKey("start") || sound.containsKey("main") ||
-                    sound.containsKey("looping") || sound.containsKey("stop") ||
-                    sound.containsKey("distance") || sound.containsKey("volume")) {
-                return new SoundDefinition(value, sound);
-            }
-            DataBlock.Value dataBlockValue = sound.get(value.asString());
-
-            if (dataBlockValue != null) {
-                Identifier ident = dataBlockValue.asIdentifier();
-                if (ident != null) {
-                    return new SoundDefinition(ident);
-                }
-            }
-            return null;
-        }
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (obj == null || getClass() != obj.getClass()) return false;
-            SoundDefinition that = (SoundDefinition) obj;
-
-            return Objects.equals(start, that.start) &&
-                    Objects.equals(main, that.main) &&
-                    looping == that.looping &&
-                    Objects.equals(stop, that.stop) &&
-                    Objects.equals(distance, that.distance) &&
-                    Objects.equals(volume, that.volume);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(start, main, looping, stop, distance, volume);
-        }
-
-
     }
 
     public static class AnimationDefinition {

@@ -9,7 +9,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 public class PartSound {
-    private final SoundDefinition def;
+    public final SoundDefinition def;
     private final boolean canLoop;
     private final float attenuationDistance;
     private final Supplier<Float> category;
@@ -179,6 +179,16 @@ public class PartSound {
 
     public void removed(EntityMoveableRollingStock stock) {
         entitySounds.remove(stock.getUUID());
+    }
+
+    public boolean stopped(EntityMoveableRollingStock stock) {
+        Sounds sounds = entitySounds.get(stock.getUUID());
+        if(sounds == null) {
+            sounds = new Sounds(stock);
+            entitySounds.put(stock.getUUID(), sounds);
+        }
+
+        return sounds.state == SoundState.STOPPED;
     }
 
 }

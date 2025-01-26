@@ -3,6 +3,7 @@ package cam72cam.immersiverailroading.registry;
 import cam72cam.immersiverailroading.Config;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.LocomotiveDiesel;
+import cam72cam.immersiverailroading.items.ItemRail;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.immersiverailroading.gui.overlay.GuiBuilder;
 import cam72cam.immersiverailroading.library.Gauge;
@@ -13,6 +14,11 @@ import cam72cam.immersiverailroading.util.FluidQuantity;
 import cam72cam.mod.resource.Identifier;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class LocomotiveDieselDefinition extends LocomotiveDefinition {
     public SoundDefinition idle;
@@ -24,6 +30,9 @@ public class LocomotiveDieselDefinition extends LocomotiveDefinition {
     private int notches;
     private float enginePitchRange;
     public boolean hasDynamicTractionControl;
+    public boolean useNewSound;
+
+    public Map<String, SoundDefinition> soundDefinition;
 
     public LocomotiveDieselDefinition(String defID, DataBlock data) throws Exception {
         super(LocomotiveDiesel.class, defID, data);
@@ -50,7 +59,22 @@ public class LocomotiveDieselDefinition extends LocomotiveDefinition {
 
         hornSus = properties.getValue("horn_sustained").asBoolean();
 
+        useNewSound = properties.getValue("useNewSound").asBoolean(false);
+
         DataBlock sounds = data.getBlock("sounds");
+
+        soundDefinition = new HashMap<>();
+
+        Map<String, DataBlock> soundBlock = sounds.getBlockMap();
+        if (soundBlock != null) {
+            soundBlock.keySet().forEach(k -> soundDefinition.put(k, SoundDefinition.getOrDefault(sounds, k)));
+        }
+
+        Map<String, DataBlock.Value> soundMap = sounds.getValueMap();
+        if (soundMap != null) {
+            soundMap.keySet().forEach(k -> soundDefinition.put(k, SoundDefinition.getOrDefault(sounds, k)));
+        }
+
         idle = SoundDefinition.getOrDefault(sounds, "idle");
         running = SoundDefinition.getOrDefault(sounds, "running");
         enginePitchRange = sounds.getValue("engine_pitch_range").asFloat();
