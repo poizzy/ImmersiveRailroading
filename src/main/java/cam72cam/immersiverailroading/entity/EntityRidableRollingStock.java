@@ -349,9 +349,8 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 
 		double yOffset = 1;
 
-		if (passenger.getWorld() == null || walkableSpaceDefinition.yMap == null) {
-			ModCore.error("Passenger.getWorld() returned null or walkableSpaceDefinition.yMap is null!");
-			return offset;
+		if (walkableSpaceDefinition == null) {
+			walkableSpaceDefinition = getDefinition().walkableSpaceDefinition;
 		}
 
 		if (passenger.getWorld().isClient && !walkableSpaceDefinition.yMap.isEmpty()) {
