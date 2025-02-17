@@ -18,6 +18,7 @@ import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.serialization.StrictTagMapper;
 import cam72cam.mod.serialization.TagField;
 import cam72cam.mod.world.World;
+import org.luaj.vm2.LuaValue;
 
 import java.util.OptionalDouble;
 import java.util.UUID;
@@ -67,6 +68,18 @@ public abstract class Locomotive extends FreightTank{
 	private boolean cogging = false;
 
 	protected boolean slipping = false;
+
+	@TagSync
+	@TagField("localMaxSpeed")
+	public double localMaxSpeed = -1;
+
+	@TagSync
+	@TagField("localTraction")
+	public double localTraction = -1;
+
+	@TagSync
+	@TagField("localHorsepower")
+	public double localHorsepower = -1;
 
 	/*
 	 * 
@@ -307,7 +320,7 @@ public abstract class Locomotive extends FreightTank{
 				data.write();
 			}
 			else {
-				player.sendMessage(ChatText.RADIO_CANT_LINK.getMessage(this.getDefinition().name()));;
+				player.sendMessage(ChatText.RADIO_CANT_LINK.getMessage(this.getDefinition().name()));
 			}
 			return ClickResult.ACCEPTED;
 		}
@@ -427,7 +440,7 @@ public abstract class Locomotive extends FreightTank{
 			return 0;
 		}
 
-		if (Math.abs(speed.minecraft()) > this.getDefinition().getMaxSpeed(gauge).minecraft()) {
+		if (Math.abs(speed.minecraft()) > this.getDefinition().getScriptedMaxSpeed(gauge, this).minecraft()) {
 			return 0;
 		}
 
@@ -677,5 +690,34 @@ public abstract class Locomotive extends FreightTank{
 	public float ambientTemperature() {
 	    // null during registration
 		return internal != null ? getWorld().getTemperature(getBlockPosition()) : 0f;
+	}
+
+	@Override
+	protected LuaValue getPerformance(String type) {
+		switch (type) {
+			case "max_speed_kmh":
+				return LuaValue.valueOf(this.localMaxSpeed == -1 ? getDefinition().getMaxSpeed() : this.localMaxSpeed);
+			case "horsepower":
+				return LuaValue.valueOf(this.localHorsepower == -1 ? getDefinition().getHorsepower() : this.localHorsepower);
+			case "traction":
+				return LuaValue.valueOf(this.localTraction == -1 ? getDefinition().getTraction() : this.localTraction);
+			default:
+				return LuaValue.valueOf(0);
+		}
+	}
+
+	@Override
+	protected void setPerformance(String performanceType, double val) {
+		switch (performanceType) {
+			case "max_speed_kmh":
+				this.localMaxSpeed = val;
+				break;
+			case "tractive_effort_lbf":
+				this.localTraction = val;
+				break;
+			case "horsepower":
+				this.localHorsepower = val;
+				break;
+		}
 	}
 }
