@@ -24,6 +24,11 @@ jobs:
       - name: Install dependencies
         run: sudo apt update && sudo apt install -y pngquant findutils xvfb
 
+      - name: Download LuaJ 3.0.2 JAR
+        run: |
+          mkdir -p libs
+          curl -L -o libs/luaj-jse-3.0.2.jar https://github.com/luaj/luaj/releases/download/v3.0.2/luaj-jse-3.0.2.jar
+
       - name: Setup Universal Mod Core (and helpers)
         env:
           BRANCH: ${{ matrix.branch }}
@@ -35,8 +40,9 @@ jobs:
       - name: Process images
         run: find src/main/resources/assets/immersiverailroading/ | grep png | xargs -I foo pngquant -s1 -f --ext .png foo
 
-      - name: Build with Gradle
-        run: ./gradlew build
+      - name: Build with Gradle (Including LuaJ)
+        run: |
+          ./gradlew build --include-build=libs
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
