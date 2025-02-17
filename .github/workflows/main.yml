@@ -27,7 +27,7 @@ jobs:
       - name: Setup Universal Mod Core (and helpers)
         env:
           BRANCH: ${{ matrix.branch }}
-        run: java -jar UMCSetup.jar ${BRANCH} https  # Ensure this jar is in your repo or accessible
+        run: java -jar UMCSetup.jar ${BRANCH} https
 
       - name: Compile with Gradle
         run: ./gradlew classes
@@ -35,16 +35,8 @@ jobs:
       - name: Process images
         run: find src/main/resources/assets/immersiverailroading/ | grep png | xargs -I foo pngquant -s1 -f --ext .png foo
 
-      - name: Run Data (Optional)
-        run: xvfb-run --auto-servernum ./gradlew runData || xvfb-run --auto-servernum ./gradlew runData || true
-
       - name: Build with Gradle
         run: ./gradlew build
-
-      - name: Publish to Maven (Optional)
-        env:
-          MAVENCI_PASS: ${{ secrets.MAVENCI_PASS }}  # Set this in your repository secrets
-        run: ./gradlew publish
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
