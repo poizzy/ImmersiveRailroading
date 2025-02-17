@@ -5,7 +5,6 @@ import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.VertexBuffer;
 import cam72cam.mod.render.opengl.*;
 import cam72cam.mod.resource.Identifier;
-import org.lwjgl.opengl.GLContext;
 import util.Matrix4;
 
 import java.io.InputStream;
@@ -112,9 +111,6 @@ public class RenderText {
     }
 
     public void textRender(RenderState state, List<StockAnimation> animations, EntityRollingStock stock, float partialTicks) {
-        if (!GLContext.getCapabilities().OpenGL11) {
-            return;
-        }
 
         for (Map.Entry<String, TextField> entry : textFields.entrySet()) {
             TextField field = entry.getValue();
