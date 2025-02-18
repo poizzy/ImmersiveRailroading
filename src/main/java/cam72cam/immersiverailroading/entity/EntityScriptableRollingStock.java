@@ -12,6 +12,7 @@ import cam72cam.immersiverailroading.model.part.CustomParticleConfig;
 import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.mod.ModCore;
+import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.math.Vec3d;
@@ -19,6 +20,7 @@ import cam72cam.mod.math.Vec3i;
 import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.*;
+import cam72cam.mod.text.PlayerMessage;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.luaj.vm2.*;
@@ -39,6 +41,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     private long lastExecutionTime;
     private boolean wakeLuaScriptCalled = false;
     LuaTable IRLibrary = new LuaTable();
+    LuaTable debugLibrary = new LuaTable();
     LuaTable worldLibrary = new LuaTable();
     private final Map<String, InputStream> moduleMap = new HashMap<>();
     private final Map<String, String> componentTextMap = new HashMap<>();
@@ -276,16 +279,16 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             InputStream inputStream = identifier.getResourceStream();
 
             if (inputStream == null) {
-                ModCore.error(String.format("Script file %s does not exist", script.getDomain() + ":" + script.getPath()));
+                ModCore.error(String.format("Script file %s does not exist", identifier));
                 return true;
             }
 
             String luaScript = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
             if (luaScript == null) {
-                ModCore.error("Lua script content is empty");
+                ModCore.error(String.format("Lua script file %s not found", identifier));
                 return true;
             }else if (luaScript.isEmpty()) {
-                ModCore.error("Lua script file not found");
+                ModCore.error(String.format("Lua script %s 's content is empty", identifier));
                 return true;
             }
 
@@ -300,6 +303,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             setLuaFunctions();
 
             globals.set("IR", IRLibrary);
+            globals.set("Debug", debugLibrary);
             globals.set("World", worldLibrary);
 
             LuaValue chunk = globals.load(luaScript);
@@ -307,11 +311,11 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
 
             tickEvent = globals.get("tickEvent");
             if (tickEvent.isnil()) {
-                ModCore.error("Function 'tickEvent' is not Defined!");
+                ModCore.error(String.format("Function \"tickEvent\" in lua script %s is not defined!", identifier));
             }
 
             isLuaLoaded = true;
-            ModCore.info("Lua environment initialized and script loaded successfully");
+            ModCore.info(String.format("Lua environment from %s initialized and script loaded successfully", this.defID));
         }
         return false;
     }
@@ -531,41 +535,85 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                 return getNBTTag(key.tojstring());
             }
         });
+        IRLibrary.set("getStockPosition", new LuaFunction() {
+            @Override
+            public LuaValue call() {
+                return constructVec3Table(getPosition());
+            }
+        });
+        IRLibrary.set("newVector", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue x, LuaValue y, LuaValue z) {
+                return constructVec3Table(new Vec3d(x.todouble(), y.todouble(), z.todouble()));
+            }
+        });
+
+        debugLibrary.set("printToInfoLog", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue msg) {
+                ModCore.info(msg.tojstring());
+                return LuaValue.NIL;
+            }
+        });
+        debugLibrary.set("printToWarnLog", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue msg) {
+                ModCore.warn(msg.tojstring());
+                return LuaValue.NIL;
+            }
+        });
+        debugLibrary.set("printToErrorLog", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue msg) {
+                ModCore.error(msg.tojstring());
+                return LuaValue.NIL;
+            }
+        });
+        debugLibrary.set("printToPassengerDialog", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue msg) {
+                getPassengers().stream()
+                        .filter(Entity::isPlayer)
+                        .map(Entity::asPlayer)
+                        .forEach(player -> player.sendMessage(PlayerMessage.direct(msg.tojstring())));
+                return LuaValue.NIL;
+            }
+        });
 
         worldLibrary.set("isRainingAt", new LuaFunction() {
             @Override
-            public LuaValue call(LuaValue x, LuaValue y, LuaValue z) {
-                return LuaValue.valueOf(getWorld().isRaining(new Vec3i(x.toint(), y.toint(), z.toint())));
+            public LuaValue call(LuaValue vector) {
+                return LuaValue.valueOf(getWorld().isRaining(convertToVec3i(vector)));
             }
         });
         worldLibrary.set("getTemperatureAt", new LuaFunction() {
             @Override
-            public LuaValue call(LuaValue x, LuaValue y, LuaValue z) {
-                return LuaValue.valueOf(getWorld().getTemperature(new Vec3i(x.toint(), y.toint(), z.toint())));
+            public LuaValue call(LuaValue vector) {
+                return LuaValue.valueOf(getWorld().getTemperature(convertToVec3i(vector)));
             }
         });
         worldLibrary.set("getSnowLevelAt", new LuaFunction() {
             @Override
-            public LuaValue call(LuaValue x, LuaValue y, LuaValue z) {
-                return LuaValue.valueOf(getWorld().getSnowLevel(new Vec3i(x.toint(), y.toint(), z.toint())));
+            public LuaValue call(LuaValue vector) {
+                return LuaValue.valueOf(getWorld().getSnowLevel(convertToVec3i(vector)));
+            }
+        });
+        worldLibrary.set("getBlockLightLevelAt", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue vector) {
+                return LuaValue.valueOf(getWorld().getBlockLightLevel(convertToVec3i(vector)));
+            }
+        });
+        worldLibrary.set("getSkyLightLevelAt", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue vector) {
+                return LuaValue.valueOf(getWorld().getSkyLightLevel(convertToVec3i(vector)));
             }
         });
         worldLibrary.set("getTicks", new LuaFunction() {
             @Override
             public LuaValue call() {
                 return LuaValue.valueOf(getWorld().getTicks());
-            }
-        });
-        worldLibrary.set("getBlockLightLevelAt", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue x, LuaValue y, LuaValue z) {
-                return LuaValue.valueOf(getWorld().getBlockLightLevel(new Vec3i(x.toint(), y.toint(), z.toint())));
-            }
-        });
-        worldLibrary.set("getSkyLightLevelAt", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue x, LuaValue y, LuaValue z) {
-                return LuaValue.valueOf(getWorld().getSkyLightLevel(new Vec3i(x.toint(), y.toint(), z.toint())));
             }
         });
     }
@@ -1339,6 +1387,48 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             return ((Data) obj).toLuaValue();
         }
         return LuaValue.NIL;  // If the type doesn't match, return Lua NIL
+    }
+
+    private static LuaTable constructVec3Table(Vec3i vec3i){
+        return constructVec3Table(new Vec3d(vec3i.x, vec3i.y, vec3i.z));
+    }
+
+    private static LuaTable constructVec3Table(Vec3d vec3d){
+        LuaTable vector3d = new LuaTable();
+        vector3d.set("x", vec3d.x);
+        vector3d.set("y", vec3d.y);
+        vector3d.set("z", vec3d.z);
+        vector3d.set("add", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue arg) {
+                vector3d.set("x", vector3d.get("x").add(arg.get("x")));
+                vector3d.set("y", vector3d.get("y").add(arg.get("y")));
+                vector3d.set("z", vector3d.get("z").add(arg.get("z")));
+                return LuaValue.NIL;
+            }
+        });
+        vector3d.set("scale", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue arg) {
+                vector3d.set("x", vector3d.get("x").add(arg.get("x")));
+                vector3d.set("y", vector3d.get("y").add(arg.get("y")));
+                vector3d.set("z", vector3d.get("z").add(arg.get("z")));
+                return LuaValue.NIL;
+            }
+        });
+        vector3d.set("lengthSquared", new LuaFunction() {
+            @Override
+            public LuaValue call(LuaValue arg) {
+                return vector3d.get("x").mul(vector3d.get("x")).add(
+                       vector3d.get("y").mul(vector3d.get("y")).add(
+                       vector3d.get("z").mul(vector3d.get("z"))));
+            }
+        });
+        return vector3d;
+    }
+
+    private static Vec3i convertToVec3i(LuaValue vector){
+        return new Vec3i(vector.get("x").toint(), vector.get("y").toint(), vector.get("z").toint());
     }
 
     private static class LuaDataMapper implements TagMapper<Map<String, Object>> {
