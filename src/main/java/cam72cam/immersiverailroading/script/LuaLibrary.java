@@ -171,7 +171,7 @@ public class LuaLibrary {
      * A terminal function to set up this object as library in the given globals
      * @param globals The environment
      */
-    public void setAsLibrary(Globals globals){
+    public void setInGlobals(Globals globals){
         globals.set(this.type, initFunctions(new LuaTable()));
     }
 

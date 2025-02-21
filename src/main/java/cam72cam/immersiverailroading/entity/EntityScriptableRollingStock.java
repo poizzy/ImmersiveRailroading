@@ -325,8 +325,9 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                      .addFunction("setNBTTag", (k, v) -> setNBTTag(k.tojstring(), v))
                      .addFunctionWithReturn("getNBTTag", (k) -> getNBTTag(k.tojstring()))
                      .addFunctionWithReturn("getStockPosition", () -> ScriptVectorUtil.constructVec3Table(this.getPosition()))
+                     .addFunctionWithReturn("getStockMatrix", () -> ScriptVectorUtil.constructMatrix4Table(this.getModelMatrix()))
                      .addFunctionWithReturn("newVector", (x, y, z) -> ScriptVectorUtil.constructVec3Table(x, y, z))
-                     .setAsLibrary(globals);
+                     .setInGlobals(globals);
 
             LuaLibrary.create("World")
                      .addFunctionWithReturn("isRainingAt", pos -> LuaValue.valueOf(getWorld().isRaining(ScriptVectorUtil.convertToVec3i(pos))))
@@ -335,7 +336,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                      .addFunctionWithReturn("getBlockLightLevelAt", pos -> LuaValue.valueOf(getWorld().getBlockLightLevel(ScriptVectorUtil.convertToVec3i(pos))))
                      .addFunctionWithReturn("getSkyLightLevelAt", pos -> LuaValue.valueOf(getWorld().getSkyLightLevel(ScriptVectorUtil.convertToVec3i(pos))))
                      .addFunctionWithReturn("getTicks", () -> LuaValue.valueOf(getWorld().getTicks()))
-                     .setAsLibrary(globals);
+                     .setInGlobals(globals);
 
             LuaLibrary.create("Debug")
                      .addFunction("printToInfoLog", arg -> ModCore.info(arg.tojstring()))
@@ -346,8 +347,9 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                              .filter(Entity::isPlayer)
                              .map(Entity::asPlayer)
                              .forEach(player -> player.sendMessage(PlayerMessage.direct(arg.tojstring()))))
-                     .setAsLibrary(globals);
+                     .setInGlobals(globals);
 
+            ScriptVectorUtil.VecUtil.setInGlobals(globals);
             LuaValue chunk = globals.load(luaScript);
             chunk.call();
 
