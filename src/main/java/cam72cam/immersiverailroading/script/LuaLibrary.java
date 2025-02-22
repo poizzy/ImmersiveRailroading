@@ -33,6 +33,8 @@ public class LuaLibrary {
 
     /**
      * Register a function which has no input and output
+     * <p>
+     * Allow function overload with different parameter count
      * @param name Name of the function
      * @param function Functioning part
      * @return The class itself
@@ -50,6 +52,8 @@ public class LuaLibrary {
 
     /**
      * Register a single parameter consumer function, like setter
+     * <p>
+     * Allow function overload with different parameter count
      * @param name Name of the function
      * @param consumer Functioning part
      * @return The class itself
@@ -67,6 +71,8 @@ public class LuaLibrary {
 
     /**
      * Register a double parameter consumer function, like setter
+     * <p>
+     * Allow function overload with different parameter count
      * @param name Name of the function
      * @param consumer Functioning part
      * @return The class itself
@@ -84,6 +90,8 @@ public class LuaLibrary {
 
     /**
      * Register a Triple parameter consumer function, like setter
+     * <p>
+     * Allow function overload with different parameter count
      * @param name Name of the function
      * @param consumer Functioning part
      * @return The class itself
@@ -101,6 +109,8 @@ public class LuaLibrary {
 
     /**
      * Register a zero parameter function with a return value, like getter
+     * <p>
+     * Allow function overload with different parameter count
      * @param name Name of the function
      * @param supplier Functioning part
      * @return The class itself
@@ -118,6 +128,8 @@ public class LuaLibrary {
 
     /**
      * Register a single parameter function with a return value
+     * <p>
+     * Allow function overload with different parameter count
      * @param name Name of the function
      * @param function Functioning part
      * @return The class itself
@@ -135,6 +147,8 @@ public class LuaLibrary {
 
     /**
      * Register a double parameter function with a return value
+     * <p>
+     * Allow function overload with different parameter count
      * @param name Name of the function
      * @param function Functioning part
      * @return The class itself
@@ -152,6 +166,8 @@ public class LuaLibrary {
 
     /**
      * Register a triple parameter function with a return value
+     * <p>
+     * Allow function overload with different parameter count
      * @param name Name of the function
      * @param function Functioning part
      * @return The class itself
@@ -184,42 +200,42 @@ public class LuaLibrary {
             object.set(func.getKey(), new LuaFunction() {
                 @Override
                 public LuaValue call() {
-                    if(func.getValue()[0] instanceof Runnable){
-                        ((Runnable)func.getValue()[0]).run();
-                        return NIL;
-                    } else {
+                    if(func.getValue()[0] instanceof Supplier){
                         return ((Supplier<LuaValue>) func.getValue()[0]).get();
+                    } else if(func.getValue()[0] != null){
+                        ((Runnable)func.getValue()[0]).run();
                     }
+                    return NIL;
                 }
 
                 @Override
                 public LuaValue call(LuaValue arg) {
-                    if(func.getValue()[1] instanceof Consumer){
-                        ((Consumer<LuaValue>)func.getValue()[1]).accept(arg);
-                        return NIL;
-                    } else {
+                    if(func.getValue()[1] instanceof Function){
                         return ((Function<LuaValue, LuaValue>) func.getValue()[1]).apply(arg);
+                    } else if(func.getValue()[1] != null){
+                        ((Consumer<LuaValue>)func.getValue()[1]).accept(arg);
                     }
+                    return NIL;
                 }
 
                 @Override
                 public LuaValue call(LuaValue arg1, LuaValue arg2) {
-                    if(func.getValue()[2] instanceof BiConsumer){
-                        ((BiConsumer<LuaValue, LuaValue>)func.getValue()[2]).accept(arg1, arg2);
-                        return NIL;
-                    } else {
+                    if(func.getValue()[2] instanceof BiFunction){
                         return ((BiFunction<LuaValue, LuaValue, LuaValue>) func.getValue()[2]).apply(arg1, arg2);
+                    } else if(func.getValue()[2] != null){
+                        ((BiConsumer<LuaValue, LuaValue>)func.getValue()[2]).accept(arg1, arg2);
                     }
+                    return NIL;
                 }
 
                 @Override
                 public LuaValue call(LuaValue arg1, LuaValue arg2, LuaValue arg3) {
-                    if(func.getValue()[3] instanceof TriConsumer){
-                        ((TriConsumer<LuaValue, LuaValue, LuaValue>)func.getValue()[3]).accept(arg1, arg2, arg3);
-                        return NIL;
-                    } else {
+                    if(func.getValue()[3] instanceof TriFunction){
                         return ((TriFunction<LuaValue, LuaValue, LuaValue, LuaValue>) func.getValue()[3]).apply(arg1, arg2, arg3);
+                    } else if(func.getValue()[3] != null){
+                        ((TriConsumer<LuaValue, LuaValue, LuaValue>)func.getValue()[3]).accept(arg1, arg2, arg3);
                     }
+                    return NIL;
                 }
             });
         }
