@@ -10,13 +10,14 @@ import cam72cam.immersiverailroading.library.Permissions;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
 import cam72cam.immersiverailroading.model.part.CustomParticleConfig;
 import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
+import cam72cam.immersiverailroading.script.LuaLibrary;
+import cam72cam.immersiverailroading.script.ScriptVectorUtil;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.math.Vec3d;
-import cam72cam.mod.math.Vec3i;
 import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.*;
@@ -32,7 +33,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import org.luaj.vm2.LuaFunction;
 public abstract class EntityScriptableRollingStock extends EntityCoupleableRollingStock implements ReadoutsEventHandler {
 
     private LuaValue tickEvent;
@@ -40,9 +40,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     private boolean isSleeping;
     private long lastExecutionTime;
     private boolean wakeLuaScriptCalled = false;
-    LuaTable IRLibrary = new LuaTable();
-    LuaTable debugLibrary = new LuaTable();
-    LuaTable worldLibrary = new LuaTable();
     private final Map<String, InputStream> moduleMap = new HashMap<>();
     private final Map<String, String> componentTextMap = new HashMap<>();
     private final Map<Integer, ParticleState> particleStates = new HashMap<>();
@@ -108,7 +105,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     @Override
     public void onTick() {
         super.onTick();
-        if (!getWorld().isServer) {
+        if (getWorld().isClient) {
             return;
         }
         if (getDefinition().script != null && !ConfigPerformance.disableLuaScript) {
@@ -263,15 +260,12 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             safeOs.set("date", globals.get("os").get("date"));
             safeOs.set("clock", globals.get("os").get("clock"));
             safeOs.set("difftime", globals.get("os").get("difftime"));
-
-
             globals.set("os", safeOs);
 
             globals.set("io", LuaValue.NIL);
             globals.set("luajava", LuaValue.NIL);
             globals.set("coroutine", LuaValue.NIL);
             globals.set("debug", LuaValue.NIL);
-
 
             // Get Lua file from Json
             Identifier script = getDefinition().script;
@@ -300,12 +294,61 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                 preloadModules(globals, moduleMap);
             }
 
-            setLuaFunctions();
+            LuaLibrary.create("IR")
+                     .addFunction("setCG", (control, val) -> this.setControlGroup(control.tojstring(), val.tofloat()))
+                     .addFunctionWithReturn("getCG", control -> LuaValue.valueOf(this.getControlGroup(control.tojstring())))
+                     .addFunction("setPaint", newTexture -> this.setNewTexture(newTexture.tojstring()))
+                     .addFunctionWithReturn("getPaint", () -> LuaValue.valueOf(this.getCurrentTexture()))
+                     .addFunctionWithReturn("getReadout", readout -> LuaValue.valueOf(this.getReadout(readout.tojstring())))
+                     .addFunction("setPerformance", this::setPerformance)
+                     .addFunctionWithReturn("getPerformance", this::getPerformance)
+                     .addFunction("couplerEngaged", this::setCouplerEngagedLua)
+                     .addFunction("setThrottle", this::setThrottleLua)
+                     .addFunctionWithReturn("getThrottle", this::getThrottleLua)
+                     .addFunction("setReverser", this::setReverserLua)
+                     .addFunctionWithReturn("getReverser", this::getReverserLua)
+                     .addFunction("setTrainBrake", this::setTrainBrakeLua)
+                     .addFunctionWithReturn("getTrainBrake", this::getTrainBrakeLua)
+                     .addFunction("setIndependentBrake", this::setIndependentBrakeLua)
+                     .addFunction("setSound", val -> {/*this.setNewSound(val)*/})
+                     .addFunction("setGlobal", (control, val) -> this.setGlobalControlGroup(control.tojstring(), val.tofloat()))
+                     .addFunction("setUnit", (control, val) -> this.setUnitControlGroup(control.tojstring(), val.tofloat()))
+                     .addFunction("setText", this::textFieldDef)
+                     .addFunction("setTag", val -> this.setEntityTag(val.tojstring()))
+                     .addFunctionWithReturn("getTag", () -> LuaValue.valueOf(this.getTag()))
+                     .addFunctionWithReturn("getTrain", this::getTrainConsist)
+                     .addFunction("setIndividualCG", this::setIndividualCG)
+                     .addFunctionWithReturn("getIndividualCG", this::getIndividualCG)
+                     .addFunctionWithReturn("isTurnedOn", () -> LuaValue.valueOf(this.getEngineState()))
+                     .addFunction("engineStartStop", this::setTurnedOnLua)
+                     .addFunction("newParticle", this::particleDefinition)
+                     .addFunction("setNBTTag", (k, v) -> this.setNBTTag(k.tojstring(), v))
+                     .addFunctionWithReturn("getNBTTag", (k) -> this.getNBTTag(k.tojstring()))
+                     .addFunctionWithReturn("getStockPosition", () -> ScriptVectorUtil.constructVec3Table(this.getPosition()))
+                     .addFunctionWithReturn("getStockMatrix", () -> ScriptVectorUtil.constructMatrix4Table(this.getModelMatrix()))
+                     .addFunctionWithReturn("newVector", (x, y, z) -> ScriptVectorUtil.constructVec3Table(x, y, z))
+                     .setInGlobals(globals);
 
-            globals.set("IR", IRLibrary);
-            globals.set("Debug", debugLibrary);
-            globals.set("World", worldLibrary);
+            LuaLibrary.create("World")
+                     .addFunctionWithReturn("isRainingAt", pos -> LuaValue.valueOf(this.getWorld().isRaining(ScriptVectorUtil.convertToVec3i(pos))))
+                     .addFunctionWithReturn("getTemperatureAt", pos -> LuaValue.valueOf(this.getWorld().getTemperature(ScriptVectorUtil.convertToVec3i(pos))))
+                     .addFunctionWithReturn("getSnowLevelAt", pos -> LuaValue.valueOf(this.getWorld().getSnowLevel(ScriptVectorUtil.convertToVec3i(pos))))
+                     .addFunctionWithReturn("getBlockLightLevelAt", pos -> LuaValue.valueOf(this.getWorld().getBlockLightLevel(ScriptVectorUtil.convertToVec3i(pos))))
+                     .addFunctionWithReturn("getSkyLightLevelAt", pos -> LuaValue.valueOf(this.getWorld().getSkyLightLevel(ScriptVectorUtil.convertToVec3i(pos))))
+                     .addFunctionWithReturn("getTicks", () -> LuaValue.valueOf(this.getWorld().getTicks()))
+                     .setInGlobals(globals);
 
+            LuaLibrary.create("Debug")
+                     .addFunction("printToInfoLog", arg -> ModCore.info(arg.tojstring()))
+                     .addFunction("printToWarnLog", arg -> ModCore.warn(arg.tojstring()))
+                     .addFunction("printToErrorLog", arg -> ModCore.error(arg.tojstring()))
+                     .addFunction("printToPassengerDialog", arg -> this.getPassengers().stream()
+                             .filter(Entity::isPlayer)
+                             .map(Entity::asPlayer)
+                             .forEach(player -> player.sendMessage(PlayerMessage.direct(arg.tojstring()))))
+                     .setInGlobals(globals);
+
+            ScriptVectorUtil.VecUtil.setInGlobals(globals);
             LuaValue chunk = globals.load(luaScript);
             chunk.call();
 
@@ -338,284 +381,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                 ModCore.error("An error occurred while preloading lua modules", e);
             }
         }
-    }
-
-    public void setLuaFunctions() {
-        IRLibrary.set("getCG", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue control) {
-                float result = getControlGroup(control.tojstring());
-                return LuaValue.valueOf(result);
-            }
-        });
-        IRLibrary.set("setCG", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue control, LuaValue val) {
-                setControlGroup(control.tojstring(), val.tofloat());
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("getPaint", new LuaFunction() {
-            @Override
-            public LuaValue call() {
-                String result = getCurrentTexture();
-                return LuaValue.valueOf(result);
-            }
-        });
-        IRLibrary.set("setPaint", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue newTexture) {
-                setNewTexture(newTexture.tojstring());
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("getReadout", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue readout) {
-                float result = getReadout(readout.tojstring());
-                return LuaValue.valueOf(result);
-            }
-        });
-        IRLibrary.set("setPerformance", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue performanceType, LuaValue newVal) {
-                setPerformance(performanceType.tojstring(), newVal.todouble());
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("couplerEngaged", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue position, LuaValue newState) {
-                setCouplerEngaged(position.tojstring(), newState.toboolean());
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("setThrottle", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue val) {
-                setThrottleLua(val.tofloat());
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("setReverser", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue val) {
-                setReverserLua(val.tofloat());
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("setTrainBrake", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue val) {
-                setBrakeLua(val.tofloat());
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("setIndependentBrake", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue val) {
-                setIndependentBrakeLua(val.tofloat());
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("getThrottle", new LuaFunction() {
-            @Override
-            public LuaValue call() {
-                return LuaValue.valueOf(getThrottleLua());
-            }
-        });
-        IRLibrary.set("getReverser", new LuaFunction() {
-            @Override
-            public LuaValue call() {
-                return LuaValue.valueOf(getReverserLua());
-            }
-        });
-        IRLibrary.set("getTrainBrake", new LuaFunction() {
-            @Override
-            public LuaValue call() {
-                return LuaValue.valueOf(getTrainBrakeLua());
-            }
-        });
-        IRLibrary.set("setSound", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue val) {
-//                setNewSound(val);
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("setGlobal", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue control, LuaValue val) {
-                setGlobalControlGroup(control.tojstring(), val.tofloat());
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("setUnit", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue control, LuaValue val) {
-                setUnitControlGroup(control.tojstring(), val.tofloat());
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("setText", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue table) {
-                textFieldDef(table);
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("getTag", new LuaFunction() {
-            @Override
-            public LuaValue call() {
-                return LuaValue.valueOf(getTag());
-            }
-        });
-        IRLibrary.set("getTrain", new LuaFunction() {
-            @Override
-            public LuaValue call() {
-                return getTrainConsist();
-            }
-        });
-        IRLibrary.set("setIndividualCG", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue luaValue) {
-                setIndividualCG(luaValue);
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("getIndividualCG", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue luaValue) {
-                return getIndividualCG(luaValue);
-            }
-        });
-        IRLibrary.set("engineStartStop", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue luaValue) {
-                setTurnedOnLua(luaValue.toboolean());
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("isTurnedOn", new LuaFunction() {
-            @Override
-            public LuaValue call() {
-                return LuaValue.valueOf(getEngineState());
-            }
-        });
-        IRLibrary.set("setTag", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue tag) {
-                setEntityTag(tag.tojstring());
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("newParticle", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue luaValue) {
-                particleDefinition(luaValue);
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("getPerformance", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue luaValue) {
-                return getPerformance(luaValue.tojstring());
-            }
-        });
-        IRLibrary.set("setNBTTag", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue key, LuaValue value) {
-                setNBTTag(key.tojstring(), value);
-                return LuaValue.NIL;
-            }
-        });
-        IRLibrary.set("getNBTTag", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue key) {
-                return getNBTTag(key.tojstring());
-            }
-        });
-        IRLibrary.set("getStockPosition", new LuaFunction() {
-            @Override
-            public LuaValue call() {
-                return constructVec3Table(getPosition());
-            }
-        });
-        IRLibrary.set("newVector", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue x, LuaValue y, LuaValue z) {
-                return constructVec3Table(new Vec3d(x.todouble(), y.todouble(), z.todouble()));
-            }
-        });
-
-        debugLibrary.set("printToInfoLog", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue msg) {
-                ModCore.info(msg.tojstring());
-                return LuaValue.NIL;
-            }
-        });
-        debugLibrary.set("printToWarnLog", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue msg) {
-                ModCore.warn(msg.tojstring());
-                return LuaValue.NIL;
-            }
-        });
-        debugLibrary.set("printToErrorLog", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue msg) {
-                ModCore.error(msg.tojstring());
-                return LuaValue.NIL;
-            }
-        });
-        debugLibrary.set("printToPassengerDialog", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue msg) {
-                getPassengers().stream()
-                        .filter(Entity::isPlayer)
-                        .map(Entity::asPlayer)
-                        .forEach(player -> player.sendMessage(PlayerMessage.direct(msg.tojstring())));
-                return LuaValue.NIL;
-            }
-        });
-
-        worldLibrary.set("isRainingAt", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue vector) {
-                return LuaValue.valueOf(getWorld().isRaining(convertToVec3i(vector)));
-            }
-        });
-        worldLibrary.set("getTemperatureAt", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue vector) {
-                return LuaValue.valueOf(getWorld().getTemperature(convertToVec3i(vector)));
-            }
-        });
-        worldLibrary.set("getSnowLevelAt", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue vector) {
-                return LuaValue.valueOf(getWorld().getSnowLevel(convertToVec3i(vector)));
-            }
-        });
-        worldLibrary.set("getBlockLightLevelAt", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue vector) {
-                return LuaValue.valueOf(getWorld().getBlockLightLevel(convertToVec3i(vector)));
-            }
-        });
-        worldLibrary.set("getSkyLightLevelAt", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue vector) {
-                return LuaValue.valueOf(getWorld().getSkyLightLevel(convertToVec3i(vector)));
-            }
-        });
-        worldLibrary.set("getTicks", new LuaFunction() {
-            @Override
-            public LuaValue call() {
-                return LuaValue.valueOf(getWorld().getTicks());
-            }
-        });
     }
 
     public float getControlGroup(String control) {
@@ -661,21 +426,25 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         return readoutState.get(readout);
     }
 
-    protected void setPerformance(String performanceType, double val) {
-        switch (performanceType) {
-            case "max_speed_kmh":
-                getDefinition().setMaxSpeed(val);
-                break;
-            case "tractive_effort_lbf":
-                getDefinition().setTraction(val);
-                break;
-            case "horsepower":
-                getDefinition().setHorsepower(val);
-                break;
-        }
+    protected void setPerformance(LuaValue performanceType, LuaValue val) {
+        String type = performanceType.tojstring();
+        double newValue = val.todouble();
+//        switch (type) {
+//            case "max_speed_kmh":
+//                getDefinition().setMaxSpeed(newValue);
+//                break;
+//            case "tractive_effort_lbf":
+//                getDefinition().setTraction(newValue);
+//                break;
+//            case "horsepower":
+//                getDefinition().setHorsepower(newValue);
+//                break;
+//        }
     }
 
-    public void setCouplerEngaged(String position, Boolean engaged) {
+    public void setCouplerEngagedLua(LuaValue positionLua, LuaValue engagedLua) {
+        String position = positionLua.tojstring();
+        boolean engaged = engagedLua.toboolean();
         switch (position) {
             case "FRONT":
                 setCouplerEngaged(CouplerType.FRONT, engaged);
@@ -948,8 +717,9 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         }
     }
 
-    protected LuaValue getPerformance(String type) {
-        switch (type) {
+    protected LuaValue getPerformance(LuaValue type) {
+        String strType = type.tojstring();
+        switch (strType) {
             case "max_speed_kmh":
                 return LuaValue.valueOf(getDefinition().getMaxSpeed());
             case "horsepower":
@@ -1182,32 +952,32 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         }
     }
 
-    public void setThrottleLua(float val) {
+    public void setThrottleLua(LuaValue val) {
 
     }
 
-    public void setReverserLua(float val) {
+    public void setReverserLua(LuaValue val) {
 
     }
 
-    public void setBrakeLua(float val) {
+    public void setTrainBrakeLua(LuaValue val) {
 
     }
 
-    public void setIndependentBrakeLua(float val) {
+    public void setIndependentBrakeLua(LuaValue val) {
 
     }
 
-    public float getThrottleLua() {
-        return 0;
+    public LuaValue getThrottleLua() {
+        return LuaValue.valueOf(0);
     }
 
-    public float getReverserLua() {
-        return 0;
+    public LuaValue getReverserLua() {
+        return LuaValue.valueOf(0);
     }
 
-    public float getTrainBrakeLua() {
-        return 0;
+    public LuaValue getTrainBrakeLua() {
+        return LuaValue.valueOf(0);
     }
 
     @Override
@@ -1216,7 +986,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         wakeLuaScriptCalled = true;
     }
 
-    public void setTurnedOnLua(boolean b) {
+    public void setTurnedOnLua(LuaValue b) {
     }
 
 
@@ -1387,48 +1157,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             return ((Data) obj).toLuaValue();
         }
         return LuaValue.NIL;  // If the type doesn't match, return Lua NIL
-    }
-
-    private static LuaTable constructVec3Table(Vec3i vec3i){
-        return constructVec3Table(new Vec3d(vec3i.x, vec3i.y, vec3i.z));
-    }
-
-    private static LuaTable constructVec3Table(Vec3d vec3d){
-        LuaTable vector3d = new LuaTable();
-        vector3d.set("x", vec3d.x);
-        vector3d.set("y", vec3d.y);
-        vector3d.set("z", vec3d.z);
-        vector3d.set("add", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue arg) {
-                vector3d.set("x", vector3d.get("x").add(arg.get("x")));
-                vector3d.set("y", vector3d.get("y").add(arg.get("y")));
-                vector3d.set("z", vector3d.get("z").add(arg.get("z")));
-                return LuaValue.NIL;
-            }
-        });
-        vector3d.set("scale", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue arg) {
-                vector3d.set("x", vector3d.get("x").add(arg.get("x")));
-                vector3d.set("y", vector3d.get("y").add(arg.get("y")));
-                vector3d.set("z", vector3d.get("z").add(arg.get("z")));
-                return LuaValue.NIL;
-            }
-        });
-        vector3d.set("lengthSquared", new LuaFunction() {
-            @Override
-            public LuaValue call(LuaValue arg) {
-                return vector3d.get("x").mul(vector3d.get("x")).add(
-                       vector3d.get("y").mul(vector3d.get("y")).add(
-                       vector3d.get("z").mul(vector3d.get("z"))));
-            }
-        });
-        return vector3d;
-    }
-
-    private static Vec3i convertToVec3i(LuaValue vector){
-        return new Vec3i(vector.get("x").toint(), vector.get("y").toint(), vector.get("z").toint());
     }
 
     private static class LuaDataMapper implements TagMapper<Map<String, Object>> {

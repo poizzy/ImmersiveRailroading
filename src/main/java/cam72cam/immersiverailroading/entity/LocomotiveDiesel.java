@@ -15,6 +15,7 @@ import cam72cam.mod.entity.sync.TagSync;
 import cam72cam.mod.fluid.Fluid;
 import cam72cam.mod.fluid.FluidStack;
 import cam72cam.mod.serialization.TagField;
+import org.luaj.vm2.LuaValue;
 
 import java.util.List;
 import java.util.OptionalDouble;
@@ -288,8 +289,8 @@ public class LocomotiveDiesel extends Locomotive {
 		}
 	}
 	@Override
-	public void setTurnedOnLua(boolean b) {
-		setTurnedOn(b);
+	public void setTurnedOnLua(LuaValue b) {
+		setTurnedOn(b.toboolean());
 	}
 
 	@Override

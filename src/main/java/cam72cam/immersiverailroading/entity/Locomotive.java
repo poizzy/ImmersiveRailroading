@@ -497,8 +497,8 @@ public abstract class Locomotive extends FreightTank{
 	}
 
 	@Override
-	public float getThrottleLua() {
-		return getThrottle();
+	public LuaValue getThrottleLua() {
+		return LuaValue.valueOf(getThrottle());
 	}
 
 	public float getThrottle() {
@@ -506,8 +506,8 @@ public abstract class Locomotive extends FreightTank{
 	}
 
 	@Override
-	public void setThrottleLua(float val) {
-		setThrottle(val);
+	public void setThrottleLua(LuaValue val) {
+		setThrottle(val.tofloat());
 //		ModCore.info("Original value: " + val);
 //		ModCore.info("Throttle_X: " + ModelComponentType.THROTTLE_X);
 	}
@@ -529,8 +529,8 @@ public abstract class Locomotive extends FreightTank{
 	}
 
 	@Override
-	public float getReverserLua() {
-		return getReverser();
+	public LuaValue getReverserLua() {
+		return LuaValue.valueOf(getReverser());
 	}
 
 	public float getReverser() {
@@ -538,8 +538,8 @@ public abstract class Locomotive extends FreightTank{
 	}
 
 	@Override
-	public void setReverserLua(float val) {
-		setReverser(val);
+	public void setReverserLua(LuaValue val) {
+		setReverser(val.tofloat());
 	}
 
 
@@ -603,8 +603,8 @@ public abstract class Locomotive extends FreightTank{
 	}
 
 	@Override
-	public float getTrainBrakeLua() {
-		return getTrainBrake();
+	public LuaValue getTrainBrakeLua() {
+		return LuaValue.valueOf(getTrainBrake());
 	}
 
 	@Deprecated
@@ -616,8 +616,8 @@ public abstract class Locomotive extends FreightTank{
 	}
 
 	@Override
-	public void setBrakeLua(float val) {
-		setTrainBrake(val);
+	public void setTrainBrakeLua(LuaValue val) {
+		setTrainBrake(val.tofloat());
 	}
 
 
@@ -643,8 +643,8 @@ public abstract class Locomotive extends FreightTank{
 	}
 
 	@Override
-	public void setIndependentBrakeLua(float val) {
-		setIndependentBrake(val);
+	public void setIndependentBrakeLua(LuaValue val) {
+		setIndependentBrake(val.tofloat());
 	}
 
 	@Override
@@ -693,8 +693,9 @@ public abstract class Locomotive extends FreightTank{
 	}
 
 	@Override
-	protected LuaValue getPerformance(String type) {
-		switch (type) {
+	protected LuaValue getPerformance(LuaValue type) {
+		String strType = type.tojstring();
+		switch (strType) {
 			case "max_speed_kmh":
 				return LuaValue.valueOf(this.localMaxSpeed == -1 ? getDefinition().getMaxSpeed() : this.localMaxSpeed);
 			case "horsepower":
@@ -707,16 +708,18 @@ public abstract class Locomotive extends FreightTank{
 	}
 
 	@Override
-	protected void setPerformance(String performanceType, double val) {
-		switch (performanceType) {
+	protected void setPerformance(LuaValue performanceType, LuaValue val) {
+		String type = performanceType.tojstring();
+		double newValue = val.todouble();
+		switch (type) {
 			case "max_speed_kmh":
-				this.localMaxSpeed = val;
+				this.localMaxSpeed = newValue;
 				break;
 			case "tractive_effort_lbf":
-				this.localTraction = val;
+				this.localTraction = newValue;
 				break;
 			case "horsepower":
-				this.localHorsepower = val;
+				this.localHorsepower = newValue;
 				break;
 		}
 	}
