@@ -327,6 +327,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                     .addFunctionWithReturn("getStockPosition", () -> ScriptVectorUtil.constructVec3Table(this.getPosition()))
                     .addFunctionWithReturn("getStockMatrix", () -> ScriptVectorUtil.constructMatrix4Table(this.getModelMatrix()))
                     .addFunctionWithReturn("newVector", (x, y, z) -> ScriptVectorUtil.constructVec3Table(x, y, z))
+                    .addFunctionWithReturn("getCoupled", this::getCoupled)
                     .setInGlobals(globals);
 
             LuaLibrary.create("World")
@@ -644,6 +645,23 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             }
             table.set(i + 1, luaUnit);
         }
+        return table;
+    }
+
+    private LuaTable getCoupled(LuaValue type) {
+        LuaTable table = new LuaTable();
+        String sType = type.tojstring();
+
+        EntityCoupleableRollingStock stock = getCoupled(sType.equalsIgnoreCase("front") ? CouplerType.FRONT : CouplerType.BACK);
+        CouplerType coupler = this.getCouplerFor(stock);
+        UUID uuid = stock.getUUID();
+        String defID = stock.defID;
+        String tag = stock.tag;
+
+        table.set("coupler", coupler.toString());
+        table.set("uuid", uuid.toString());
+        table.set("defID", defID);
+        table.set("tag", tag);
         return table;
     }
 
