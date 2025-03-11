@@ -2,7 +2,7 @@ package cam72cam.immersiverailroading.entity;
 
 import cam72cam.immersiverailroading.IRItems;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
-import cam72cam.immersiverailroading.gui.overlay.ReadoutsEventHandler;
+import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
 import cam72cam.immersiverailroading.library.GuiTypes;
 import cam72cam.immersiverailroading.library.ModelComponentType;
@@ -33,7 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public abstract class EntityScriptableRollingStock extends EntityCoupleableRollingStock implements ReadoutsEventHandler {
+public abstract class EntityScriptableRollingStock extends EntityCoupleableRollingStock {
 
     private LuaValue tickEvent;
     public boolean isLuaLoaded = false;
@@ -138,7 +138,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             try {
                 if (LoadLuaFile()) return;
                 callFuction();
-                getReadout();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -423,8 +422,8 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     }
 
     public float getReadout(String readout) {
-        getReadout();
-        return readoutState.get(readout);
+        Readouts readouts = Readouts.valueOf(readout.toUpperCase());
+        return readouts.getValue(this);
     }
 
     protected void setPerformance(LuaValue performanceType, LuaValue val) {
