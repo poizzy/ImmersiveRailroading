@@ -9,32 +9,45 @@ import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
 import cam72cam.immersiverailroading.entity.physics.SimulationState;
+import cam72cam.immersiverailroading.gui.LuaSelector;
 import cam72cam.immersiverailroading.items.ItemRailAugment;
 import cam72cam.immersiverailroading.items.ItemTrackExchanger;
 import cam72cam.immersiverailroading.library.*;
 import cam72cam.immersiverailroading.model.part.Door;
 import cam72cam.immersiverailroading.physics.MovementTrack;
+import cam72cam.immersiverailroading.script.LuaLibrary;
+import cam72cam.immersiverailroading.script.ScriptVectorUtil;
 import cam72cam.immersiverailroading.thirdparty.trackapi.BlockEntityTrackTickable;
 import cam72cam.immersiverailroading.util.*;
+import cam72cam.mod.ModCore;
 import cam72cam.mod.block.IRedstoneProvider;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.entity.boundingbox.IBoundingBox;
+import cam72cam.mod.entity.sync.TagSync;
 import cam72cam.mod.fluid.FluidTank;
 import cam72cam.mod.fluid.ITank;
 import cam72cam.mod.item.*;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.math.Vec3i;
-import cam72cam.mod.serialization.TagField;
+import cam72cam.mod.net.Packet;
+import cam72cam.mod.resource.Identifier;
+import cam72cam.mod.serialization.*;
 import cam72cam.mod.sound.Audio;
 import cam72cam.mod.sound.SoundCategory;
 import cam72cam.mod.sound.StandardSound;
 import cam72cam.mod.text.PlayerMessage;
 import cam72cam.mod.util.Facing;
-import cam72cam.mod.serialization.TagCompound;
 import cam72cam.immersiverailroading.thirdparty.trackapi.ITrack;
 import cam72cam.mod.util.SingleCache;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.luaj.vm2.Globals;
+import org.luaj.vm2.LuaValue;
+import org.luaj.vm2.lib.jse.JsePlatform;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneProvider {
@@ -77,6 +90,20 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 	@TagField("pushPull")
 	private boolean pushPull = true;
 
+	/*
+	 * Variables for the Lua Augment
+	 */
+
+	@TagSync
+	@TagField(value = "selectedScript", mapper = SelectedScriptMapper.class)
+	public LuaSelector.ScriptDef selectedScript;
+	private Globals globals;
+	private EntityScriptableRollingStock scriptableRollingStock;
+	private LuaValue stockEvent;
+	/*
+	@TagField(value = "luaAugment", mapper = TileRailBase.LuaTagMapper.class)
+	public LuaAugment luaAugment;
+	 */
 	public void setBedHeight(float height) {
 		this.bedHeight = height;
 	}
@@ -107,6 +134,103 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 	public float getRailHeight() {
 		return this.railHeight;
 	}
+
+	public void loadLuaScript() {
+		globals = JsePlatform.standardGlobals();
+
+		LuaValue safeOs = LuaValue.tableOf();
+		safeOs.set("time", globals.get("os").get("time"));
+		safeOs.set("date", globals.get("os").get("date"));
+		safeOs.set("clock", globals.get("os").get("clock"));
+		safeOs.set("difftime", globals.get("os").get("difftime"));
+		globals.set("os", safeOs);
+
+		globals.set("io", LuaValue.NIL);
+		globals.set("luajava", LuaValue.NIL);
+		globals.set("coroutine", LuaValue.NIL);
+		globals.set("debug", LuaValue.NIL);
+
+		Identifier script = selectedScript.script;
+
+		if (selectedScript.additional != null) {
+			Map<String, InputStream> moduleMap = new HashMap<>();
+			for (String modules : selectedScript.additional) {
+                try {
+                    Identifier newModule = selectedScript.script.getRelative(modules);
+					moduleMap.put(modules.replace(".lua", ""), newModule.getResourceStream());
+                } catch (IOException e) {
+                    /* Ignore for now */
+                }
+            }
+			preloadModules(globals, moduleMap);
+		}
+
+		LuaLibrary.create("IR")
+				.addFunction("setCG", (control, val) -> scriptableRollingStock.setControlGroup(control.tojstring(), val.tofloat()))
+				.addFunctionWithReturn("getCG", control -> LuaValue.valueOf(scriptableRollingStock.getControlGroup(control.tojstring())))
+				.addFunction("setPaint", newTexture -> scriptableRollingStock.setNewTexture(newTexture.tojstring()))
+				.addFunctionWithReturn("getPaint", () -> LuaValue.valueOf(scriptableRollingStock.getCurrentTexture()))
+				.addFunctionWithReturn("getReadout", readout -> LuaValue.valueOf(scriptableRollingStock.getReadout(readout.tojstring())))
+				.addFunction("couplerEngaged", scriptableRollingStock::setCouplerEngagedLua)
+				.addFunction("setThrottle", scriptableRollingStock::setThrottleLua)
+				.addFunctionWithReturn("getThrottle", scriptableRollingStock::getThrottleLua)
+				.addFunction("setReverser", scriptableRollingStock::setReverserLua)
+				.addFunctionWithReturn("getReverser", scriptableRollingStock::getReverserLua)
+				.addFunction("setTrainBrake", scriptableRollingStock::setTrainBrakeLua)
+				.addFunctionWithReturn("getTrainBrake", scriptableRollingStock::getTrainBrakeLua)
+				.addFunction("setIndependentBrake", scriptableRollingStock::setIndependentBrakeLua)
+				.addFunction("setSound", val -> {/*this.setNewSound(val)*/})
+				.addFunction("setGlobal", (control, val) -> scriptableRollingStock.setGlobalControlGroup(control.tojstring(), val.tofloat()))
+				.addFunction("setUnit", (control, val) -> scriptableRollingStock.setUnitControlGroup(control.tojstring(), val.tofloat()))
+				.addFunction("setText", scriptableRollingStock::textFieldDef)
+				.addFunction("setTag", val -> scriptableRollingStock.setEntityTag(val.tojstring()))
+				.addFunctionWithReturn("getTrain", scriptableRollingStock::getTrainConsist)
+				.addFunction("setIndividualCG", scriptableRollingStock::setIndividualCG)
+				.addFunctionWithReturn("getIndividualCG", scriptableRollingStock::getIndividualCG)
+				.addFunctionWithReturn("isTurnedOn", () -> LuaValue.valueOf(scriptableRollingStock.getEngineState()))
+				.addFunction("engineStartStop", scriptableRollingStock::setTurnedOnLua)
+				.addFunctionWithReturn("getStockPosition", () -> ScriptVectorUtil.constructVec3Table(scriptableRollingStock.getPosition()))
+				.addFunctionWithReturn("getStockMatrix", () -> ScriptVectorUtil.constructMatrix4Table(scriptableRollingStock.getModelMatrix()))
+				.addFunctionWithReturn("newVector", (x, y, z) -> ScriptVectorUtil.constructVec3Table(x, y, z))
+				.setInGlobals(globals);
+
+		LuaLibrary.create("Augment")
+				.addFunctionWithReturn("getRedstone", () -> LuaValue.valueOf(getWorld().getRedstone(getPos())))
+				.setInGlobals(globals);
+
+		try {
+			String luaScript = IOUtils.toString(script.getResourceStream(), StandardCharsets.UTF_8);
+
+			LuaValue chunk = globals.load(luaScript);
+			chunk.call();
+			stockEvent = globals.get("StockEvent");
+			if (stockEvent.isnil()) {
+				ModCore.error("Function \"StockEvent\" is not defined in Script:", script);
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private void preloadModules(Globals globals, Map<String, InputStream> moduleStreams) {
+		LuaValue packageLib = globals.get("package");
+		LuaValue preloadTable = packageLib.get("preload");
+
+		for (Map.Entry<String, InputStream> entry : moduleStreams.entrySet()) {
+			String moduleName = entry.getKey();
+			InputStream moduleStream = entry.getValue();
+
+			try {
+				// Step 5: Load the Lua chunk from the InputStream
+				LuaValue chunk = globals.load(moduleStream, moduleName, "bt", globals);
+
+				// Step 6: Add the chunk to package.preload with the module name
+				preloadTable.set(moduleName, chunk);
+			} catch (Exception e) {
+				ModCore.error("An error occurred while preloading lua modules", e);
+			}
+		}
+	}
 	
 	public void setAugment(Augment augment) {
 		this.augment = augment;
@@ -123,6 +247,11 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 				}
 			}
 		}
+
+		if (augment == Augment.LUA_SCRIPTER) {
+			// not Needed
+		}
+
 		setAugmentFilter(null);
 		redstoneMode = RedstoneMode.ENABLED;
 		this.markDirty();
@@ -251,6 +380,10 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 			if (!nbt.hasKey("railHeight")) {
 				railHeight = bedHeight;
 			}
+		}
+
+		if (selectedScript != null) {
+			loadLuaScript();
 		}
 	}
 	@Override
@@ -748,6 +881,16 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 				}
 			}
 				break;
+
+			case LUA_SCRIPTER: {
+				EntityScriptableRollingStock stock = this.getStockNearBy(EntityScriptableRollingStock.class);
+				if (stock != null) {
+					this.scriptableRollingStock = stock;
+					stockEvent.call();
+				}
+				break;
+			}
+
 			default:
 				break;
 			}
@@ -949,6 +1092,11 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 			}
 			return true;
 		}
+
+        if (this.augment == Augment.LUA_SCRIPTER && player.hasPermission(Permissions.AUGMENT_TRACK)) {
+			GuiTypes.LUA_SCRIPT_SELECTOR.open(player, getPos());
+			return true;
+		}
 		return false;
 	}
 
@@ -1068,4 +1216,103 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
     public void stockOverhead(EntityMoveableRollingStock stock) {
 		this.overhead = stock;
     }
+
+	public void setSelectedScript(LuaSelector.ScriptDef def) {
+		this.selectedScript = def;
+	}
+
+	public static class AugmentPacket extends Packet {
+		@TagField(value = "selectedScript", mapper = SelectedScriptMapper.class)
+		public LuaSelector.ScriptDef selectedScript;
+		@TagField(value = "scriptDef", mapper = DefTagMapper.class)
+		public List<LuaSelector.ScriptDef> scriptDef;
+		@TagField("pos")
+		public Vec3i pos;
+
+		public AugmentPacket() {}
+
+		public AugmentPacket(TileRailBase tile, LuaSelector.ScriptDef selectedScript) {
+			this.selectedScript = selectedScript;
+			this.pos = tile.getPos();
+		}
+
+		@Override
+		protected void handle() {
+			TileRailBase te = getWorld().getBlockEntity(pos, TileRailBase.class);
+			te.setSelectedScript(selectedScript);
+			te.loadLuaScript();
+		}
+	}
+
+	public static class DefTagMapper implements TagMapper<List<LuaSelector.ScriptDef>> {
+
+		@Override
+		public TagAccessor<List<LuaSelector.ScriptDef>> apply(Class<List<LuaSelector.ScriptDef>> type, String fieldName, TagField tag) throws SerializationException {
+			return new TagAccessor<>(
+                    (d, o) -> {
+						if (o != null) {
+							d.set(fieldName, new TagCompound()
+									.setList("scriptDefList", o, def -> new TagCompound()
+											.setString("name", def.name)
+											.setString("script", def.script.toString())
+											.setString("desc", def.desc != null ? def.desc : "")
+											.setList("additional", def.additional != null ? def.additional : new ArrayList<>(), a -> new TagCompound()
+													.setString("id", a != null ? a.toString() : ""))));
+						}
+					},
+                    d -> {
+                        TagCompound cmp = d.get(fieldName);
+                        List<LuaSelector.ScriptDef> def = cmp.getList("scriptDefList", t -> new LuaSelector.ScriptDef(
+                                t.getString("name"), new Identifier(t.getString("script"))
+                        )
+                                .setDesc(t.getString("desc"))
+                                .setAdditional(t.getList("additional", id -> id.getString("id"))));
+
+
+                        return def;
+                    }
+            );
+		}
+	}
+
+	public static class SelectedScriptMapper implements TagMapper<LuaSelector.ScriptDef> {
+
+		@Override
+		public TagAccessor<LuaSelector.ScriptDef> apply(Class<LuaSelector.ScriptDef> type, String fieldName, TagField tag) throws SerializationException {
+			return new TagAccessor<LuaSelector.ScriptDef>(
+                    (d, o) -> {
+						if (o != null) {
+							d.set(fieldName, new TagCompound()
+									.setString("name", o.name)
+									.setString("script", o.script.toString())
+									.setString("desc", o.desc != null ? o.desc : "")
+									.setList("additional", o.additional != null ? o.additional : new ArrayList<>(), a -> new TagCompound()
+											.setString("id", a != null ? a.toString() : "")));
+						}
+					},
+                    d -> {
+                        TagCompound cmp = d.get(fieldName);
+                        LuaSelector.ScriptDef def = new LuaSelector.ScriptDef(cmp.getString("name"), new Identifier(cmp.getString("script")))
+                                .setDesc(cmp.getString("desc"))
+                                .setAdditional(cmp.getList("additional", id -> id.getString("id")));
+                        return def;
+                    }
+            );
+		}
+	}
+
+	public static class ListStringMapper implements TagMapper<List<String>> {
+
+		@Override
+		public TagAccessor<List<String>> apply(Class<List<String>> type, String fieldName, TagField tag) throws SerializationException {
+			return new TagAccessor<List<String>>(
+                    (d, o) -> {
+						if (o != null) {
+							d.setList(fieldName, o, str -> new TagCompound().setString("s", str));
+						}
+					},
+                    d -> new ArrayList<>(d.getList(fieldName, str -> str.getString("s")))
+            );
+		}
+	}
 }

@@ -13,6 +13,7 @@ import cam72cam.immersiverailroading.multiblock.*;
 import cam72cam.immersiverailroading.net.*;
 import cam72cam.immersiverailroading.registry.DefinitionManager;
 import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
+import cam72cam.immersiverailroading.registry.LuaAugmentDefinition;
 import cam72cam.immersiverailroading.render.CustomParticle;
 import cam72cam.immersiverailroading.render.SmokeParticle;
 import cam72cam.immersiverailroading.render.block.RailBaseModel;
@@ -21,10 +22,7 @@ import cam72cam.immersiverailroading.render.multiblock.MBBlueprintRender;
 import cam72cam.immersiverailroading.render.multiblock.TileMultiblockRender;
 import cam72cam.immersiverailroading.render.rail.RailPreviewRender;
 import cam72cam.immersiverailroading.thirdparty.CompatLoader;
-import cam72cam.immersiverailroading.tile.TileMultiblock;
-import cam72cam.immersiverailroading.tile.TileRail;
-import cam72cam.immersiverailroading.tile.TileRailGag;
-import cam72cam.immersiverailroading.tile.TileRailPreview;
+import cam72cam.immersiverailroading.tile.*;
 import cam72cam.immersiverailroading.util.IRFuzzy;
 import cam72cam.mod.MinecraftClient;
 import cam72cam.mod.ModCore;
@@ -45,6 +43,9 @@ import cam72cam.mod.sound.Audio;
 import cam72cam.mod.text.Command;
 
 import java.util.function.Function;
+
+import static cam72cam.immersiverailroading.gui.helpers.MouseHelper.mouseClicked;
+import static cam72cam.immersiverailroading.gui.helpers.MouseHelper.updateMousePosition;
 
 public class ImmersiveRailroading extends ModCore.Mod {
     public static final String MODID = "immersiverailroading";
@@ -87,6 +88,7 @@ public class ImmersiveRailroading extends ModCore.Mod {
 				Packet.register(ClientPartDragging.SeatPacket::new, PacketDirection.ClientToServer);
 				Packet.register(GuiBuilder.ControlChangePacket::new, PacketDirection.ClientToServer);
 				Packet.register(ItemPaintBrush.PaintBrushPacket::new, PacketDirection.ClientToServer);
+				Packet.register(TileRailBase.AugmentPacket::new, PacketDirection.ClientToServer);
 
 				ServerChronoState.register();
 
@@ -105,6 +107,7 @@ public class ImmersiveRailroading extends ModCore.Mod {
 				ConfigFile.sync(ConfigPermissions.class);
 
 				DefinitionManager.initDefinitions();
+				LuaAugmentDefinition.loadJsonData();
 				break;
 			case FINALIZE:
 				Permissions.register();
@@ -212,6 +215,10 @@ public class ImmersiveRailroading extends ModCore.Mod {
 					if (!MinecraftClient.isReady()) {
 						return true;
 					}
+
+					updateMousePosition(evt);
+					mouseClicked(evt.x, evt.y, evt.button);
+
 					Entity riding = MinecraftClient.getPlayer().getRiding();
 					if (!(riding instanceof EntityRollingStock)) {
 						return true;
