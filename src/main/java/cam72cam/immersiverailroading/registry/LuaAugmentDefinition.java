@@ -6,15 +6,20 @@ import cam72cam.immersiverailroading.util.CAML;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.immersiverailroading.util.JSON;
 import cam72cam.mod.resource.Identifier;
+import org.luaj.vm2.Globals;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class LuaAugmentDefinition {
 
     public static List<LuaSelector.ScriptDef> scriptDef = new ArrayList<>();
+
+    public static Map<LuaSelector.ScriptDef, Globals> globals = new HashMap<>();
 
     public static void loadJsonData() {
         try {

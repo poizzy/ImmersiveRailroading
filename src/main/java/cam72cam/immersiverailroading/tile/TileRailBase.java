@@ -21,6 +21,7 @@ import cam72cam.immersiverailroading.thirdparty.trackapi.BlockEntityTrackTickabl
 import cam72cam.immersiverailroading.util.*;
 import cam72cam.mod.ModCore;
 import cam72cam.mod.block.IRedstoneProvider;
+import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.entity.boundingbox.IBoundingBox;
 import cam72cam.mod.entity.sync.TagSync;
@@ -171,24 +172,24 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 				.addFunction("setPaint", newTexture -> scriptableRollingStock.setNewTexture(newTexture.tojstring()))
 				.addFunctionWithReturn("getPaint", () -> LuaValue.valueOf(scriptableRollingStock.getCurrentTexture()))
 				.addFunctionWithReturn("getReadout", readout -> LuaValue.valueOf(scriptableRollingStock.getReadout(readout.tojstring())))
-				.addFunction("couplerEngaged", scriptableRollingStock::setCouplerEngagedLua)
-				.addFunction("setThrottle", scriptableRollingStock::setThrottleLua)
-				.addFunctionWithReturn("getThrottle", scriptableRollingStock::getThrottleLua)
-				.addFunction("setReverser", scriptableRollingStock::setReverserLua)
-				.addFunctionWithReturn("getReverser", scriptableRollingStock::getReverserLua)
-				.addFunction("setTrainBrake", scriptableRollingStock::setTrainBrakeLua)
-				.addFunctionWithReturn("getTrainBrake", scriptableRollingStock::getTrainBrakeLua)
-				.addFunction("setIndependentBrake", scriptableRollingStock::setIndependentBrakeLua)
+				.addFunction("couplerEngaged", (positionLua, engagedLua) -> scriptableRollingStock.setCouplerEngagedLua(positionLua, engagedLua))
+				.addFunction("setThrottle", val1 -> scriptableRollingStock.setThrottleLua(val1))
+				.addFunctionWithReturn("getThrottle", () -> scriptableRollingStock.getThrottleLua())
+				.addFunction("setReverser", val2 -> scriptableRollingStock.setReverserLua(val2))
+				.addFunctionWithReturn("getReverser", () -> scriptableRollingStock.getReverserLua())
+				.addFunction("setTrainBrake", val3 -> scriptableRollingStock.setTrainBrakeLua(val3))
+				.addFunctionWithReturn("getTrainBrake", () -> scriptableRollingStock.getTrainBrakeLua())
+				.addFunction("setIndependentBrake", val4 -> scriptableRollingStock.setIndependentBrakeLua(val4))
 				.addFunction("setSound", val -> {/*this.setNewSound(val)*/})
 				.addFunction("setGlobal", (control, val) -> scriptableRollingStock.setGlobalControlGroup(control.tojstring(), val.tofloat()))
 				.addFunction("setUnit", (control, val) -> scriptableRollingStock.setUnitControlGroup(control.tojstring(), val.tofloat()))
-				.addFunction("setText", scriptableRollingStock::textFieldDef)
+				.addFunction("setText", result -> scriptableRollingStock.textFieldDef(result))
 				.addFunction("setTag", val -> scriptableRollingStock.setEntityTag(val.tojstring()))
-				.addFunctionWithReturn("getTrain", scriptableRollingStock::getTrainConsist)
-				.addFunction("setIndividualCG", scriptableRollingStock::setIndividualCG)
-				.addFunctionWithReturn("getIndividualCG", scriptableRollingStock::getIndividualCG)
+				.addFunctionWithReturn("getTrain", () -> scriptableRollingStock.getTrainConsist())
+				.addFunction("setIndividualCG", stockUnit -> scriptableRollingStock.setIndividualCG(stockUnit))
+				.addFunctionWithReturn("getIndividualCG", stockUnit1 -> scriptableRollingStock.getIndividualCG(stockUnit1))
 				.addFunctionWithReturn("isTurnedOn", () -> LuaValue.valueOf(scriptableRollingStock.getEngineState()))
-				.addFunction("engineStartStop", scriptableRollingStock::setTurnedOnLua)
+				.addFunction("engineStartStop", b -> scriptableRollingStock.setTurnedOnLua(b))
 				.addFunctionWithReturn("getStockPosition", () -> ScriptVectorUtil.constructVec3Table(scriptableRollingStock.getPosition()))
 				.addFunctionWithReturn("getStockMatrix", () -> ScriptVectorUtil.constructMatrix4Table(scriptableRollingStock.getModelMatrix()))
 				.addFunctionWithReturn("newVector", (x, y, z) -> ScriptVectorUtil.constructVec3Table(x, y, z))
@@ -196,7 +197,26 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 
 		LuaLibrary.create("Augment")
 				.addFunctionWithReturn("getRedstone", () -> LuaValue.valueOf(getWorld().getRedstone(getPos())))
+				.addFunction("callFunction", (func) -> callLuaFunction(func))
+				.addFunction("callFunctionWithArgs", (func, args) -> callLuaFunction(func, args))
+				.addFunctionWithReturn("callFunctionWithReturn", (func) -> callLuaFunctionWithReturn(func))
+				.addFunctionWithReturn("callFunctionWithReturnArgs", (func, args) -> callLuaFunctionWithReturn(func, args))
 				.setInGlobals(globals);
+
+		LuaLibrary.create("Debug")
+				.addFunction("printToInfoLog", (arg) -> ModCore.info(arg.tojstring()))
+				.addFunction("printToWarnLog", (arg) -> ModCore.warn(arg.tojstring()))
+				.addFunction("printToErrorLog", (arg) -> ModCore.error(arg.tojstring()))
+				.addFunction("printToPassengerDialog", arg -> scriptableRollingStock.getPassengers().stream()
+						.filter(Entity::isPlayer)
+						.map(Entity::asPlayer)
+						.forEach(player -> player.sendMessage(PlayerMessage.direct(arg.tojstring()))))
+				.setInGlobals(globals);
+
+		LuaLibrary.create("Utils")
+				.addFunction("writeToChat", (arg) -> getWorld().getEntities(Player.class).forEach(p -> p.sendMessage(PlayerMessage.direct(arg.tojstring()))))
+				.setInGlobals(globals);
+
 
 		try {
 			String luaScript = IOUtils.toString(script.getResourceStream(), StandardCharsets.UTF_8);
@@ -381,9 +401,8 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 				railHeight = bedHeight;
 			}
 		}
-
-		if (selectedScript != null) {
-			loadLuaScript();
+		if (augment == Augment.LUA_SCRIPTER && selectedScript != null && getWorld().isServer) {
+			this.loadLuaScript();
 		}
 	}
 	@Override
@@ -901,12 +920,12 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 
 	@Override
 	public int getStrongPower(Facing facing) {
-		return getAugment() == Augment.DETECTOR ? this.redstoneLevel : 0;
+		return getAugment() == Augment.DETECTOR || getAugment() == Augment.LUA_SCRIPTER ? this.redstoneLevel : 0;
 	}
 
 	@Override
 	public int getWeakPower(Facing facing) {
-		return getAugment() == Augment.DETECTOR ? this.redstoneLevel : 0;
+		return getAugment() == Augment.DETECTOR || getAugment() == Augment.LUA_SCRIPTER ? this.redstoneLevel : 0;
 	}
 
 	public Vec3i getParentReplaced() {
@@ -1195,6 +1214,52 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 			getWorld().setToAir(getPos());
 		}
 		return true;
+	}
+
+	private void callLuaFunction(LuaValue func) {
+		if (scriptableRollingStock.globals == null) {
+			return;
+		}
+
+		LuaValue stockFunction = scriptableRollingStock.globals.get(func);
+		if (stockFunction != null) {
+			stockFunction.call();
+		}
+	}
+
+	private void callLuaFunction(LuaValue func, LuaValue args) {
+		if (scriptableRollingStock.globals == null) {
+			return;
+		}
+
+		LuaValue stockFunction = scriptableRollingStock.globals.get(func);
+		if (stockFunction != null) {
+			stockFunction.call(args);
+		}
+	}
+
+	private LuaValue callLuaFunctionWithReturn(LuaValue func) {
+		if (scriptableRollingStock.globals == null) {
+			return LuaValue.NIL;
+		}
+
+		LuaValue stockFunction = scriptableRollingStock.globals.get(func);
+		if (stockFunction != null) {
+			return stockFunction.call();
+		}
+		return LuaValue.NIL;
+	}
+
+	private LuaValue callLuaFunctionWithReturn(LuaValue func, LuaValue args) {
+		if (scriptableRollingStock.globals == null) {
+			return LuaValue.NIL;
+		}
+
+		LuaValue stockFunction = scriptableRollingStock.globals.get(func);
+		if (stockFunction != null) {
+			return stockFunction.call(args);
+		}
+		return LuaValue.NIL;
 	}
 
     public boolean clacks() {

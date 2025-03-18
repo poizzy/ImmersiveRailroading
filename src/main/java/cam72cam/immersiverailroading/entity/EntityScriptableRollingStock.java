@@ -49,6 +49,8 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
 
     public Map<String, TextRenderOptions> textRenderOptions = new HashMap<>();
 
+    public Globals globals;
+
     /**
      *
      * Sad to say that this doesn't work, the data required for the text fields needs to much memory to save to NBT data,
@@ -252,7 +254,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
 
     public boolean LoadLuaFile() throws IOException {
         if (!isLuaLoaded) {
-            Globals globals = JsePlatform.standardGlobals();
+            globals = JsePlatform.standardGlobals();
 
             LuaValue safeOs = LuaValue.tableOf();
             safeOs.set("time", globals.get("os").get("time"));
