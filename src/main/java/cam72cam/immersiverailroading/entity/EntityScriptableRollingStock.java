@@ -27,6 +27,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.luaj.vm2.*;
 import org.luaj.vm2.lib.jse.JsePlatform;
 import org.luaj.vm2.LuaValue;
+import org.lwjgl.input.Keyboard;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -329,6 +330,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                     .addFunctionWithReturn("getStockMatrix", () -> ScriptVectorUtil.constructMatrix4Table(this.getModelMatrix()))
                     .addFunctionWithReturn("newVector", (x, y, z) -> ScriptVectorUtil.constructVec3Table(x, y, z))
                     .addFunctionWithReturn("getCoupled", this::getCoupled)
+                    .addVarArgsFunctionWithReturn("keyPressed", this::keyPressed)
                     .setInGlobals(globals);
 
             LuaLibrary.create("World")
@@ -712,6 +714,17 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         } else {
             return LuaValue.valueOf(0);
         }
+    }
+
+    private LuaValue keyPressed(Varargs args) {
+        int numberOfArgs = args.narg();
+        List<Integer> keys = new ArrayList<>();
+        for (int i = 1; i <= numberOfArgs; i++) {
+            int key = Keyboard.getKeyIndex(args.subargs(i).tojstring());
+            keys.add(key);
+        }
+        boolean pressed = keys.stream().allMatch(Keyboard::isKeyDown);
+        return LuaValue.valueOf(pressed);
     }
 
 
