@@ -166,7 +166,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 			preloadModules(globals, moduleMap);
 		}
 
-		LuaLibrary.create("IR")
+		LuaLibrary.create("Stock")
 				.addFunction("setCG", (control, val) -> scriptableRollingStock.setControlGroup(control.tojstring(), val.tofloat()))
 				.addFunctionWithReturn("getCG", control -> LuaValue.valueOf(scriptableRollingStock.getControlGroup(control.tojstring())))
 				.addFunction("setPaint", newTexture -> scriptableRollingStock.setNewTexture(newTexture.tojstring()))
@@ -193,14 +193,14 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 				.addFunctionWithReturn("getStockPosition", () -> ScriptVectorUtil.constructVec3Table(scriptableRollingStock.getPosition()))
 				.addFunctionWithReturn("getStockMatrix", () -> ScriptVectorUtil.constructMatrix4Table(scriptableRollingStock.getModelMatrix()))
 				.addFunctionWithReturn("newVector", (x, y, z) -> ScriptVectorUtil.constructVec3Table(x, y, z))
-				.setInGlobals(globals);
-
-		LuaLibrary.create("Augment")
-				.addFunctionWithReturn("getRedstone", () -> LuaValue.valueOf(getWorld().getRedstone(getPos())))
 				.addFunction("callFunction", (func) -> callLuaFunction(func))
 				.addFunction("callFunctionWithArgs", (func, args) -> callLuaFunction(func, args))
 				.addFunctionWithReturn("callFunctionWithReturn", (func) -> callLuaFunctionWithReturn(func))
 				.addFunctionWithReturn("callFunctionWithReturnArgs", (func, args) -> callLuaFunctionWithReturn(func, args))
+				.setInGlobals(globals);
+
+		LuaLibrary.create("Augment")
+				.addFunctionWithReturn("getRedstone", () -> LuaValue.valueOf(getWorld().getRedstone(getPos())))
 				.setInGlobals(globals);
 
 		LuaLibrary.create("Debug")
