@@ -181,6 +181,15 @@ public class LuaLibrary {
         return this;
     }
 
+    /**
+     * Register a VarArg function, like setter
+     * <p>
+     * Allows for Functions with Variable parameter counts
+     * @param name Name of the function
+     * @param function functioning part
+     * @return the class itself
+     */
+
     public LuaLibrary addVarArgsFunction(String name, Consumer<Varargs> function) {
         Object[] func = functions.getOrDefault(name, new Object[5]);
         if(func[4] != null) {
@@ -192,13 +201,22 @@ public class LuaLibrary {
         return this;
     }
 
+    /**
+     * Register a VarArg function with a return value
+     * <p>
+     * Allows for Functions with Variable parameter counts
+     * @param name Name of the function
+     * @param function functioning part
+     * @return the class itself
+     */
+
     public LuaLibrary addVarArgsFunctionWithReturn(String name, Function<Varargs, Varargs> function) {
         Object[] func = functions.getOrDefault(name, new Object[5]);
-        if (func[5] != null) {
+        if (func[4] != null) {
             ModCore.error("Invalid overload function registry detected within object %s, the latter one won't be registered!", name);
             return this;
         }
-        func[5] = function;
+        func[4] = function;
         functions.put(name, func);
         return this;
     }
