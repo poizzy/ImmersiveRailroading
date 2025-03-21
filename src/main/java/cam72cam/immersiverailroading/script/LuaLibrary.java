@@ -1,10 +1,8 @@
 package cam72cam.immersiverailroading.script;
 
 import cam72cam.mod.ModCore;
-import org.luaj.vm2.Globals;
-import org.luaj.vm2.LuaFunction;
-import org.luaj.vm2.LuaTable;
-import org.luaj.vm2.LuaValue;
+import org.luaj.vm2.*;
+import org.luaj.vm2.lib.VarArgFunction;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -40,7 +38,7 @@ public class LuaLibrary {
      * @return The class itself
      */
     public LuaLibrary addFunction(String name, Runnable function){
-        Object[] func = functions.getOrDefault(name, new Object[4]);
+        Object[] func = functions.getOrDefault(name, new Object[5]);
         if(func[0] != null){
             ModCore.error(String.format("Invalid overload function registry detected within object %s, the latter one won't be registered!", name));
             return this;
@@ -59,7 +57,7 @@ public class LuaLibrary {
      * @return The class itself
      */
     public LuaLibrary addFunction(String name, Consumer<LuaValue> consumer){
-        Object[] func = functions.getOrDefault(name, new Object[4]);
+        Object[] func = functions.getOrDefault(name, new Object[5]);
         if(func[1] != null){
             ModCore.error(String.format("Invalid overload function registry detected within object %s, the latter one won't be registered!", name));
             return this;
@@ -78,7 +76,7 @@ public class LuaLibrary {
      * @return The class itself
      */
     public LuaLibrary addFunction(String name, BiConsumer<LuaValue, LuaValue> consumer){
-        Object[] func = functions.getOrDefault(name, new Object[4]);
+        Object[] func = functions.getOrDefault(name, new Object[5]);
         if(func[2] != null){
             ModCore.error(String.format("Invalid overload function registry detected within object %s, the latter one won't be registered!", name));
             return this;
@@ -97,7 +95,7 @@ public class LuaLibrary {
      * @return The class itself
      */
     public LuaLibrary addFunction(String name, TriConsumer<LuaValue, LuaValue, LuaValue> consumer){
-        Object[] func = functions.getOrDefault(name, new Object[4]);
+        Object[] func = functions.getOrDefault(name, new Object[5]);
         if(func[3] != null){
             ModCore.error(String.format("Invalid overload function registry detected within object %s, the latter one won't be registered!", name));
             return this;
@@ -116,7 +114,7 @@ public class LuaLibrary {
      * @return The class itself
      */
     public LuaLibrary addFunctionWithReturn(String name, Supplier<LuaValue> supplier){
-        Object[] func = functions.getOrDefault(name, new Object[4]);
+        Object[] func = functions.getOrDefault(name, new Object[5]);
         if(func[0] != null){
             ModCore.error(String.format("Invalid overload function registry detected within object %s, the latter one won't be registered!", name));
             return this;
@@ -135,7 +133,7 @@ public class LuaLibrary {
      * @return The class itself
      */
     public LuaLibrary addFunctionWithReturn(String name, Function<LuaValue, LuaValue> function){
-        Object[] func = functions.getOrDefault(name, new Object[4]);
+        Object[] func = functions.getOrDefault(name, new Object[5]);
         if(func[1] != null){
             ModCore.error(String.format("Invalid overload function registry detected within object %s, the latter one won't be registered!", name));
             return this;
@@ -154,7 +152,7 @@ public class LuaLibrary {
      * @return The class itself
      */
     public LuaLibrary addFunctionWithReturn(String name, BiFunction<LuaValue, LuaValue, LuaValue> function){
-        Object[] func = functions.getOrDefault(name, new Object[4]);
+        Object[] func = functions.getOrDefault(name, new Object[5]);
         if(func[2] != null){
             ModCore.error(String.format("Invalid overload function registry detected within object %s, the latter one won't be registered!", name));
             return this;
@@ -173,12 +171,34 @@ public class LuaLibrary {
      * @return The class itself
      */
     public LuaLibrary addFunctionWithReturn(String name, TriFunction<LuaValue, LuaValue, LuaValue, LuaValue> function){
-        Object[] func = functions.getOrDefault(name, new Object[4]);
+        Object[] func = functions.getOrDefault(name, new Object[5]);
         if(func[3] != null){
             ModCore.error(String.format("Invalid overload function registry detected within object %s, the latter one won't be registered!", name));
             return this;
         }
         func[3] = function;
+        functions.put(name, func);
+        return this;
+    }
+
+    public LuaLibrary addVarArgsFunction(String name, Consumer<Varargs> function) {
+        Object[] func = functions.getOrDefault(name, new Object[5]);
+        if(func[4] != null) {
+            ModCore.error("Invalid overload function registry detected within object %s, the latter one won't be registered!", name);
+            return this;
+        }
+        func[4] = function;
+        functions.put(name, func);
+        return this;
+    }
+
+    public LuaLibrary addVarArgsFunctionWithReturn(String name, Function<Varargs, Varargs> function) {
+        Object[] func = functions.getOrDefault(name, new Object[5]);
+        if (func[5] != null) {
+            ModCore.error("Invalid overload function registry detected within object %s, the latter one won't be registered!", name);
+            return this;
+        }
+        func[5] = function;
         functions.put(name, func);
         return this;
     }
@@ -234,6 +254,17 @@ public class LuaLibrary {
                         return ((TriFunction<LuaValue, LuaValue, LuaValue, LuaValue>) func.getValue()[3]).apply(arg1, arg2, arg3);
                     } else if(func.getValue()[3] != null){
                         ((TriConsumer<LuaValue, LuaValue, LuaValue>)func.getValue()[3]).accept(arg1, arg2, arg3);
+                    }
+                    return NIL;
+                }
+            });
+            object.set(func.getKey(), new VarArgFunction() {
+                @Override
+                public Varargs invoke(Varargs varargs) {
+                    if(func.getValue()[4] instanceof Function) {
+                        return ((Function<Varargs, Varargs>) func.getValue()[4]).apply(varargs);
+                    } else if (func.getValue()[4] != null) {
+                        ((Consumer<Varargs>) func.getValue()[4]).accept(varargs);
                     }
                     return NIL;
                 }
