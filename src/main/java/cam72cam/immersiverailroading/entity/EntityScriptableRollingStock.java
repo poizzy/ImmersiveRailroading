@@ -330,7 +330,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                     .addFunctionWithReturn("getStockMatrix", () -> ScriptVectorUtil.constructMatrix4Table(this.getModelMatrix()))
                     .addFunctionWithReturn("newVector", (x, y, z) -> ScriptVectorUtil.constructVec3Table(x, y, z))
                     .addFunctionWithReturn("getCoupled", this::getCoupled)
-                    .addVarArgsFunctionWithReturn("keyPressed", this::keyPressed)
                     .setInGlobals(globals);
 
             LuaLibrary.create("World")
@@ -715,17 +714,20 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             return LuaValue.valueOf(0);
         }
     }
+    /**
+     * Good Idea, awful Implementation
+     */
 
-    private LuaValue keyPressed(Varargs args) {
-        int numberOfArgs = args.narg();
-        List<Integer> keys = new ArrayList<>();
-        for (int i = 1; i <= numberOfArgs; i++) {
-            int key = Keyboard.getKeyIndex(args.subargs(i).tojstring());
-            keys.add(key);
-        }
-        boolean pressed = keys.stream().allMatch(Keyboard::isKeyDown);
-        return LuaValue.valueOf(pressed);
-    }
+//    private LuaValue keyPressed(Varargs args) {
+//        int numberOfArgs = args.narg();
+//        List<Integer> keys = new ArrayList<>();
+//        for (int i = 1; i <= numberOfArgs; i++) {
+//            int key = Keyboard.getKeyIndex(args.subargs(i).tojstring());
+//            keys.add(key);
+//        }
+//        boolean pressed = keys.stream().allMatch(Keyboard::isKeyDown);
+//        return LuaValue.valueOf(pressed);
+//    }
 
 
     public void setNewSound(LuaValue result) {
