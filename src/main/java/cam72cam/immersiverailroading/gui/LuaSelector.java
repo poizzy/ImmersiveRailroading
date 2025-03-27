@@ -10,23 +10,28 @@ import cam72cam.mod.resource.Identifier;
 import javax.annotation.Nullable;
 import java.util.*;
 
-public class LuaSelector extends AbstractSearchGui<LuaSelector.ScriptDef> {
+public class LuaSelector extends AbstractSearchGui<LuaSelector.ScriptDef> implements IScreen {
     private final TileRailBase tileRailBase;
 
     public LuaSelector(TileRailBase tile) {
         super();
+        this.tileRailBase = tile;
+    }
+
+    @Override
+    public void init(IScreenBuilder screen) {
         this.candidate = new ArrayList<>(LuaAugmentDefinition.scriptDef);
-        if (tile.selectedScript != null) {
+        if (tileRailBase.selectedScript != null) {
             candidate.forEach(s -> {
-                if (s.equals(tile.selectedScript)) {
+                if (s.equals(tileRailBase.selectedScript)) {
                     this.current = s;
                 }
             });
         }
         this.tooltip = "Selected lua Script for this Augment";
 
-        this.tileRailBase = tile;
         this.filtered = new ArrayList<>(this.candidate);
+        super.init(screen);
     }
 
     @Override

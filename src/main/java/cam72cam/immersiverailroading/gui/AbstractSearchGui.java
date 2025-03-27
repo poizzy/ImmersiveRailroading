@@ -14,7 +14,7 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
-public abstract class AbstractSearchGui<T> implements IScreen {
+public abstract class AbstractSearchGui<T> {
     protected TextField searchField;
     protected Button dropdownToggle;
     protected boolean isDropdownOpen = false;
@@ -33,7 +33,6 @@ public abstract class AbstractSearchGui<T> implements IScreen {
 
     public AbstractSearchGui() {}
 
-    @Override
     public void init(IScreenBuilder screen) {
         guiLeft = (int) (GUIHelpers.getScreenWidth() / 1.5);
         guiTop = (GUIHelpers.getScreenHeight() / 4);
@@ -68,13 +67,10 @@ public abstract class AbstractSearchGui<T> implements IScreen {
         }
     }
 
-    @Override
     public abstract void onEnterKey(IScreenBuilder builder);
 
-    @Override
     public abstract void onClose();
 
-    @Override
     public void draw(IScreenBuilder builder, RenderState state) {
         if (!searchField.getText().equals(lastInput)) {
             updateFilter();

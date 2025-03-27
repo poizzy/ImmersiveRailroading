@@ -24,7 +24,11 @@ public class AugmentStateChangePacket extends Packet {
     protected void handle() {
         if(getWorld().getBlockEntity(tilePos, TileRailBase.class) != null){
             getWorld().getBlockEntity(tilePos, TileRailBase.class).setCurrentFilter(tag);
-            getPlayer().sendMessage(ChatText.SET_AUGMENT_FILTER.getMessage(tag));
+            if(tag != null){
+                getPlayer().sendMessage(ChatText.SET_AUGMENT_FILTER.getMessage(tag));
+            } else {
+                getPlayer().sendMessage(ChatText.RESET_AUGMENT_FILTER.getMessage());
+            }
         }
     }
 }

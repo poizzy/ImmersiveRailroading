@@ -906,7 +906,9 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 				EntityScriptableRollingStock stock = this.getStockNearBy(EntityScriptableRollingStock.class);
 				if (stock != null) {
 					this.scriptableRollingStock = stock;
-					stockEvent.call();
+					if (stockEvent != null) {
+						stockEvent.call();
+					}
 				}
 				break;
 			}
@@ -1076,7 +1078,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 					player.sendMessage(ChatText.RESET_AUGMENT_FILTER.getMessage());
 				} else {
 					stockTag = stack.getDisplayName();
-					GuiTypes.AUGMENT_TAG_FILTER.open(player, this.getPos());
+					player.sendMessage(ChatText.SET_AUGMENT_FILTER.getMessage(stockTag));
 				}
 			}
 			return true;

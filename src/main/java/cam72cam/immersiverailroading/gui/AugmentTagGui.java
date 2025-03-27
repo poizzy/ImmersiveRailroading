@@ -7,6 +7,7 @@ import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
 import cam72cam.immersiverailroading.tile.TileRailBase;
 import cam72cam.mod.MinecraftClient;
 import cam72cam.mod.entity.Player;
+import cam72cam.mod.gui.screen.IScreen;
 import cam72cam.mod.gui.screen.IScreenBuilder;
 import cam72cam.mod.item.ItemStack;
 import cam72cam.mod.render.opengl.RenderState;
@@ -14,11 +15,15 @@ import cam72cam.mod.render.opengl.RenderState;
 import java.util.ArrayList;
 import java.util.Objects;
 
-public class AugmentTagGui extends AbstractSearchGui<String> {
+public class AugmentTagGui extends AbstractSearchGui<String> implements IScreen {
     private final TileRailBase tileRailBase;
 
     public AugmentTagGui(TileRailBase tileRailBase) {
         this.tileRailBase = tileRailBase;
+    }
+
+    @Override
+    public void init(IScreenBuilder screen) {
         Player player = MinecraftClient.getPlayer();
         this.candidate = new ArrayList<>();
         if(player != null && player.getHeldItem(Player.Hand.PRIMARY).is(IRItems.ITEM_ROLLING_STOCK)) {
@@ -35,6 +40,7 @@ public class AugmentTagGui extends AbstractSearchGui<String> {
         }
         this.current = tileRailBase.getCurrentFilter();
         this.tooltip = "Select augment filter";
+        super.init(screen);
     }
 
     @Override
