@@ -62,9 +62,9 @@ public abstract class EntityRollingStockDefinition {
     public Identifier collision_sound;
     public double flange_min_yaw;
     double internal_inv_scale;
-    private String name;
-    private String modelerName;
-    private String packName;
+    public String name;
+    public String modelerName;
+    public String packName;
     private ValveGearConfig valveGear;
     public float darken;
     public Identifier modelLoc;

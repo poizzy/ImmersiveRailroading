@@ -89,6 +89,7 @@ public class ImmersiveRailroading extends ModCore.Mod {
 				Packet.register(GuiBuilder.ControlChangePacket::new, PacketDirection.ClientToServer);
 				Packet.register(ItemPaintBrush.PaintBrushPacket::new, PacketDirection.ClientToServer);
 				Packet.register(TileRailBase.AugmentPacket::new, PacketDirection.ClientToServer);
+				Packet.register(AugmentStateChangePacket::new, PacketDirection.ClientToServer);
 
 				ServerChronoState.register();
 

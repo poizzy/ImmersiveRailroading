@@ -1076,7 +1076,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 					player.sendMessage(ChatText.RESET_AUGMENT_FILTER.getMessage());
 				} else {
 					stockTag = stack.getDisplayName();
-					player.sendMessage(ChatText.SET_AUGMENT_FILTER.getMessage(stockTag));
+					GuiTypes.AUGMENT_TAG_FILTER.open(player, this.getPos());
 				}
 			}
 			return true;
@@ -1285,6 +1285,14 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 
 	public void setSelectedScript(LuaSelector.ScriptDef def) {
 		this.selectedScript = def;
+	}
+
+	public String getCurrentFilter() {
+		return stockTag;
+	}
+
+	public void setCurrentFilter(String newTag) {
+		this.stockTag = newTag;
 	}
 
 	public static class AugmentPacket extends Packet {

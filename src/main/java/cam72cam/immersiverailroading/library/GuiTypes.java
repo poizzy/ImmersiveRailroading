@@ -16,7 +16,6 @@ import cam72cam.mod.gui.GuiRegistry.EntityGUI;
 import cam72cam.mod.gui.GuiRegistry.GUI;
 import cam72cam.mod.gui.screen.IScreen;
 import cam72cam.mod.resource.Identifier;
-import org.luaj.vm2.Lua;
 
 public class GuiTypes {
     public static final EntityGUI<Freight> FREIGHT = GuiRegistry.registerEntityContainer(Freight.class, FreightContainer::new);
@@ -31,6 +30,7 @@ public class GuiTypes {
     public static final GUI PAINT_BRUSH = GuiRegistry.register(new Identifier(ImmersiveRailroading.MODID, "PAINT_BRUSH"), PaintBrushPicker::new);
     public static final GUI TEXT_FIELD = GuiRegistry.register(new Identifier(ImmersiveRailroading.MODID, "TEXT_FIELD"), TextFieldGUI::new);
     public static final BlockGUI LUA_SCRIPT_SELECTOR = GuiRegistry.registerBlock(TileRailBase.class, LuaSelector::new);
+    public static final BlockGUI AUGMENT_TAG_FILTER = GuiRegistry.registerBlock(TileRailBase.class, AugmentTagGui::new);
 
     public static final BlockGUI STEAM_HAMMER = GuiRegistry.registerBlockContainer(TileMultiblock.class, SteamHammerContainer::new);
     public static final BlockGUI CASTING = GuiRegistry.registerBlock(TileMultiblock.class, GuiTypes::createMultiblockScreen);
