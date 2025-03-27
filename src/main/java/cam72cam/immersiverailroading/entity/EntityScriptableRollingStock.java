@@ -330,6 +330,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                     .addFunctionWithReturn("getStockMatrix", () -> ScriptVectorUtil.constructMatrix4Table(this.getModelMatrix()))
                     .addFunctionWithReturn("newVector", (x, y, z) -> ScriptVectorUtil.constructVec3Table(x, y, z))
                     .addFunctionWithReturn("getCoupled", this::getCoupled)
+                    .addFunctionWithReturn("hasTag", tag -> LuaValue.valueOf(this.getDefinition().tags.contains(tag.tojstring())))
                     .setInGlobals(globals);
 
             LuaLibrary.create("World")

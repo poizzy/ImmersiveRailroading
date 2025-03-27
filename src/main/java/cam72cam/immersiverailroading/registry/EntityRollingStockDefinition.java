@@ -25,7 +25,6 @@ import cam72cam.mod.serialization.TagMapped;
 import cam72cam.mod.sound.ISound;
 import cam72cam.mod.text.TextUtil;
 import cam72cam.mod.world.World;
-import org.apache.commons.lang3.tuple.Pair;
 
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
@@ -36,7 +35,6 @@ import java.io.InputStreamReader;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -49,6 +47,7 @@ public abstract class EntityRollingStockDefinition {
 
     public final List<String> itemGroups;
     public List<String> addScripts;
+    public List<String> tags;
     public Map<String, String> textureNames;
     public float dampeningAmount;
     public Gauge recommended_gauge;
@@ -576,6 +575,12 @@ public abstract class EntityRollingStockDefinition {
         List<DataBlock.Value> controlGroup1 = data.getValues("add_scripts");
         if (controlGroup1 != null) {
             controlGroup1.forEach(value -> addScripts.add(value.asString()));
+        }
+
+        tags = new ArrayList<>();
+        List<DataBlock.Value> stockTags = data.getValues("tags");
+        if(stockTags != null){
+            stockTags.forEach(value -> tags.add(value.asString()));
         }
 
         DataBlock sounds = data.getBlock("sounds");

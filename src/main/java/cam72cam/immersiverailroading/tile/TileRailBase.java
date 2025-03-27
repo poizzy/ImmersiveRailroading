@@ -197,6 +197,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 				.addFunction("callFunctionWithArgs", (func, args) -> callLuaFunction(func, args))
 				.addFunctionWithReturn("callFunctionWithReturn", (func) -> callLuaFunctionWithReturn(func))
 				.addFunctionWithReturn("callFunctionWithReturnArgs", (func, args) -> callLuaFunctionWithReturn(func, args))
+				.addFunctionWithReturn("hasTag", tag -> LuaValue.valueOf(scriptableRollingStock.getDefinition().tags.contains(tag.tojstring())))
 				.setInGlobals(globals);
 
 		LuaLibrary.create("Augment")
