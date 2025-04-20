@@ -3,6 +3,7 @@ package cam72cam.immersiverailroading.gui;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.gui.components.ListSelector;
+import cam72cam.immersiverailroading.items.ItemTypewriter;
 import cam72cam.immersiverailroading.library.Gauge;
 import cam72cam.immersiverailroading.library.GuiText;
 import cam72cam.immersiverailroading.model.StockModel;
@@ -304,17 +305,6 @@ public class TextFieldGUI implements IScreen {
                 }
             }
 
-            File file = new File(settings.id.getPath());
-            String jsonPath = file.getName();
-
-            Identifier jsonId = settings.id.getRelative(jsonPath.replaceAll(".png", ".json"));
-            InputStream json = null;
-            try {
-                json = jsonId.getResourceStream();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-
             LinkedHashMap<String, OBJGroup> group = stock.getDefinition().getModel().groups;
             for (Map.Entry<String, OBJGroup> entry : group.entrySet()) {
                 if (entry.getKey().contains(String.format("TEXTFIELD_%s", settings.componentId))) {
@@ -326,9 +316,7 @@ public class TextFieldGUI implements IScreen {
                         stock.setAllText(settings);
                         return;
                     }
-                    renderText.setText(settings.componentId, settings.newText, settings.id, vec3dmin, vec3dmax, json,
-                            settings.resX, settings.resY, settings.align, settings.flipped, settings.fontSize, settings.fontX,
-                            settings.fontGap, new Identifier(ImmersiveRailroading.MODID, "not_needed"), vec3dNormal, settings.hexCode, settings.fullbright, settings.textureHeight, settings.useAlternative, settings.lineSpacingPixels, settings.offset, entry.getKey());
+                    new ItemTypewriter.TypewriterPacket(stock, settings, vec3dmin, vec3dmax, entry.getKey(), vec3dNormal).sendToServer();
                 }
             }
         }
@@ -355,6 +343,9 @@ public class TextFieldGUI implements IScreen {
         GUIHelpers.drawRect(0, 0, 200, GUIHelpers.getScreenHeight(), 0xEE000000);
 
         Entity ent = MinecraftClient.getEntityMouseOver();
+        if (ent == null) {
+            return;
+        }
         EntityCoupleableRollingStock rollingStock = ent.as(EntityCoupleableRollingStock.class);
 
         StockModel<?, ?> model = rollingStock.getDefinition().getModel();

@@ -4,6 +4,7 @@ import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.entity.physics.chrono.ServerChronoState;
 import cam72cam.immersiverailroading.gui.overlay.GuiBuilder;
 import cam72cam.immersiverailroading.items.ItemPaintBrush;
+import cam72cam.immersiverailroading.items.ItemTypewriter;
 import cam72cam.immersiverailroading.library.GuiTypes;
 import cam72cam.immersiverailroading.library.KeyTypes;
 import cam72cam.immersiverailroading.library.Particles;
@@ -89,6 +90,8 @@ public class ImmersiveRailroading extends ModCore.Mod {
 				Packet.register(GuiBuilder.ControlChangePacket::new, PacketDirection.ClientToServer);
 				Packet.register(ItemPaintBrush.PaintBrushPacket::new, PacketDirection.ClientToServer);
 				Packet.register(TileRailBase.AugmentPacket::new, PacketDirection.ClientToServer);
+				Packet.register(ItemTypewriter.TypewriterPacket::new, PacketDirection.ClientToServer);
+				Packet.register(ItemTypewriter.TypewriterSyncPacket::new, PacketDirection.ServerToClient);
 
 				ServerChronoState.register();
 
@@ -148,6 +151,7 @@ public class ImmersiveRailroading extends ModCore.Mod {
 				ItemRender.register(IRItems.ITEM_RADIO_CONTROL_CARD, new Identifier(MODID, "items/radio_card"));
 				ItemRender.register(IRItems.ITEM_MANUAL, new Identifier(MODID, "items/engineerslexicon"));
 				ItemRender.register(IRItems.ITEM_TRACK_EXCHANGER, new TrackExchangerModel());
+				ItemRender.register(IRItems.ITEM_TYPEWRITER, ObjItemRender.getModelFor(new Identifier(MODID, "models/item/typewriter.obj"), new Vec3d(0.5, 0.5, 0.5), 1 ));
 
 				IEntityRender<EntityMoveableRollingStock> stockRender = new IEntityRender<EntityMoveableRollingStock>() {
 					@Override
