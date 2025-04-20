@@ -1,5 +1,6 @@
 package cam72cam.immersiverailroading.gui;
 
+import cam72cam.immersiverailroading.gui.components.GuiUtils;
 import cam72cam.immersiverailroading.gui.helpers.MouseHelper;
 import cam72cam.immersiverailroading.registry.LuaAugmentDefinition;
 import cam72cam.immersiverailroading.tile.TileRailBase;
@@ -83,7 +84,7 @@ public class LuaSelector implements IScreen {
 
     @Override
     public void onEnterKey(IScreenBuilder builder) {
-        onClose();
+        builder.close();
     }
 
     @Override
