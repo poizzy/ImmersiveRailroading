@@ -276,17 +276,19 @@ public class LuaLibrary {
                     return NIL;
                 }
             });
-            object.set(func.getKey(), new VarArgFunction() {
-                @Override
-                public Varargs invoke(Varargs varargs) {
-                    if(func.getValue()[4] instanceof Function) {
-                        return ((Function<Varargs, Varargs>) func.getValue()[4]).apply(varargs);
-                    } else if (func.getValue()[4] != null) {
-                        ((Consumer<Varargs>) func.getValue()[4]).accept(varargs);
+            if (func.getValue()[4] != null) {
+                object.set(func.getKey(), new VarArgFunction() {
+                    @Override
+                    public Varargs invoke(Varargs varargs) {
+                        if (func.getValue()[4] instanceof Function) {
+                            return ((Function<Varargs, Varargs>) func.getValue()[4]).apply(varargs);
+                        } else if (func.getValue()[4] != null) {
+                            ((Consumer<Varargs>) func.getValue()[4]).accept(varargs);
+                        }
+                        return NIL;
                     }
-                    return NIL;
-                }
-            });
+                });
+            }
         }
         return object;
     }
