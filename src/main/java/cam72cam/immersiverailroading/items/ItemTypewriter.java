@@ -2,6 +2,7 @@ package cam72cam.immersiverailroading.items;
 
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.EntityRollingStock;
+import cam72cam.immersiverailroading.entity.EntityScriptableRollingStock;
 import cam72cam.immersiverailroading.entity.RenderText;
 import cam72cam.immersiverailroading.entity.TextRenderOptions;
 import cam72cam.immersiverailroading.library.ChatText;
@@ -61,31 +62,24 @@ public class ItemTypewriter extends CustomItem {
         public EntityRollingStock stock;
         @TagField(value = "settings", mapper = TextRenderOptions.TextRenderOptionsMapper.class)
         public TextRenderOptions settings;
-        @TagField("vec3dmin")
-        public Vec3d vec3dmin;
-        @TagField("vec3dmax")
-        public Vec3d vec3dmax;
-        @TagField("vec3dNormal")
-        public Vec3d vec3dNormal;
-        @TagField("key")
-        public String key;
 
         public TypewriterPacket() {
-
         }
 
-        public TypewriterPacket(EntityRollingStock stock, TextRenderOptions settings, Vec3d min, Vec3d max, String key, Vec3d normal) {
+        public TypewriterPacket(EntityRollingStock stock, TextRenderOptions settings) {
             this.stock = stock;
             this.settings = settings;
-            this.vec3dmax = max;
-            this.vec3dmin = min;
-            this.key = key;
-            this.vec3dNormal = normal;
+
         }
 
         @Override
         protected void handle() {
-            new TypewriterSyncPacket(stock, settings, vec3dmin, vec3dmax, key, vec3dNormal).sendToObserving(stock);
+            if (settings.global) {
+                ((EntityScriptableRollingStock)stock).setTextGlobal(settings);
+            } else {
+                ((EntityScriptableRollingStock)stock).setText(settings);
+            }
+            new TypewriterSyncPacket(stock, settings).sendToObserving(stock);
         }
     }
 
@@ -94,44 +88,23 @@ public class ItemTypewriter extends CustomItem {
         public EntityRollingStock stock;
         @TagField(value = "settings", mapper = TextRenderOptions.TextRenderOptionsMapper.class)
         public TextRenderOptions settings;
-        @TagField("vec3dmin")
-        public Vec3d vec3dmin;
-        @TagField("vec3dmax")
-        public Vec3d vec3dmax;
-        @TagField("vec3dNormal")
-        public Vec3d vec3dNormal;
-        @TagField("key")
-        public String key;
 
         public TypewriterSyncPacket() {
 
         }
 
-        public TypewriterSyncPacket(EntityRollingStock stock, TextRenderOptions settings, Vec3d min, Vec3d max, String key, Vec3d normal) {
+        public TypewriterSyncPacket(EntityRollingStock stock, TextRenderOptions settings) {
             this.stock = stock;
             this.settings = settings;
-            this.vec3dmax = max;
-            this.vec3dmin = min;
-            this.key = key;
-            this.vec3dNormal = normal;
         }
 
         @Override
         protected void handle() {
-            RenderText renderText = RenderText.getInstance(String.valueOf(stock.getUUID()));
-
-            File file = new File(settings.id.getPath());
-            String jsonPath = file.getName();
-            Identifier jsonId = settings.id.getRelative(jsonPath.replaceAll(".png", ".json"));
-            InputStream json = null;
-            try {
-                json = jsonId.getResourceStream();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+            if (settings.global) {
+                ((EntityScriptableRollingStock)stock).setTextGlobal(settings);
+            } else {
+                ((EntityScriptableRollingStock)stock).setText(settings);
             }
-            renderText.setText(settings.componentId, settings.newText, settings.id, vec3dmin, vec3dmax, json,
-                    settings.resX, settings.resY, settings.align, settings.flipped, settings.fontSize, settings.fontX,
-                    settings.fontGap, new Identifier(ImmersiveRailroading.MODID, "not_needed"), vec3dNormal, settings.hexCode, settings.fullbright, settings.textureHeight, settings.useAlternative, settings.lineSpacingPixels, settings.offset, key);
         }
     }
 }

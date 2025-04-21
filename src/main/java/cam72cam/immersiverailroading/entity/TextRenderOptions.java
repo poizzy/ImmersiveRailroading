@@ -1,12 +1,18 @@
 package cam72cam.immersiverailroading.entity;
 
+import cam72cam.immersiverailroading.items.ItemTypewriter;
+import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
+import cam72cam.mod.math.Vec3d;
+import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.SerializationException;
 import cam72cam.mod.serialization.TagCompound;
 import cam72cam.mod.serialization.TagField;
 import cam72cam.mod.serialization.TagMapper;
 
+import java.io.File;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.GZIPInputStream;
 import java.io.ByteArrayOutputStream;
@@ -33,25 +39,22 @@ public class TextRenderOptions {
     public int lineSpacingPixels;
     public int offset;
     public boolean global;
-
     public List<String> linked = new ArrayList<>();
-
     public boolean selectable = true;
-
     // Used for number plates etc...
     public boolean unique = false;
-
     public boolean isNumberPlate = false;
-
     public String lastText = "";
-
     public List<String> filter = new ArrayList<>();
-
     public boolean assigned = false;
+    public Vec3d min;
+    public Vec3d max;
+    public Vec3d normal;
+    public String groupName;
 
     public TextRenderOptions(Identifier id, String newText, int resX, int resY, Font.TextAlign align, boolean flipped,
                              String componentId, int fontSize, int fontX, int fontGap, List<Integer> fontId, String hexCode,
-                             boolean fullbright, int textureHeight, boolean useAlternative, int lineSpacingPixels, int offset, boolean global) {
+                             boolean fullbright, int textureHeight, boolean useAlternative, int lineSpacingPixels, int offset, boolean global, EntityRollingStockDefinition def) {
         this.id = id;
         this.newText = newText;
         this.resX = resX;
@@ -70,6 +73,17 @@ public class TextRenderOptions {
         this.lineSpacingPixels = lineSpacingPixels;
         this.offset = offset;
         this.global = global;
+
+        LinkedHashMap<String, OBJGroup> group = def.getModel().groups;
+        for (Map.Entry<String, OBJGroup> entry : group.entrySet()) {
+            if (entry.getKey().contains(String.format("TEXTFIELD_%s", this.componentId))) {
+                EntityRollingStockDefinition.Position getPosition = def.normals.get(entry.getKey());
+                this.min = getPosition.vertices.stream().min(Comparator.comparingDouble(Vec3d::length)).orElse(null);
+                this.max = getPosition.vertices.stream().max(Comparator.comparingDouble(Vec3d::length)).orElse(null);
+                this.normal = getPosition.normal;
+                this.groupName = entry.getKey();
+            }
+        }
     }
 
     private TextRenderOptions(TextRenderOptions options) {
@@ -97,6 +111,10 @@ public class TextRenderOptions {
         this.isNumberPlate = options.isNumberPlate;
         this.filter = options.filter;
         this.assigned = options.assigned;
+        this.min = options.min;
+        this.max = options.max;
+        this.normal = options.normal;
+        this.groupName = options.groupName;
     }
 
     public TextRenderOptions(TagCompound compound) {
@@ -110,7 +128,7 @@ public class TextRenderOptions {
         this.fontSize = compound.getInteger("fontSize");
         this.fontX = compound.getInteger("fontX");
         this.fontGap = compound.getInteger("fontGap");
-        this.fontId = compound.getList("fontID", i -> i.getInteger("id"));
+        this.fontId = compound.getList("fontId", i -> i.getInteger("id"));
         this.hexCode = compound.getString("hexCode");
         this.fullbright = compound.getBoolean("fullbright");
         this.textureHeight = compound.getInteger("textureHeight");
@@ -125,6 +143,10 @@ public class TextRenderOptions {
         this.lastText = compound.getString("lastText");
         this.filter = compound.getList("filter", i -> i.getString("f"));
         this.assigned = compound.getBoolean("assigned");
+        this.min = compound.getVec3d("min");
+        this.max = compound.getVec3d("max");
+        this.normal = compound.getVec3d("normal");
+        this.groupName = compound.getString("groupName");
     }
 
     public void setLinked(List<String> linked) {
@@ -150,6 +172,19 @@ public class TextRenderOptions {
 
     public TextRenderOptions clone() {
         return new TextRenderOptions(this);
+    }
+
+    @Override
+    public boolean equals(Object object) {
+        if (this == object) return true;
+        if (object == null || getClass() != object.getClass()) return false;
+        TextRenderOptions options = (TextRenderOptions) object;
+        return flipped == options.flipped && fontSize == options.fontSize && fontX == options.fontX && fontGap == options.fontGap && fullbright == options.fullbright && textureHeight == options.textureHeight && useAlternative == options.useAlternative && lineSpacingPixels == options.lineSpacingPixels && Objects.equals(id, options.id) && Objects.equals(newText, options.newText) && align == options.align && Objects.equals(componentId, options.componentId) && Objects.equals(hexCode, options.hexCode) && Objects.equals(groupName, options.groupName);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, newText, align, flipped, componentId, fontSize, fontX, fontGap, hexCode, fullbright, textureHeight, useAlternative, lineSpacingPixels, groupName);
     }
 
     public static class TextRenderOptionsMapper implements TagMapper<TextRenderOptions> {
@@ -183,7 +218,11 @@ public class TextRenderOptions {
                                 .setBoolean("isNumberPlate", o.isNumberPlate)
                                 .setString("lastText", o.lastText)
                                 .setList("filter", o.filter, f -> new TagCompound().setString("f", f))
-                                .setBoolean("assigned", o.assigned));
+                                .setBoolean("assigned", o.assigned)
+                                .setVec3d("min", o.min)
+                                .setVec3d("max", o.max)
+                                .setVec3d("normal", o.normal)
+                                .setString("groupName", o.groupName));
                     },
                     d -> new TextRenderOptions(d.get(fieldName))
             );

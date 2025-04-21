@@ -1,6 +1,5 @@
 package cam72cam.immersiverailroading.gui;
 
-import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.gui.components.ListSelector;
 import cam72cam.immersiverailroading.items.ItemTypewriter;
@@ -14,16 +13,10 @@ import cam72cam.mod.entity.Player;
 import cam72cam.mod.gui.helpers.GUIHelpers;
 import cam72cam.mod.gui.screen.*;
 import cam72cam.mod.math.Vec3d;
-import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.render.opengl.RenderState;
 import cam72cam.mod.resource.Identifier;
-import util.Matrix4;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -265,7 +258,7 @@ public class TextFieldGUI implements IScreen {
             settings.hexCode = color.getText();
         }
         if (settings.id != null) {
-            RenderText renderText = RenderText.getInstance(String.valueOf(stock.getUUID()));
+            this.vec3dNormal = settings.normal;
 
             settings.newText = input.getText().replace("\\n", "\n");
             settings.lastText = settings.newText;
@@ -296,29 +289,11 @@ public class TextFieldGUI implements IScreen {
                         options.textureHeight = def.fontDef.get(options.fontId.get(0)).resY;
                         options.fontX = def.fontDef.get(options.fontId.get(0)).resX;
                     }
-
-                    if (settings.global) {
-                        stock.setAllText(options);
-                    } else {
-                        stock.setTextTrain(options);
-                    }
+                    new ItemTypewriter.TypewriterPacket(stock, options).sendToServer();
                 }
             }
-
-            LinkedHashMap<String, OBJGroup> group = stock.getDefinition().getModel().groups;
-            for (Map.Entry<String, OBJGroup> entry : group.entrySet()) {
-                if (entry.getKey().contains(String.format("TEXTFIELD_%s", settings.componentId))) {
-                    EntityRollingStockDefinition.Position getPosition = stock.getDefinition().normals.get(entry.getKey());
-                    Vec3d vec3dmin = getVec3dmin(getPosition.vertices);
-                    Vec3d vec3dmax = getVec3dmax(getPosition.vertices);
-                    vec3dNormal = getPosition.normal;
-                    if (settings.global) {
-                        stock.setAllText(settings);
-                        return;
-                    }
-                    new ItemTypewriter.TypewriterPacket(stock, settings, vec3dmin, vec3dmax, entry.getKey(), vec3dNormal).sendToServer();
-                }
-            }
+//            stock.setText(settings);
+            new ItemTypewriter.TypewriterPacket(stock, settings).sendToServer();
         }
     }
 

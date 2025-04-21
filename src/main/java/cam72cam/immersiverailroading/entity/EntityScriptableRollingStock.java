@@ -5,12 +5,10 @@ import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
 import cam72cam.immersiverailroading.items.ItemTypewriter;
-import cam72cam.immersiverailroading.library.GuiTypes;
 import cam72cam.immersiverailroading.library.ModelComponentType;
 import cam72cam.immersiverailroading.library.Permissions;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
 import cam72cam.immersiverailroading.model.part.CustomParticleConfig;
-import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
 import cam72cam.immersiverailroading.script.LuaLibrary;
 import cam72cam.immersiverailroading.script.ScriptVectorUtil;
 import cam72cam.immersiverailroading.util.DataBlock;
@@ -19,7 +17,6 @@ import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.math.Vec3d;
-import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.*;
 import cam72cam.mod.text.PlayerMessage;
@@ -28,7 +25,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.luaj.vm2.*;
 import org.luaj.vm2.lib.jse.JsePlatform;
 import org.luaj.vm2.LuaValue;
-import org.lwjgl.input.Keyboard;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -52,6 +48,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     public Map<String, TextRenderOptions> textRenderOptions = new HashMap<>();
 
     public Globals globals;
+
 
     /**
      *
@@ -225,18 +222,18 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                         options.fontX = getDefinition().fontDef.get(options.fontId.get(0)).resX;
                     }
                     if (options.global) {
-                        setAllText(options);
+                        setTextGlobal(options);
                     } else {
-                        setTextTrain(options);
+                        setText(options);
                     }
                 });
             }
             t.lastText = t.newText;
 
             if (t.global) {
-                setAllText(t);
+                setTextGlobal(t);
             } else {
-                setTextTrain(t);
+                setText(t);
             }
         });
     }
@@ -537,37 +534,19 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             String text = textField.get("text") != null ? textField.get("text").asString() : "";
 
             allOptions = new TextRenderOptions(
-                    font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, new ArrayList<>(), hexCode, fullbright, textureHeight, useAlternative, lineSpacingPixels, offset, allStock
+                    font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, new ArrayList<>(), hexCode, fullbright, textureHeight, useAlternative, lineSpacingPixels, offset, allStock, this.getDefinition()
             );
         }
 
         if (allOptions == null) {
             return;
         }
+        textFields.add(allOptions);
 
-        try {
-            textFields.add(allOptions);
-            textRenderOptions.put(allOptions.componentId, allOptions);
-
-            if (allOptions.global) {
-                setAllText(allOptions);
-            } else {
-                setText(allOptions);
-            }
-        } catch (IOException e) {
-            ModCore.error("An error occurred while creating text field %s | An error occurred while loading font %s | error: %s", allOptions.componentId, allOptions.id, e);
-        }
+        new ItemTypewriter.TypewriterPacket(this, allOptions).sendToServer();
     }
 
-    private Vec3d getVec3dmin (List<Vec3d> vectors) {
-        return vectors.stream().min(Comparator.comparingDouble(Vec3d::length)).orElse(null);
-    }
-
-    private Vec3d getVec3dmax (List<Vec3d> vectors) {
-        return vectors.stream().max(Comparator.comparingDouble(Vec3d::length)).orElse(null);
-    }
-
-    public void setAllText(TextRenderOptions options) {
+    public void setTextGlobal(TextRenderOptions options) {
         this.mapTrain(this, false, stock -> {
             if (stock == null) {
                 ModCore.error("Stock is null when setting text.");
@@ -577,36 +556,19 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                 ModCore.error("Options is null when setting text.");
                 return;
             }
-            stock.setTextTrain(options);
+            ((EntityScriptableRollingStock)stock).setText(options);
         });
     }
 
-    public void setText(TextRenderOptions options) throws IOException {
+    public void setText(TextRenderOptions options) {
+        RenderText renderText = RenderText.getInstance(String.valueOf(this.getUUID()));
         String currentText = componentTextMap.get(options.componentId);
-        if (!options.newText.equals(currentText)) {
-            LinkedHashMap<String, OBJGroup> group = this.getDefinition().getModel().groups;
-            for (Map.Entry<String, OBJGroup> entry : group.entrySet()) {
-                if (entry.getKey().contains(String.format("TEXTFIELD_%s", options.componentId))) {
-                    EntityRollingStockDefinition.Position getPosition = getDefinition().normals.get(entry.getKey());
-                    Vec3d vec3dmin = getVec3dmin(getPosition.vertices);
-                    Vec3d vec3dmax = getVec3dmax(getPosition.vertices);
-                    Vec3d vec3dNormal = getPosition.normal;
-                    RenderText renderText = RenderText.getInstance(String.valueOf(getUUID()));
-                    File file = new File(options.id.getPath());
-                    String jsonPath = file.getName();
-                    Identifier jsonId = options.id.getRelative(jsonPath.replaceAll(".png", ".json"));
-                    InputStream json = jsonId.getResourceStream();
-
-                    renderText.setText(
-                            options.componentId, options.newText, options.id, vec3dmin, vec3dmax, json,
-                            options.resX, options.resY, options.align, options.flipped, options.fontSize, options.fontX,
-                            options.fontGap, new Identifier(ImmersiveRailroading.MODID, "not_needed"), vec3dNormal, options.hexCode, options.fullbright, options.textureHeight, options.useAlternative, options.lineSpacingPixels, options.offset, entry.getKey()
-                    );
-
-                    componentTextMap.put(options.componentId, options.newText);
-                }
-            }
+        if (options.newText.equals(currentText)) {
+            return;
         }
+        renderText.setText(options, this.getDefinition());
+        componentTextMap.put(options.componentId, options.newText);
+        textRenderOptions.put(options.componentId, options);
     }
 
     public LuaValue getTrainConsist() {
@@ -763,20 +725,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                 return LuaValue.valueOf(getDefinition().getTraction());
             default:
                 return LuaValue.valueOf(0);
-        }
-    }
-
-    private void accept(Boolean key, List<TextRenderOptions> options) {
-        if (key.equals(true)) {
-            options.forEach(this::setAllText);
-        } else {
-            try {
-                for (TextRenderOptions option : options) {
-                    setText(option);
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
         }
     }
 
@@ -1022,16 +970,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     }
 
     public void setTurnedOnLua(LuaValue b) {
-    }
-
-
-    @Override
-    public void setTextTrain(TextRenderOptions options) {
-        try {
-            setText(options);
-        } catch (IOException e) {
-            ModCore.error("An error occurred while creating textfields", e);
-        }
     }
 
     public static class Data {
