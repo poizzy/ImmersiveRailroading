@@ -43,65 +43,10 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     private final Map<Integer, ParticleState> particleStates = new HashMap<>();
     private final Map<Integer, ParticleState> oldParticleState = new HashMap<>();
 
-    private final List<TextRenderOptions> textFields = new ArrayList<>();
-
+    @TagField(value = "textRenderOptions", mapper = MapTextRenderOptionsMapper.class)
     public Map<String, TextRenderOptions> textRenderOptions = new HashMap<>();
 
     public Globals globals;
-
-
-    /**
-     *
-     * Sad to say that this doesn't work, the data required for the text fields needs to much memory to save to NBT data,
-     * maybe I will come back to it later.
-     * TODO find another way of saving data from the text fields.
-     *
-     */
-
-//    @Override
-//    public void load(TagCompound data) {
-//        super.load(data);
-//        int index = 0;
-//        while (data.hasKey("textField_" + index)) {
-//            TagCompound optionNBT = data.get("textField_" + index);
-//            TextRenderOptions textRenderOptions = null;
-//            try {
-//                textRenderOptions = new TextRenderOptions(optionNBT);
-//            } catch (IOException e) {
-//                throw new RuntimeException(e);
-//            }
-//            textFields.add(textRenderOptions);
-//            index++;
-//        }
-//        textFields.forEach(o -> {
-//            if (o.global) {
-//                setAllText(o);
-//            } else {
-//                try {
-//                    setText(o);
-//                } catch (IOException e) {
-//                    throw new RuntimeException(e);
-//                }
-//            }
-//        });
-//    }
-//
-//    @Override
-//    public void save(TagCompound data) {
-//        super.save(data);
-//
-//        for (int i = 0; i < textFields.size(); i++) {
-//            TagCompound optionNBT = new TagCompound();
-//            try {
-//                textFields.get(i).serializeTextRenderOptions(optionNBT);
-//            } catch (IOException e) {
-//                throw new RuntimeException(e);
-//            }
-//            data.set("textField_" + i, optionNBT);
-//        }
-//    }
-
-
 
     @Override
     public void onTick() {
@@ -163,92 +108,9 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     @Override
     public void load(TagCompound data) {
         super.load(data);
-        Map<String, TextRenderOptions> settings = getDefinition().textFieldDef;
-        settings.forEach((s, t) -> textRenderOptions.put(s, t.clone()));
-
-        List<TextRenderOptions> textFields = new ArrayList<>(settings.values()).stream().filter(t -> t.linked.stream().anyMatch(m -> m.equals(t.componentId))).collect(Collectors.toList());
-
-        textRenderOptions.forEach((s, t) -> {
-            assert t.fontId != null;
-            t.id = getDefinition().fontDef.get(t.fontId.get(0)).font;
-            t.fontSize = getDefinition().fontDef.get(t.fontId.get(0)).size;
-            t.textureHeight = getDefinition().fontDef.get(t.fontId.get(0)).resY;
-            t.fontX = getDefinition().fontDef.get(t.fontId.get(0)).resX;
-
-            boolean assigned = data.getBoolean(String.format("TextField_%s_assigned", t.componentId)) != null;
-
-            if (assigned) {
-                t.assigned = data.getBoolean(String.format("TextField_%s_assigned", t.componentId));
-            }
-
-            if (t.assigned) {
-                t.newText = data.getString("TextField_" + t.componentId);
-                getDefinition().inputs.put(getUUID(), t.newText);
-            }
-
-            if (!t.filter.isEmpty() && t.unique && !t.assigned) {
-                List<String> text = t.filter.stream().filter(f -> !getDefinition().inputs.containsValue(f)).collect(Collectors.toList());
-
-                if (!text.isEmpty()) {
-                    t.newText = text.get((int) (Math.random() * (text.size() - 1)));
-
-                    getDefinition().inputs.put(getUUID(), t.newText);
-                    t.assigned = true;
-                }
-            }
-
-            if (!t.linked.isEmpty()) {
-                t.linked.forEach(l -> {
-                    TextRenderOptions options = settings.get(l);
-                    options.newText = t.newText;
-
-                    options.lastText = options.newText;
-
-                    assert options.fontId != null;
-                    options.fontId.forEach(id -> {
-                        Identifier font = getDefinition().fontDef.get(id).font;
-                        if (font.equals(t.id)) {
-                            options.id = t.id;
-                            options.fontSize = t.fontSize;
-                            options.textureHeight = t.textureHeight;
-                            options.fontX = t.fontX;
-                        }
-                    });
-
-                    if (options.id == null) {
-                        options.id = getDefinition().fontDef.get(options.fontId.get(0)).font;
-                        options.fontSize = getDefinition().fontDef.get(options.fontId.get(0)).size;
-                        options.textureHeight = getDefinition().fontDef.get(options.fontId.get(0)).resY;
-                        options.fontX = getDefinition().fontDef.get(options.fontId.get(0)).resX;
-                    }
-                    if (options.global) {
-                        setTextGlobal(options);
-                    } else {
-                        setText(options);
-                    }
-                });
-            }
-            t.lastText = t.newText;
-
-            if (t.global) {
-                setTextGlobal(t);
-            } else {
-                setText(t);
-            }
-        });
-    }
-
-    @Override
-    public void save(TagCompound data) {
-        super.save(data);
-        textRenderOptions.forEach((s, t) -> {
-            if (t.assigned) {
-                data.setString("TextField_" + t.componentId, getDefinition().inputs.get(getUUID()));
-                data.setBoolean(String.format("TextField_%s_assigned", t.componentId), true);
-            } else {
-                data.setBoolean(String.format("TextField_%s_assigned", t.componentId), false);
-            }
-        });
+        if (!textRenderOptions.isEmpty()) {
+            textRenderOptions.forEach((s, options) -> new ItemTypewriter.TypewriterPacket(this, options));
+        }
     }
 
     public boolean LoadLuaFile() throws IOException {
@@ -541,7 +403,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         if (allOptions == null) {
             return;
         }
-        textFields.add(allOptions);
 
         new ItemTypewriter.TypewriterPacket(this, allOptions).sendToServer();
     }
@@ -1132,6 +993,48 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         return LuaValue.NIL;  // If the type doesn't match, return Lua NIL
     }
 
+    private static class MapTextRenderOptionsMapper implements TagMapper<Map<String, TextRenderOptions>> {
+
+        @Override
+        public TagAccessor<Map<String, TextRenderOptions>> apply(Class<Map<String, TextRenderOptions>> type, String fieldName, TagField tag) throws SerializationException {
+            return new TagAccessor<>(
+                    (d, o) -> {
+                        d.setMap(fieldName, o, k -> k, v -> new TagCompound()
+                                .setString("id", v.id.toString())
+                                .setString("newText", v.newText)
+                                .setInteger("resX", v.resX)
+                                .setInteger("resY", v.resY)
+                                .setEnum("align", v.align)
+                                .setBoolean("flipped", v.flipped)
+                                .setString("componentId", v.componentId)
+                                .setInteger("fontSize", v.fontSize)
+                                .setInteger("fontX", v.fontX)
+                                .setInteger("fontGap", v.fontGap)
+                                .setList("fontId", v.fontId, i -> new TagCompound().setInteger("id", i))
+                                .setString("hexCode", v.hexCode)
+                                .setBoolean("fullbright", v.fullbright)
+                                .setInteger("textureHeight", v.textureHeight)
+                                .setBoolean("useAlternative", v.useAlternative)
+                                .setInteger("lineSpacingPixels", v.lineSpacingPixels)
+                                .setInteger("offset", v.offset)
+                                .setBoolean("global", v.global)
+                                .setList("linked", v.linked, l -> new TagCompound().setString("l", l))
+                                .setBoolean("selectable", v.selectable)
+                                .setBoolean("unique", v.unique)
+                                .setBoolean("isNumberPlate", v.isNumberPlate)
+                                .setString("lastText", v.lastText)
+                                .setList("filter", v.filter, f -> new TagCompound().setString("f", f))
+                                .setBoolean("assigned", v.assigned)
+                                .setVec3d("min", v.min)
+                                .setVec3d("max", v.max)
+                                .setVec3d("normal", v.normal)
+                                .setString("groupName", v.groupName));
+                    },
+                    (d) -> d.getMap(fieldName, k -> k, TextRenderOptions::new)
+            );
+        }
+    }
+
     private static class LuaDataMapper implements TagMapper<Map<String, Object>> {
         @Override
         public TagAccessor<Map<String, Object>> apply(Class<Map<String, Object>> type, String fieldName, TagField tag) {
@@ -1183,4 +1086,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             return null;
         }
     }
+
+
 }
