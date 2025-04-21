@@ -903,7 +903,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 
 			case LUA_SCRIPTER: {
 				EntityScriptableRollingStock stock = this.getStockNearBy(EntityScriptableRollingStock.class);
-				if (stock != null) {
+				if (stock != null && stockEvent != null) {
 					this.scriptableRollingStock = stock;
 					stockEvent.call();
 				}
