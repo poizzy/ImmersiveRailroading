@@ -417,7 +417,9 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                 ModCore.error("Options is null when setting text.");
                 return;
             }
-            ((EntityScriptableRollingStock)stock).setText(options);
+            if (stock.getDefinition().getModel().groups.keySet().stream().anyMatch(s -> s.contains(String.format("TEXTFIELD_%s", options.componentId)))) {
+                ((EntityScriptableRollingStock)stock).setText(options);
+            }
         });
     }
 
