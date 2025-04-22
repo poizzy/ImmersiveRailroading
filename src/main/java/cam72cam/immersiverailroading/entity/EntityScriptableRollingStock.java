@@ -48,6 +48,8 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
 
     public Globals globals;
 
+    private Set<ScheduleEvent> schedule = new HashSet<>();
+
     @Override
     public void onTick() {
         super.onTick();
@@ -88,6 +90,15 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                 throw new RuntimeException(e);
             }
         }
+
+        schedule.removeIf(t -> {
+            t.ticks--;
+            if (t.ticks <= 0) {
+                t.runnable.run();
+                return true;
+            }
+            return false;
+        });
     }
 
     @Override
@@ -211,6 +222,10 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                             .forEach(player -> player.sendMessage(PlayerMessage.direct(arg.tojstring()))))
                     .setInGlobals(globals);
 
+            LuaLibrary.create("Utils")
+                    .addFunction("wait", this::luaWait)
+                    .setInGlobals(globals);
+
             ScriptVectorUtil.VecUtil.setInGlobals(globals);
             LuaValue chunk = globals.load(luaScript);
             chunk.call();
@@ -287,6 +302,21 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     public float getReadout(String readout) {
         Readouts readouts = Readouts.valueOf(readout.toUpperCase());
         return readouts.getValue(this);
+    }
+
+    public void luaWait(LuaValue sec, LuaValue func) {
+        float seconds = sec.tofloat();
+        Runnable runnable = () -> {
+            try {
+                func.call();
+            } catch (Exception e) {
+                ModCore.error("[Lua] Error while executing scheduled wait function: " + e.getMessage());
+            }
+        };
+
+        int ticks = Math.round(seconds * 20);
+        ScheduleEvent event = new ScheduleEvent(runnable, ticks, func);
+        schedule.add(event);
     }
 
     protected void setPerformance(LuaValue performanceType, LuaValue val) {
@@ -1089,5 +1119,29 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         }
     }
 
+    private static class ScheduleEvent {
+        public Runnable runnable;
+        public Integer ticks;
+        public LuaValue func;
+
+        public ScheduleEvent(Runnable runnable, Integer ticks, LuaValue func) {
+            this.runnable = runnable;
+            this.ticks = ticks;
+            this.func = func;
+        }
+
+        @Override
+        public boolean equals(Object object) {
+            if (this == object) return true;
+            if (object == null || getClass() != object.getClass()) return false;
+            ScheduleEvent that = (ScheduleEvent) object;
+            return func.equals(that.func);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(func);
+        }
+    }
 
 }
