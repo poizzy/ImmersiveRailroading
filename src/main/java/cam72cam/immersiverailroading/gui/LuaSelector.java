@@ -134,7 +134,7 @@ public class LuaSelector implements IScreen {
                     GUIHelpers.drawRect(dropdownX, lineY,  dropdownWidth, SCRIPT_LINE_HEIGHT, 0xFF808080);
                 }
 
-                GUIHelpers.drawCenteredString(string, (dropdownX + 2) + GUIHelpers.getTextWidth(string) / 2, lineY + 2, 0xFFFFFF);
+                GUIHelpers.drawCenteredString(string, (dropdownX + 2) + dropdownWidth / 2, lineY + 2, 0xFFFFFF);
             }
         } else {
             dropdownToggle.setText("▼");
