@@ -30,9 +30,15 @@ public class Mesh {
         public List<Vec3d> vertices = new ArrayList<>();
         public Vec3d normal;
         public Pair<Float, Float> uv;
+
+        public CollisionBox getCollisionBox() {
+            Vec3d min = vertices.get(0).min(vertices.get(1).min(vertices.get(2)));
+            Vec3d max = vertices.get(0).max(vertices.get(1).max(vertices.get(2)));
+            return new CollisionBox(min, max);
+        }
     }
 
-    public List<Group> groups = new ArrayList<>();
+    public final Map<String, Group> groups = new HashMap<>();
 
     public static Mesh loadMesh(Identifier modelLoc) throws IOException {
         List<Vec3d> vertices = new ArrayList<>();
@@ -98,7 +104,6 @@ public class Mesh {
             }
         }
 
-        // Add the last object
         if (!currentObj.faces.isEmpty()) {
             objects.add(currentObj);
         }
@@ -111,6 +116,14 @@ public class Mesh {
     }
 
     public Mesh() {
+    }
+
+    public Group getGroup(String name) {
+        return groups.get(name);
+    }
+
+    public List<Group> getGroupContains(String name) {
+        return groups.entrySet().stream().filter(e -> e.getKey().contains(name)).map(Map.Entry::getValue).collect(Collectors.toList());
     }
 
     private void addGroup(String name, List<Vec3d> vertices, List<Vec3d> normals, List<Pair<Float, Float>> uvs, List<List<VertexRef>> faceData) {
@@ -154,11 +167,7 @@ public class Mesh {
             averageNormal = new Vec3d(0, 1, 0);
         }
 
-        if (groups == null) {
-            groups = new ArrayList<>();
-        }
-
-        groups.add(new Group(name, tempFaces, min, max, averageNormal));
+        groups.put(name, new Group(name, tempFaces, min, max, averageNormal));
     }
 
     private static class Obj {
