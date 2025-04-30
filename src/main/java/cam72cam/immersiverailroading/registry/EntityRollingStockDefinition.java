@@ -5,6 +5,7 @@ import cam72cam.immersiverailroading.ConfigSound;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
+import cam72cam.immersiverailroading.floor.Mesh;
 import cam72cam.immersiverailroading.util.*;
 import cam72cam.immersiverailroading.gui.overlay.GuiBuilder;
 import cam72cam.immersiverailroading.gui.overlay.Readouts;
@@ -15,6 +16,7 @@ import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.EntityRegistry;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.OBJGroup;
+import cam72cam.mod.model.obj.OBJParser;
 import cam72cam.mod.model.obj.VertexBuffer;
 import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.*;
@@ -29,10 +31,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -112,6 +111,8 @@ public abstract class EntityRollingStockDefinition {
     public List<AnimationDefinition> animations;
     public Map<String, Float> cgDefaults;
     public Map<String, DataBlock> widgetConfig;
+
+    public Mesh mesh;
 
     public WalkableSpaceDefinition walkableSpaceDefinition;
 
@@ -371,6 +372,8 @@ public abstract class EntityRollingStockDefinition {
 
         loadData(transformData(data));
 
+        this.mesh = Mesh.loadMesh(this.modelLoc);
+
         this.model = createModel();
         this.itemGroups = model.groups.keySet().stream().filter(x -> !ModelComponentType.shouldRender(x)).collect(Collectors.toList());
 
@@ -506,7 +509,7 @@ public abstract class EntityRollingStockDefinition {
             for (DataBlock alternate : alternates) {
                 alternate.getValueMap().forEach((key, value) -> textureNames.put(value.asString(), key));
             }
-        } catch (java.io.FileNotFoundException ex) {
+        } catch (FileNotFoundException ex) {
             ImmersiveRailroading.catching(ex);
         }
 
