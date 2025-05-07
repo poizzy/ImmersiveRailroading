@@ -21,6 +21,11 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
     public Vec3d getMountOffset(Entity passenger, Vec3d off) {
         NavMesh navMesh = getDefinition().navMesh;
         if (navMesh.hasNavMesh()) {
+            Vec3d seat = getSeatPosition(passenger.getUUID());
+            if (seat != null) {
+                return seat;
+            }
+
             Vec3d realOffset = off.rotateYaw(-90);
             CollisionBox queryBox = new CollisionBox(
                     realOffset.subtract(4f, 4f, 4f),
@@ -93,6 +98,11 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
 
             if (hit) {
                 offset = reapplyPitch(new Vec3d(targetXZ.x, closestY, targetXZ.z), this.getRotationPitch());
+            }
+
+            Vec3d seat = getSeatPosition(passenger.getUUID());
+            if (seat != null) {
+                offset = seat;
             }
             return offset;
         } else {
