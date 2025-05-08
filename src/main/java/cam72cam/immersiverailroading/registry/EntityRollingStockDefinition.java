@@ -146,15 +146,6 @@ public abstract class EntityRollingStockDefinition {
             volume = obj.getValue("volume").asFloat(1.0f);
         }
 
-        public SoundDefinition(ObjectValue newSound, Map<String, DataBlock.Value> sound) {
-            start = newSound.getValueMap("start", sound).asIdentifier();
-            main = newSound.getValueMap("main", sound).asIdentifier();
-            looping = newSound.getValueMap("looping", sound).asBoolean(true);
-            stop = newSound.getValueMap("stop", sound).asIdentifier();
-            distance = newSound.getValueMap("distance", sound).asFloat();
-            volume = newSound.getValueMap("volume", sound).asFloat(1.0f);
-        }
-
         public static SoundDefinition getOrDefault(DataBlock block, String key) {
             DataBlock found = block.getBlock(key);
             if (found != null) {
@@ -167,22 +158,6 @@ public abstract class EntityRollingStockDefinition {
             return null;
         }
 
-        public static SoundDefinition getOrDefault(ObjectValue value, Map<String, DataBlock.Value> sound) {
-            if (sound.containsKey("start") || sound.containsKey("main") ||
-                    sound.containsKey("looping") || sound.containsKey("stop") ||
-                    sound.containsKey("distance") || sound.containsKey("volume")) {
-                return new SoundDefinition(value, sound);
-            }
-            DataBlock.Value dataBlockValue = sound.get(value.asString());
-
-            if (dataBlockValue != null) {
-                Identifier ident = dataBlockValue.asIdentifier();
-                if (ident != null) {
-                    return new SoundDefinition(ident);
-                }
-            }
-            return null;
-        }
         @Override
         public boolean equals(Object obj) {
             if (this == obj) return true;

@@ -1,17 +1,12 @@
 package cam72cam.immersiverailroading.entity;
 
 import cam72cam.immersiverailroading.IRItems;
-import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
 import cam72cam.immersiverailroading.items.ItemTypewriter;
-import cam72cam.immersiverailroading.library.ModelComponentType;
 import cam72cam.immersiverailroading.library.Permissions;
-import cam72cam.immersiverailroading.model.components.ModelComponent;
-import cam72cam.immersiverailroading.model.part.CustomParticleConfig;
 import cam72cam.immersiverailroading.script.LuaLibrary;
 import cam72cam.immersiverailroading.script.ScriptVectorUtil;
-import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Player;
@@ -29,7 +24,6 @@ import org.luaj.vm2.LuaValue;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public abstract class EntityScriptableRollingStock extends EntityCoupleableRollingStock {
 
@@ -48,7 +42,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
 
     public Globals globals;
 
-    private Set<ScheduleEvent> schedule = new HashSet<>();
+    private final Set<ScheduleEvent> schedule = new HashSet<>();
 
     @Override
     public void onTick() {
@@ -320,19 +314,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     }
 
     protected void setPerformance(LuaValue performanceType, LuaValue val) {
-        String type = performanceType.tojstring();
-        double newValue = val.todouble();
-//        switch (type) {
-//            case "max_speed_kmh":
-//                getDefinition().setMaxSpeed(newValue);
-//                break;
-//            case "tractive_effort_lbf":
-//                getDefinition().setTraction(newValue);
-//                break;
-//            case "horsepower":
-//                getDefinition().setHorsepower(newValue);
-//                break;
-//        }
+        /* */
     }
 
     public void setCouplerEngagedLua(LuaValue positionLua, LuaValue engagedLua) {
@@ -349,69 +331,67 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     }
 
     public void textFieldDef(LuaValue result) {
-        Map<String, DataBlock.Value> textField = new HashMap<>();
-        if (result.istable()) {
-            for (LuaValue key : result.checktable().keys()) {
-                DataBlock.Value value = new ObjectValue(convertLuaValueText(key, result.get(key))); // Fixed here
-                textField.put(key.tojstring(), value);
-            }
+        if (!result.istable()) {
+            ModCore.error("[Lua] Given parameter of IR.setText is not a table, this function will not work!");
+            return;
         }
 
-        String textFieldID = textField.get("ID").asString();
+        LuaTable textField = result.checktable();
 
-        TextRenderOptions allOptions = null;
+        String textFieldID = textField.get("ID").tojstring();
+
+        TextRenderOptions allOptions;
 
         if (textRenderOptions.containsKey(textFieldID)) {
             TextRenderOptions options  = textRenderOptions.get(textFieldID);
 
-            Optional.ofNullable(textField.get("font")).ifPresent(o -> options.id = o.asIdentifier());
-            Optional.ofNullable(textField.get("ID")).ifPresent(o -> options.componentId = o.asString());
-            Optional.ofNullable(textField.get("resX")).ifPresent(o -> options.resX = o.asInteger());
-            Optional.ofNullable(textField.get("resY")).ifPresent(o -> options.resY = o.asInteger());
-            Optional.ofNullable(textField.get("flipped")).ifPresent(o -> options.flipped = o.asBoolean());
-            Optional.ofNullable(textField.get("textureHeight")).ifPresent(o -> options.textureHeight = o.asInteger());
-            Optional.ofNullable(textField.get("fontSize")).ifPresent(o -> options.fontSize = o.asInteger());
-            Optional.ofNullable(textField.get("textureWidth")).ifPresent(o -> options.fontX = o.asInteger());
-            Optional.ofNullable(textField.get("fontGap")).ifPresent(o -> options.fontGap = o.asInteger());
-            Optional.ofNullable(textField.get("color")).ifPresent(o -> options.hexCode = o.asString());
-            Optional.ofNullable(textField.get("fullbright")).ifPresent(o -> options.fullbright = o.asBoolean());
-            Optional.ofNullable(textField.get("global")).ifPresent(o -> options.global = o.asBoolean());
-            Optional.ofNullable(textField.get("useAltAlignment")).ifPresent(o -> options.useAlternative = o.asBoolean());
-            Optional.ofNullable(textField.get("lineSpacing")).ifPresent(o -> options.lineSpacingPixels = o.asInteger());
-            Optional.ofNullable(textField.get("offset")).ifPresent(o -> options.offset = o.asInteger());
+            Optional.ofNullable(textField.get("font")).ifPresent(o -> options.id = new Identifier(o.tojstring()));
+            Optional.ofNullable(textField.get("ID")).ifPresent(o -> options.componentId = o.tojstring());
+            Optional.ofNullable(textField.get("resX")).ifPresent(o -> options.resX = o.toint());
+            Optional.ofNullable(textField.get("resY")).ifPresent(o -> options.resY = o.toint());
+            Optional.ofNullable(textField.get("flipped")).ifPresent(o -> options.flipped = o.toboolean());
+            Optional.ofNullable(textField.get("textureHeight")).ifPresent(o -> options.textureHeight = o.toint());
+            Optional.ofNullable(textField.get("fontSize")).ifPresent(o -> options.fontSize = o.toint());
+            Optional.ofNullable(textField.get("textureWidth")).ifPresent(o -> options.fontX = o.toint());
+            Optional.ofNullable(textField.get("fontGap")).ifPresent(o -> options.fontGap = o.toint());
+            Optional.ofNullable(textField.get("color")).ifPresent(o -> options.hexCode = o.tojstring());
+            Optional.ofNullable(textField.get("fullbright")).ifPresent(o -> options.fullbright = o.toboolean());
+            Optional.ofNullable(textField.get("global")).ifPresent(o -> options.global = o.toboolean());
+            Optional.ofNullable(textField.get("useAltAlignment")).ifPresent(o -> options.useAlternative = o.toboolean());
+            Optional.ofNullable(textField.get("lineSpacing")).ifPresent(o -> options.lineSpacingPixels = o.toint());
+            Optional.ofNullable(textField.get("offset")).ifPresent(o -> options.offset = o.toint());
             Optional.ofNullable(textField.get("align")).ifPresent(o -> {
-                if (o.asString().equalsIgnoreCase("right")) {
+                if (o.tojstring().equalsIgnoreCase("right")) {
                     options.align = Font.TextAlign.RIGHT;
-                } else if (o.asString().equalsIgnoreCase("center")) {
+                } else if (o.tojstring().equalsIgnoreCase("center")) {
                     options.align = Font.TextAlign.CENTER;
                 } else {
                     options.align = Font.TextAlign.LEFT;
                 }
             });
-            Optional.ofNullable(textField.get("text")).ifPresent(o -> options.newText = o.asString());
+            Optional.ofNullable(textField.get("text")).ifPresent(o -> options.newText = o.tojstring());
 
             allOptions = options;
         } else {
-            Identifier font = textField.get("font") != null ? textField.get("font").asIdentifier() : null;
-            String textFieldId = textField.get("ID") != null ? textField.get("ID").asString() : null;
-            int resX = textField.get("resX") != null ? textField.get("resX").asInteger() : 0;
-            int resY = textField.get("resY") != null ? textField.get("resY").asInteger() : 0;
-            boolean flipped = textField.get("flipped") != null && textField.get("flipped").asBoolean();
-            int textureHeight = textField.get("textureHeight") != null ? textField.get("textureHeight").asInteger() : 12;
-            int fontSize = textField.get("fontSize") != null ? textField.get("fontSize").asInteger() : textureHeight;
-            int fontLength = textField.get("textureWidth") != null ? textField.get("textureWidth").asInteger() : 512;
-            int fontGap = textField.get("fontGap") != null ? textField.get("fontGap").asInteger() : 1;
-            Identifier overlay = textField.get("overlay") != null ? textField.get("overlay").asIdentifier() : null;
-            String hexCode = textField.get("color") != null ? textField.get("color").asString() : null;
-            boolean fullbright = textField.get("fullbright") != null ? textField.get("fullbright").asBoolean() : false;
-            boolean allStock = textField.get("global") != null ? textField.get("global").asBoolean() : false;
-            boolean useAlternative = textField.get("useAltAlignment") != null ? textField.get("useAltAlignment").asBoolean() : false;
-            int lineSpacingPixels = textField.get("lineSpacing") != null ? textField.get("lineSpacing").asInteger() : 1;
-            int offset = textField.get("offset") != null ? textField.get("offset").asInteger() : 0;
+            Identifier font = textField.get("font") != null ? new Identifier(textField.get("font").tojstring()) : null;
+            String textFieldId = textField.get("ID") != null ? textField.get("ID").tojstring() : null;
+            int resX = textField.get("resX") != null ? textField.get("resX").toint() : 0;
+            int resY = textField.get("resY") != null ? textField.get("resY").toint() : 0;
+            boolean flipped = textField.get("flipped") != null && textField.get("flipped").toboolean();
+            int textureHeight = textField.get("textureHeight") != null ? textField.get("textureHeight").toint() : 12;
+            int fontSize = textField.get("fontSize") != null ? textField.get("fontSize").toint() : textureHeight;
+            int fontLength = textField.get("textureWidth") != null ? textField.get("textureWidth").toint() : 512;
+            int fontGap = textField.get("fontGap") != null ? textField.get("fontGap").toint() : 1;
+            String hexCode = textField.get("color") != null ? textField.get("color").tojstring() : null;
+            boolean fullbright = textField.get("fullbright") != null && textField.get("fullbright").toboolean();
+            boolean allStock = textField.get("global") != null && textField.get("global").toboolean();
+            boolean useAlternative = textField.get("useAltAlignment") != null && textField.get("useAltAlignment").toboolean();
+            int lineSpacingPixels = textField.get("lineSpacing") != null ? textField.get("lineSpacing").toint() : 1;
+            int offset = textField.get("offset") != null ? textField.get("offset").toint() : 0;
 
             Font.TextAlign align;
             if (textField.get("align") != null) {
-                String alignStr = textField.get("align").asString();
+                String alignStr = textField.get("align").tojstring();
                 if (alignStr.equalsIgnoreCase("right")) {
                     align = Font.TextAlign.RIGHT;
                 } else if (alignStr.equalsIgnoreCase("center")) {
@@ -423,7 +403,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                 align = Font.TextAlign.LEFT;
             }
 
-            String text = textField.get("text") != null ? textField.get("text").asString() : "";
+            String text = textField.get("text") != null ? textField.get("text").tojstring() : "";
 
             allOptions = new TextRenderOptions(
                     font, text, resX, resY, align, flipped, textFieldId, fontSize, fontLength, fontGap, new ArrayList<>(), hexCode, fullbright, textureHeight, useAlternative, lineSpacingPixels, offset, allStock, this.getDefinition()
@@ -570,41 +550,9 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             return LuaValue.valueOf(0);
         }
     }
-    /**
-     * Good Idea, awful Implementation
-     */
 
-//    private LuaValue keyPressed(Varargs args) {
-//        int numberOfArgs = args.narg();
-//        List<Integer> keys = new ArrayList<>();
-//        for (int i = 1; i <= numberOfArgs; i++) {
-//            int key = Keyboard.getKeyIndex(args.subargs(i).tojstring());
-//            keys.add(key);
-//        }
-//        boolean pressed = keys.stream().allMatch(Keyboard::isKeyDown);
-//        return LuaValue.valueOf(pressed);
-//    }
-
-
+    @Deprecated
     public void setNewSound(LuaValue result) {
-        List<Map<String, DataBlock.Value>> newSound = new ArrayList<>();
-
-        if (result.istable()) {
-
-            for (LuaValue key : result.checktable().keys()) {
-
-                LuaValue entry = result.get(key);
-                Map<String, DataBlock.Value> soundDefinition = new HashMap<>();
-
-                for (LuaValue entrykey : entry.checktable().keys()) {
-                    LuaValue value = entry.get(entrykey);
-                    DataBlock.Value soundDef = new ObjectValue(convertLuaValue(value));
-                    soundDefinition.put(entrykey.tojstring(), soundDef);
-                }
-                newSound.add(soundDefinition);
-            }
-            getDefinition().setSounds(newSound, this);
-        }
     }
 
     protected LuaValue getPerformance(LuaValue type) {
@@ -621,6 +569,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         }
     }
 
+    @Deprecated
     static class ParticleState {
         Vec3d motion;
         int lifespan;
@@ -666,166 +615,12 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         }
     }
 
+    @Deprecated
     private void particleDefinition(LuaValue result) {
-        if (result.istable()) {
-            DataBlock data = luaTableToDataBlock(result);
-
-            Identifier texture = data.getValue("texture").asIdentifier(new Identifier(ImmersiveRailroading.MODID, "textures/light.png"));
-            int id = data.getValue("id").asInteger(1);
-            List<DataBlock.Value> motionData = data.getValuesMap().get("motion");
-            Vec3d motion = new Vec3d(motionData.get(2).asDouble(0), motionData.get(1).asDouble(1), motionData.get(0).asDouble(0));
-            int lifespan = data.getValue("lifespan").asInteger(25);
-//            float darken = data.getValue("darken").asFloat(0);
-            float thickness = data.getValue("thickness").asFloat(0.1f);
-            Double diameter = data.getValue("diameter").asDouble();
-            boolean normalWidth = diameter == null;
-            boolean alwaysRunning = data.getValue("alwaysRunning").asBoolean(false);
-            boolean render = data.getValue("renders").asBoolean(true);
-            List<DataBlock.Value> rgba = data.getValuesMap().get("colorRGBA");
-            int r;
-            int g;
-            int b;
-            double a;
-            if (rgba != null) {
-                r = rgba.get(0).asInteger(240);
-                g = rgba.get(1).asInteger(240);
-                b = rgba.get(2).asInteger(240);
-                a = rgba.get(3).asDouble(10);
-            } else {
-                r = 240;
-                g = 240;
-                b = 240;
-                a = 10;
-            }
-            String hex = data.getValue("colorHEX").asString();
-            if (hex != null && hex.matches("^#([A-Fa-f0-9]{6})$")) {
-                r = Integer.parseInt(hex.substring(1, 3), 16);
-                g = Integer.parseInt(hex.substring(3, 5), 16);
-                b = Integer.parseInt(hex.substring(5, 7), 16);
-            }
-            double expansionRate = data.getValue("expansionRate").asDouble(16);
-
-            particleStates.put(id, new ParticleState(motion, lifespan, 0f, thickness, diameter != null ? diameter : 0.25, texture, alwaysRunning, render, r, g, b, a, expansionRate, normalWidth));
-
-            newParticle(particleStates);
-        }
     }
 
+    @Deprecated
     private void newParticle(Map<Integer, ParticleState> particle) {
-        particle.forEach((id, particleState) -> {
-            if (!particleState.equals(oldParticleState.get(id))) {
-                List<ModelComponent> components = this.getDefinition().getModel().allComponents;
-                ModelComponent component = components.stream().filter(c -> c.id.equals(id) && c.type == ModelComponentType.CUSTOM_PARTICLE_X).findFirst().orElse(null);
-                if (component == null) {
-                    ModCore.error(String.format("Custom particle object CUSTOM_PARTICLE_%s couldn't be found in model %s", id, this.getDefinition().modelLoc.toString()));
-                    return;
-                }
-                CustomParticleConfig customParticleConfig = CustomParticleConfig.getInstance(component);
-                Vec3d position = component.center;
-                customParticleConfig.setConfig(
-                        position, particleState.motion, particleState.lifespan, particleState.darken,
-                        particleState.thickness, particleState.diameter, particleState.texture, particleState.alwaysRunning,
-                        particleState.render, particleState.r, particleState.g, particleState.b, particleState.a, particleState.expansionRate, particleState.normalWidth);
-                oldParticleState.put(id, particleState);
-            }
-        });
-    }
-
-    private static DataBlock luaTableToDataBlock(LuaValue luaTable) {
-        return new DataBlock() {
-            private final Map<String, Value> valueMap = new HashMap<>();
-            private final Map<String, List<Value>> valuesMap = new HashMap<>();
-            private final Map<String, DataBlock> blockMap = new HashMap<>();
-            private final Map<String, List<DataBlock>> blocksMap = new HashMap<>();
-            {
-                for (LuaValue key : luaTable.checktable().keys()) {
-                    String keyString = key.tojstring();
-                    LuaValue value = luaTable.get(key);
-                    if (value.istable()) {
-                        if (isListTable(value)) {
-                            List<Value> valueList = new ArrayList<>();
-                            for (int i = 1; i <= value.length(); i++) {
-                                valueList.add(new ObjectValue(convertLuaValue(value.get(i))));
-                            }
-                            valuesMap.put(keyString, valueList);
-                        } else {
-                            blockMap.put(keyString, luaTableToDataBlock(value));
-                        }
-                    } else {
-                        valueMap.put(keyString, new ObjectValue(convertLuaValue(value)));
-                    }
-                }
-            }
-
-            @Override
-            public Map<String, Value> getValueMap() {
-                return valueMap;
-            }
-
-            @Override
-            public Map<String, List<Value>> getValuesMap() {
-                return valuesMap;
-            }
-
-            @Override
-            public Map<String, DataBlock> getBlockMap() {
-                return blockMap;
-            }
-
-            @Override
-            public Map<String, List<DataBlock>> getBlocksMap() {
-                return blocksMap;
-            }
-        };
-    }
-
-    private static boolean isListTable(LuaValue luaTable) {
-        int index = 1;
-        for (LuaValue key : luaTable.checktable().keys()) {
-            if (!key.isint() || key.toint() != index) {
-                return false;
-            }
-            index++;
-        }
-        return true;
-    }
-
-    private static Object convertLuaValue(LuaValue luaValue) {
-        if (luaValue.isboolean()) {
-            return luaValue.toboolean();
-        } else if (luaValue.isint()) {
-            return luaValue.toint();
-        } else if (luaValue.isnumber()) {
-            return luaValue.todouble();
-        } else if (luaValue.isstring()) {
-            return luaValue.tojstring();
-        } else if (luaValue.istable()) {
-            return luaTableToDataBlock(luaValue);
-        }
-        return null;
-    }
-
-    private static Object convertLuaValueText(LuaValue k, LuaValue value) {
-        if ("text".equals(k.tojstring())) {
-            return value.tojstring();  // Force the value to be a string
-        }
-
-        if (value.isboolean()) {
-            return value.toboolean();
-        } else if (value.isnumber()) {
-            return value.todouble();
-        } else if (value.isstring()) {
-            return value.tojstring();
-        } else if (value.istable()) {
-            Map<String, Object> nestedMap = new HashMap<>();
-            for (LuaValue key : value.checktable().keys()) {
-                LuaValue val = value.get(key);
-                nestedMap.put(key.tojstring(), convertLuaValue(val));
-            }
-            return nestedMap;
-        } else {
-            return value; // Return raw LuaValue if type is unknown
-        }
     }
 
     public void setThrottleLua(LuaValue val) {

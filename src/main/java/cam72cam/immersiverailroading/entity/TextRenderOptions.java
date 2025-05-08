@@ -11,6 +11,7 @@ import cam72cam.mod.serialization.SerializationException;
 import cam72cam.mod.serialization.TagCompound;
 import cam72cam.mod.serialization.TagField;
 import cam72cam.mod.serialization.TagMapper;
+import org.luaj.vm2.LuaTable;
 
 import java.io.File;
 import java.util.*;
