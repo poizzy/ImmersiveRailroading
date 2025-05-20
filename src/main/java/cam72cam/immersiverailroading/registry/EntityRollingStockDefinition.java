@@ -103,8 +103,6 @@ public abstract class EntityRollingStockDefinition {
     private float brakeCoefficient;
     public double rollingResistanceCoefficient;
     public double directFrictionCoefficient;
-
-    public Map<String, TextRenderOptions> textFieldDef = new HashMap<>();
     public LinkedList<Fonts> fontDef = new LinkedList<>();
 
     public List<AnimationDefinition> animations;
@@ -343,6 +341,7 @@ public abstract class EntityRollingStockDefinition {
         this.model = createModel();
         this.itemGroups = model.groups.keySet().stream().filter(x -> !ModelComponentType.shouldRender(x)).collect(Collectors.toList());
 
+        // Not quite sure if it's necessary to load the mesh on another thread
         this.mesh = Executors.newCachedThreadPool().submit(() -> Mesh.loadMesh(this.model)).get();
         this.navMesh = new NavMesh(this.mesh);
 
@@ -388,11 +387,11 @@ public abstract class EntityRollingStockDefinition {
 
         this.heightmap = initHeightmap();
 
-        // initialize text fields
-        if (textFieldData != null) {
-            List<TextRenderOptions> options = textFieldData.stream().map(this::loadTextField).collect(Collectors.toList());
-            options.forEach(o -> textFieldDef.put(o.componentId, o));
-        }
+        // TODO re-add
+//        if (textFieldData != null) {
+//            List<TextRenderOptions> options = textFieldData.stream().map(this::loadTextField).collect(Collectors.toList());
+//            options.forEach(o -> textFieldDef.put(o.componentId, o));
+//        }
     }
 
     public final EntityRollingStock spawn(World world, Vec3d pos, float yaw, Gauge gauge, String texture) {
@@ -982,16 +981,6 @@ public abstract class EntityRollingStockDefinition {
     public void setSounds(List<Map<String, DataBlock.Value>> newSound, EntityMoveableRollingStock stock) {
     }
 
-    public static class Position {
-        public final Vec3d normal;
-        public final List<Vec3d> vertices;
-
-        public Position (Vec3d normal, List<Vec3d> vertices) {
-            this.normal = normal;
-            this.vertices = vertices;
-        }
-    }
-
     public static class Fonts {
         public Identifier font;
         public int resX;
@@ -1015,6 +1004,8 @@ public abstract class EntityRollingStockDefinition {
         return new Fonts(identifier, resX, resY, size);
     }
 
+    // TODO re-add textField parsing
+    /*
     private TextRenderOptions loadTextField(DataBlock textField) {
         Identifier font = textField.getValue("font").asIdentifier(null);
         String textFieldId = textField.getValue("ID").asString(null);
@@ -1091,7 +1082,7 @@ public abstract class EntityRollingStockDefinition {
         options.setFilter(filter);
 
         return options;
-    }
+    }*/
 
     private static int determinePadding(List<String> input) {
         int maxLength = 0;
