@@ -293,6 +293,9 @@ public class Config {
 		@Comment("Number of physics steps to cache for future movement / send in packets.  DO NOT CHANGE UNLESS YOU KNOW WHAT YOU ARE DOING")
 		@Range(min = 10, max = 60)
 		public static int physicsFutureTicks = 10;
+
+		@Comment("Render Debug lines of text fields")
+		public static boolean renderDebugLines = false;
     }
 
 	public static boolean isFuelRequired(Gauge gauge) {
