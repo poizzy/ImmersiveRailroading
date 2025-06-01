@@ -25,42 +25,47 @@ import util.Matrix4;
 
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+
+/**
+ * New Integration but somehow I'm not really happy with it, it seems a bit clunky and it does too much
+ * @author poizzy
+ */
 public class TextField {
-    private String text = "";
-    private Supplier<String> textSupplier;
-    private Font font;
-    private Identifier lastFont = new Identifier("");
-    private RGBA color = RGBA.fromHex("#ffffff");
-    private boolean fullbright = false;
+    private Align align = Align.LEFT;
+    private Font font = FontLoader.getOrCreateFont(FontLoader.DEFAULT);
     private GroupInfo group;
+    private Identifier lastFont = FontLoader.DEFAULT;
+    private List<Identifier> availableFonts;
+    private List<String> linked;
+    private List<String> filter;
+    private RGBA color = RGBA.fromHex("#ffffff");
+    private String object;
+    private String text = "";
+    private String lastText = "";
+    private String readout;
+    private VBO buffer;
     private VertexBuffer currentVBO = new VertexBuffer(0, false);
     private VertexBuffer lastVBO = new VertexBuffer(0, false);
-    private VBO buffer;
-    private Align align = Align.LEFT;
+    private boolean fullbright = false;
+    private boolean global = false;
+    private boolean selectable = true;
+    private boolean numberPlate = false;
+    private boolean unique = false;
     private float radius = 0;
     private int gap = 1;
     private int offset = 0;
-    private String object;
-
-    // TODO factory method or constructor?
-    public static TextField createTextField(Mesh.Group group, int resolutionX, int resolutionY) {
-        TextField instance = new TextField();
-        instance.group = GroupInfo.initGroup(group, resolutionX, resolutionY);
-        instance.object = group.name;
-        return instance;
-    }
 
     @SuppressWarnings("unused")
+    public static TextField createTextField(Mesh.Group group, int resolutionX, int resolutionY) {
+        return createTextField(GroupInfo.initGroup(group, resolutionX, resolutionY), group.name, t -> {});
+    }
+
     public static TextField createTextField(Mesh.Group group, int resolutionX, int resolutionY, Consumer<TextField> defaults) {
-        TextField instance = new TextField();
-        defaults.accept(instance);
-        instance.group = GroupInfo.initGroup(group, resolutionX, resolutionY);
-        instance.object = group.name;
-        return instance;
+        return createTextField(GroupInfo.initGroup(group, resolutionX, resolutionY), group.name, defaults);
     }
 
     private static TextField createTextField(GroupInfo group, String name, Consumer<TextField> defaults) {
@@ -71,24 +76,18 @@ public class TextField {
         return instance;
     }
 
+    private TextField(){}
+
     /**
      * Set the text of the given instance of TextField
      * @param text new text for the given text field
      * @return Instance of TextField
      */
     public TextField setText(String text) {
-        this.textSupplier = null;
+        if (text == null) return this;
         if (!text.equals(this.text)) {
             this.text = text;
         }
-        return this;
-    }
-
-    // TODO: add support for Supplier, Readouts?
-    @SuppressWarnings("All")
-    public TextField setTextSupplier(Supplier<String> supplier) {
-        this.text = null;
-        this.textSupplier = supplier;
         return this;
     }
 
@@ -143,6 +142,13 @@ public class TextField {
         return this;
     }
 
+    public TextField setAlign(Align align) {
+        if (!align.equals(this.align)) {
+            this.align = align;
+        }
+        return this;
+    }
+
     // Curved text fields?
     // TODO add possibility to set a radius for the text
     public TextField setRadius(float radius) {
@@ -176,12 +182,318 @@ public class TextField {
         return this;
     }
 
-    // TODO add supplier
+    /**
+     * Set a list of linked text fields
+     * @param linked List of object names, which corresponds to other text fields
+     * @return Instance of TextField
+     */
     @SuppressWarnings("unused")
-    private String getText() {
-        return this.textSupplier != null ? this.textSupplier.get() : this.text;
+    public TextField setLinked(List<String> linked) {
+        if (!linked.equals(this.linked)) {
+            this.linked = linked;
+        }
+        return this;
     }
 
+    /**
+     * Set a filter for the text field
+     * <p>Only applies to text set via the gui not lua!</p>
+     * @param filter Predicate that dictates the filter
+     * @return Instance of TextField
+     */
+    @SuppressWarnings("unused")
+    public TextField setFilter(List<String> filter) {
+        if (!filter.equals(this.filter)) {
+            this.filter = filter;
+        }
+        return this;
+    }
+
+    /**
+     * Set if the text field should be selectable in the TypeWriter GUI
+     * @param selectable Is selectable?
+     * @return Instance of TextField
+     */
+    @SuppressWarnings("unused")
+    public TextField setSelectable(boolean selectable) {
+        if (selectable != this.selectable) {
+            this.selectable = selectable;
+        }
+        return this;
+    }
+
+    /**
+     * Set the avialableFont from the json
+     * @param fonts List of aviable fonts
+     * @return Instance of TextField
+     */
+    @SuppressWarnings("All")
+    public TextField setAvailableFont(List<Identifier> fonts) {
+        if (!fonts.equals(this.availableFonts)) {
+            this.availableFonts = fonts;
+        }
+        return this;
+    }
+
+    /**
+     * Set if the textField should be set globally
+     * @param global Should be global?
+     * @return Instance of TextField
+     */
+    public TextField setGlobal(boolean global) {
+        if (global != this.global) {
+            this.global = global;
+        }
+        return this;
+    }
+
+    /**
+     * Set if the textField should be unique to the stock.
+     * @param unique Is this textField unique?
+     * @return Instance of TextField
+     */
+    public TextField setUnique(boolean unique) {
+        this.unique = unique;
+        return this;
+    }
+
+    /**
+     * Set if the textField is a number plate
+     * <p>If this is true, the text field is also unique</p>
+     * @param numberPlate Is this textField a number plate?
+     * @return Instance of TextField
+     */
+    public TextField setNumberPlate(boolean numberPlate) {
+        this.unique = true;
+        this.numberPlate = numberPlate;
+        return this;
+    }
+
+
+    /**
+     * @return Is the current text field selectable?
+     */
+    public boolean isSelectable() {
+        return this.selectable;
+    }
+
+    /**
+     * @return List of available fonts
+     */
+    public List<Identifier> getAvailableFonts() {
+        return this.availableFonts;
+    }
+
+    /**
+     * @return The current rendered text
+     */
+    public String getText() {
+        return this.text;
+    }
+
+    /**
+     * @return Current alignment as String
+     */
+    public String getAlignAsString() {
+        return this.align.toString();
+    }
+
+    /**
+     * @return Current alignment
+     */
+    public Align getAlign() {
+        return this.align;
+    }
+
+    /**
+     * @return Current object
+     */
+    public String getObject() {
+        return this.object;
+    }
+
+    /**
+     * @return Current color as hexadecimal
+     */
+    public String getColorAsHex() {
+        return this.color.toString();
+    }
+
+    /**
+     * @return Current gap
+     */
+    public int getGap() {
+        return this.gap;
+    }
+
+    /**
+     * @return Current Font as Identifier
+     */
+    public Identifier getFontIdent() {
+        return this.lastFont;
+    }
+
+    /**
+     * @return Gap between the lines
+     */
+    public int getOffset() {
+        return offset;
+    }
+
+    /**
+     * @return Is the text fullbright?
+     */
+    public boolean getFullBright() {
+        return this.fullbright;
+    }
+
+    /**
+     * @return Is the textField global?
+     */
+    public boolean getGlobal() {
+        return this.global;
+    }
+
+    /**
+     * @return Linked textFields;
+     */
+    public List<String> getLinked() {
+        return this.linked;
+    }
+
+    /**
+     * @return Is the textField unique?
+     */
+    public boolean getUnique() {
+        return this.unique;
+    }
+
+    /**
+     * @return Is the textField a number plate?
+     */
+    public boolean getNumberPlate() {
+        return this.numberPlate;
+    }
+
+    /**
+     * @return The actual List of filter as a Set
+     */
+    public List<String> getFilterAsList() {
+        List<String> expanded = new ArrayList<>();
+
+        List<String> temp;
+        if (filter != null) {
+            temp = filter;
+        } else {
+            temp = Collections.singletonList("001-999");
+        }
+
+        for (String value : temp) {
+            if (value.matches("\\d+-\\d+")) {
+                String[] parts = value.split("-");
+                try {
+                    String startStr = parts[0].trim();
+                    String endStr = parts[1].trim();
+
+                    int start = Integer.parseInt(startStr);
+                    int end = Integer.parseInt(endStr);
+
+                    int width = Math.max(startStr.length(), endStr.length());
+
+                    if (start <= end) {
+                        for (int i = start; i <= end; i++) {
+                            expanded.add(String.format("%0" + width + "d", i));
+                        }
+                    }
+                } catch (NumberFormatException e) {
+                    /* */
+                }
+            } else {
+                expanded.add(value);
+            }
+        }
+
+        return expanded;
+    }
+
+    /**
+     * @return Predicate for the input in the GUI
+     */
+    public Predicate<String> getFilter(EntityRollingStock stock) {
+        if (this.filter == null) {
+            return s -> {
+                if (s == null || s.isEmpty()) {
+                    return true;
+                }
+
+                if (this.numberPlate) {
+                    try {
+                        String intInut = s.replace(" ", "");
+                        Integer.parseInt(intInut);
+                        return true;
+                    } catch (NumberFormatException e) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+        }
+
+
+        Set<String> exactMatches = new HashSet<>();
+        List<int[]> numberRanges = new ArrayList<>();
+
+        for (String value : this.filter) {
+            if (value.matches("\\d+-\\d+")) {
+                String[] parts = value.split("-");
+                int start = Integer.parseInt(parts[0]);
+                int end = Integer.parseInt(parts[1]);
+                numberRanges.add(new int[]{start, end});
+            } else {
+                exactMatches.add(value);
+            }
+        }
+
+        return s -> {
+            if (s == null || s.isEmpty()) {
+                return true;
+            }
+
+            if (this.unique) {
+                if (stock.getDefinition().inputs.containsValue(Collections.singletonMap(object, s))) {
+                    return false;
+                }
+            }
+
+            if (this.numberPlate) {
+                try {
+                    String intInput = s.replace(" ", "");
+                    Integer.parseInt(intInput);
+                } catch (NumberFormatException e) {
+                    return false;
+                }
+            }
+
+            if (exactMatches.contains(s)) {
+                return true;
+            }
+
+            try {
+                String intInput = s.replace(" ", "");
+                int num = Integer.parseInt(intInput);
+                for (int[] range : numberRanges) {
+                    if (num >= range[0] && num  <= range[1]) {
+                        return true;
+                    }
+                }
+            } catch (NumberFormatException e) {
+                /* */
+            }
+
+            return false;
+
+        };
+    }
 
     /**
      * Method to render the current instance of TextField
@@ -255,8 +567,13 @@ public class TextField {
         }
     }
 
+    /*
+     * TODO If possible I should make this method a bit more performant to support supllier / readouts
+     * But I'm not quite sure if it's even a good idea
+     * Or maybe Multithreading??
+     */
     @SuppressWarnings("All")
-    private void createVBO() {
+    public void createVBO() {
         if (this.font == null) {
             return;
         }
@@ -265,8 +582,8 @@ public class TextField {
 
         String[] lines = text.split("\n");
 
-        int[] lineWidths = new int[lines.length * 2];
-        int[] lineHeights = new int[lines.length * 2];
+        int[] lineWidths = new int[lines.length];
+        int[] lineHeights = new int[lines.length];
         int totalVertexCount = 0;
 
         for (int i = 0; i < lines.length; i++) {
@@ -274,13 +591,23 @@ public class TextField {
             int lineWidth = 0;
             int maxHeight = 0;
 
-            for (char c : line.toCharArray()) {
+            int index = 0;
+
+            while (index < line.length()) {
+                char c = line.charAt(index);
+
+                if (c == '&' && index + 1 < line.length()) {
+                    index += 2;
+                    continue;
+                }
+
                 int width = font.getCharWidthPx(c);
                 int height = font.getCharHeightPx(c);
 
                 lineWidth += width + gap;
                 maxHeight = Math.max(maxHeight, height);
                 totalVertexCount += 6;
+                index++;
             }
 
             lineWidth -= gap;
@@ -292,21 +619,24 @@ public class TextField {
         int totalTextHeight = 0;
         for (int i = 0; i < lines.length; i++) {
             totalTextHeight += lineHeights[i];
-            if (i < lines.length - 1) {
-                totalTextHeight += offset;
-            }
+            totalTextHeight += offset;
         }
+        totalTextHeight -= offset;
 
         Vec3d layoutTangent = group.tangent.normalize();
         Vec3d layoutBitangent = group.bitangent.normalize();
-
-        Vec3d baseYOffset = group.bitangent.scale(((totalTextHeight / 2.0f) * group.pixelSizeY) / 2.0f);
 
         VertexBuffer vbo = new VertexBuffer(totalVertexCount / 3, true);
         float[] buffer = vbo.data;
         int stride = vbo.stride;
 
+        double textfieldHeight = group.bitangent.length() / group.pixelSizeY;
+
+        double verticalOffset = 0.5 * (textfieldHeight - totalTextHeight);
+        Vec3d baseYOffset = layoutBitangent.scale(verticalOffset * group.pixelSizeY);
         Vec3d lineCursor = group.origin.add(baseYOffset);
+
+        Vec3d normal = group.normal;
 
         for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
             String line = lines[lineIndex];
@@ -330,7 +660,21 @@ public class TextField {
 
             Vec3d cursor = lineCursor.add(xOffset);
 
-            for (char c : line.toCharArray()) {
+            RGBA currentColor = this.color;
+            int charIndex = 0;
+
+            int bufferIndex = 0;
+
+            while (charIndex < line.length()) {
+                char c = line.charAt(charIndex);
+
+                if (c == '&' && charIndex + 1 < line.length()) {
+                    char code = line.charAt(charIndex + 1);
+                    currentColor = RGBA.fromMinecraftCode(code, this.color);
+                    charIndex += 2;
+                    continue;
+                }
+
                 double charWidth = font.getCharWidthPx(c) * group.pixelSizeX;
                 double charHeight = font.getCharHeightPx(c) * group.pixelSizeY;
 
@@ -346,7 +690,7 @@ public class TextField {
                 float u1 = uvs.getRight().x;
                 float v1 = uvs.getRight().y;
 
-                float[][] verts = new float[][]{
+                float[][] quad = {
                         {(float) p2.x, (float) p2.y, (float) p2.z, u1, v1},
                         {(float) p1.x, (float) p1.y, (float) p1.z, u1, v0},
                         {(float) p0.x, (float) p0.y, (float) p0.z, u0, v0},
@@ -355,38 +699,42 @@ public class TextField {
                         {(float) p0.x, (float) p0.y, (float) p0.z, u0, v0}
                 };
 
-                Collections.addAll(vertexList, verts);
+                for (float[] v : quad) {
+                    int b = bufferIndex * stride;
+                    buffer[b + vbo.vertexOffset + 0] = v[0];
+                    buffer[b + vbo.vertexOffset + 1] = v[1];
+                    buffer[b + vbo.vertexOffset + 2] = v[2];
+
+                    buffer[b + vbo.textureOffset + 0] = v[3];
+                    buffer[b + vbo.textureOffset + 1] = v[4];
+
+                    buffer[b + vbo.colorOffset + 0] = currentColor.r;
+                    buffer[b + vbo.colorOffset + 1] = currentColor.g;
+                    buffer[b + vbo.colorOffset + 2] = currentColor.b;
+                    buffer[b + vbo.colorOffset + 3] = currentColor.a;
+
+                    buffer[b + vbo.normalOffset + 0] = (float) normal.x;
+                    buffer[b + vbo.normalOffset + 1] = (float) normal.y;
+                    buffer[b + vbo.normalOffset + 2] = (float) normal.z;
+
+                    bufferIndex++;
+                }
+
                 cursor = cursor.add(layoutTangent.scale(charWidth + gap * group.pixelSizeX));
+                charIndex++;
             }
 
             if (lineIndex < lines.length -1) {
-                double advance = lineHeights[lineIndex] + offset * group.pixelSizeY;
-                lineCursor = lineCursor.add(group.bitangent.scale(advance));
+                double advance = (lineHeight + offset) * group.pixelSizeY;
+                lineCursor = lineCursor.add(layoutBitangent.scale(advance));
             }
-        }
-
-        int vi = 0;
-        for (float[] v : vertexList) {
-            int b = vi * stride;
-            buffer[b + vbo.vertexOffset + 0] = v[0];
-            buffer[b + vbo.vertexOffset + 1] = v[1];
-            buffer[b + vbo.vertexOffset + 2] = v[2];
-            buffer[b + vbo.textureOffset + 0] = v[3];
-            buffer[b + vbo.textureOffset + 1] = v[4];
-            buffer[b + vbo.colorOffset + 0] = this.color.r;
-            buffer[b + vbo.colorOffset + 1] = this.color.g;
-            buffer[b + vbo.colorOffset + 2] = this.color.b;
-            buffer[b + vbo.colorOffset + 3] = this.color.a;
-            buffer[b + vbo.normalOffset + 0] =  (float) this.group.normal.x;
-            buffer[b + vbo.normalOffset + 1] =  (float) this.group.normal.y;
-            buffer[b + vbo.normalOffset + 2] =  (float) this.group.normal.z;
-            vi++;
         }
 
         this.currentVBO = vbo;
     }
 
 
+    // Maybe move this to its own class
     private static class RGBA {
         float r;
         float g;
@@ -399,6 +747,29 @@ public class TextField {
             instance.g = Integer.parseInt(hex.substring(3, 5), 16) / 255f;
             instance.b = Integer.parseInt(hex.substring(5, 7), 16) / 255f;
             return instance;
+        }
+
+        static RGBA fromMinecraftCode(char code, RGBA defaultColor) {
+            switch (Character.toLowerCase(code)) {
+                case '0': return RGBA.fromHex("#000000"); // Black
+                case '1': return RGBA.fromHex("#0000AA"); // Dark Blue
+                case '2': return RGBA.fromHex("#00AA00"); // Dark Green
+                case '3': return RGBA.fromHex("#00AAAA"); // Dark Aqua
+                case '4': return RGBA.fromHex("#AA0000"); // Dark Red
+                case '5': return RGBA.fromHex("#AA00AA"); // Dark Purple
+                case '6': return RGBA.fromHex("#FFAA00"); // Gold
+                case '7': return RGBA.fromHex("#AAAAAA"); // Gray
+                case '8': return RGBA.fromHex("#555555"); // Dark Gray
+                case '9': return RGBA.fromHex("#5555FF"); // Blue
+                case 'a': return RGBA.fromHex("#55FF55"); // Green
+                case 'b': return RGBA.fromHex("#55FFFF"); // Aqua
+                case 'c': return RGBA.fromHex("#FF5555"); // Red
+                case 'd': return RGBA.fromHex("#FF55FF"); // Light Purple
+                case 'e': return RGBA.fromHex("#FFFF55"); // Yellow
+                case 'f': return RGBA.fromHex("#FFFFFF"); // White
+                case 'r':
+                default:  return defaultColor;
+            }
         }
 
         @Override
@@ -492,9 +863,16 @@ public class TextField {
     public enum Align {
         RIGHT,
         CENTER,
-        LEFT
+        LEFT;
+
+        private static final Align[] vals = values();
+
+        public Align next() {
+            return vals[(this.ordinal() + 1) % values().length];
+        }
     }
 
+    // Ohh man I hate this...
     public static class TextFieldMapMapper implements TagMapper<Map<String, TextField>> {
 
         @Override
@@ -508,6 +886,13 @@ public class TextField {
                             .setInteger("gap", v.gap)
                             .setString("text", v.text)
                             .setString("name", v.object)
+                            .setList("availableFonts", v.availableFonts, i -> new TagCompound().setString("identifier", i.toString()))
+                            .setList("linked", v.linked, l -> new TagCompound().setString("l", l))
+                            .setList("filter", v.filter, f -> new TagCompound().setString("f", f))
+                            .setBoolean("global", v.global)
+                            .setBoolean("unique", v.unique)
+                            .setBoolean("numberPlate", v.numberPlate)
+                            .setBoolean("selectable", v.selectable)
                             .set("group", new TagCompound()
                                     .setVec3d("origin", v.group.origin)
                                     .setVec3d("tangent", v.group.tangent)
@@ -529,12 +914,21 @@ public class TextField {
                                         g.getInteger("resX"),
                                         g.getBoolean("flippedNormal")
                                 );
-                                return TextField.createTextField(group, v.getString("name"), t -> t.setFont(new Identifier(v.getString("font")))
-                                        .setColor(v.getString("color"))
-                                        .setFullBright(v.getBoolean("fullbright"))
-                                        .setAlign(v.getEnum("align", Align.class).toString())
-                                        .setGap(v.getInteger("gap"))
-                                        .setText(v.getString("text"))
+                                return TextField.createTextField(group, v.getString("name"), t -> {
+                                            t.setFont(new Identifier(v.getString("font")))
+                                                    .setColor(v.getString("color"))
+                                                    .setFullBright(v.getBoolean("fullbright"))
+                                                    .setAlign(v.getEnum("align", Align.class).toString())
+                                                    .setGap(v.getInteger("gap"))
+                                                    .setText(v.getString("text"))
+                                                    .setGlobal(v.getBoolean("global"))
+                                                    .setUnique(v.getBoolean("unique"))
+                                                    .setNumberPlate(v.getBoolean("numberPlate"))
+                                                    .setSelectable(v.getBoolean("selectable"));
+                                            Optional.ofNullable(v.getList("availableFonts", i -> new Identifier(i.getString("identifier")))).ifPresent(t::setAvailableFont);
+                                            Optional.ofNullable(v.getList("linked", i -> i.getString("l"))).ifPresent(t::setLinked);
+                                            Optional.ofNullable(v.getList("filter", f -> f.getString("f"))).ifPresent(t::setFilter);
+                                        }
                                 );
                             }
                     )
@@ -542,13 +936,59 @@ public class TextField {
         }
     }
 
-    public static class PacketSyncTextField extends Packet {
-        @TagField
+    /*
+     * I don't exactly know what I should think of this double Packet, but it's needed for the GUI.
+     * If I use @TagSync I would still need the double Packet to create the VBO
+     */
+    public static class PacketSyncTextFieldServer extends Packet {
+        @TagField("stock")
         private EntityRollingStock stock;
         @TagField(value = "textFields", mapper = TextFieldMapMapper.class)
         private Map<String, TextField> textFields;
 
-        public PacketSyncTextField() {}
+        public PacketSyncTextFieldServer() {
+        }
+
+        public PacketSyncTextFieldServer(EntityRollingStock stock, Map<String, TextField> textFields) {
+            this.stock = stock;
+            this.textFields = textFields;
+        }
+
+        @Override
+        protected void handle() {
+            if (stock instanceof EntityScriptableRollingStock) {
+                EntityScriptableRollingStock s = (EntityScriptableRollingStock) stock;
+
+                textFields.forEach((n, t) -> {
+                    if (t.getLinked() != null) {
+                        t.getLinked().forEach(l -> {
+                            TextField linked = textFields.get(l);
+                            linked.setText(t.getText()).setAlign(t.getAlign()).setFullBright(t.getFullBright());
+                            textFields.put(l, linked);
+                        });
+                    }
+
+
+                    if (t.getGlobal()) {
+                        s.mapTrain(s, false, next -> ((EntityScriptableRollingStock) next).textFields.put(n, t));
+                    }
+                });
+
+                s.textFields.putAll(textFields);
+
+                new PacketSyncTextField(stock, textFields).sendToObserving(stock);
+            }
+        }
+    }
+
+    public static class PacketSyncTextField extends Packet {
+        @TagField("stock")
+        private EntityRollingStock stock;
+        @TagField(value = "textFields", mapper = TextFieldMapMapper.class)
+        private Map<String, TextField> textFields;
+
+        public PacketSyncTextField() {
+        }
 
         public PacketSyncTextField(EntityRollingStock stock, Map<String, TextField> textFields) {
             this.stock = stock;
@@ -559,10 +999,21 @@ public class TextField {
         protected void handle() {
             if (stock instanceof EntityScriptableRollingStock) {
                 EntityScriptableRollingStock s = (EntityScriptableRollingStock) stock;
-                if (!textFields.equals(s.textFields)) {
-                    s.textFields.clear();
+                if (!s.textFields.equals(textFields)) {
+                    textFields.forEach((n, t) -> {
+                        if (t.getGlobal()) {
+                            s.mapTrain(s, false, next -> {
+                                EntityScriptableRollingStock nextStock = (EntityScriptableRollingStock) next;
+                                if (!t.equals(nextStock.textFields.get(n))) {
+                                    t.createVBO();
+                                    nextStock.textFields.put(n, t);
+                                }
+                            });
+                        }
+                    });
+
                     s.textFields.putAll(textFields);
-                    s.textFields.forEach((n, t) -> t.createVBO());
+                    s.textFields.forEach((v, k) -> k.createVBO());
                 }
             }
         }

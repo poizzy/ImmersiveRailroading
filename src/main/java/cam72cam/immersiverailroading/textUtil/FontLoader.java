@@ -1,11 +1,13 @@
 package cam72cam.immersiverailroading.textUtil;
 
+import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.mod.ModCore;
 import cam72cam.mod.render.opengl.Texture;
 import cam72cam.mod.resource.Identifier;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.Gson;
 
+import javax.annotation.Nullable;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
@@ -17,6 +19,16 @@ import java.util.Map;
 
 public class FontLoader {
     public static final Map<Identifier, Font> fonts = new HashMap<>();
+    public static final Identifier DEFAULT = new Identifier("minecraft", "textures/font/ascii.png");
+
+    /*
+      Static block to load the default font (minecraft Ascii font)
+     */
+    static {
+        Identifier jsonLocation = new Identifier(ImmersiveRailroading.MODID, "textures/font/ascii.json");
+        Font font = loadFont(DEFAULT, jsonLocation);
+        fonts.put(DEFAULT, font);
+    }
 
     /**
      * Get or create a font from an Identifier
@@ -25,15 +37,18 @@ public class FontLoader {
      * @see Font
      */
     public static Font getOrCreateFont(Identifier font) {
-        return fonts.computeIfAbsent(font, FontLoader::loadFont);
+        return fonts.computeIfAbsent(font, i -> loadFont(i, null));
     }
 
     /**
      * Private method to load a new font from an identifier
      */
-    private static Font loadFont(Identifier font) {
+    private static Font loadFont(Identifier font, @Nullable Identifier jsonLocation) {
         Map<Character, Font.Glyph> glyphs = new HashMap<>();
         Identifier json = new Identifier(font.getDomain(), font.getPath().replaceAll(".png", ".json"));
+        if (jsonLocation != null) {
+            json = jsonLocation;
+        }
         try {
             InputStream stream = json.getResourceStream();
 
@@ -45,6 +60,8 @@ public class FontLoader {
                 for (Map.Entry<String, Font.Glyph> entry : loadedGlyphs.entrySet()) {
                     glyphs.put(entry.getKey().charAt(0), entry.getValue());
                 }
+            } catch (Exception e) {
+                ModCore.error("Error while loading font %s. Maybe wrong formatting? Error: %s", font.toString(), e);
             }
 
             int height = 0;

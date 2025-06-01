@@ -14,7 +14,6 @@ import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.math.Vec3d;
-import cam72cam.mod.net.Packet;
 import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.*;
 import cam72cam.mod.text.PlayerMessage;
@@ -90,7 +89,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             }
 
             // Execute Lua script if not sleeping or luaScriptSleep is 0
-            callFuction();
+            callFunction();
         }
 
         schedule.removeIf(t -> {
@@ -104,13 +103,12 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     }
 
 
-    // TODO re-add typewriter
     @Override
     public ClickResult onClick(Player player, Player.Hand hand) {
-//        if (player.getHeldItem(hand).is(IRItems.ITEM_TYPEWRITER) &&  && player.hasPermission(Permissions.LOCOMOTIVE_CONTROL)) {
-//            ItemTypewriter.onStockInteract(this, player, hand);
-//            return ClickResult.ACCEPTED;
-//        }
+        if (player.getHeldItem(hand).is(IRItems.ITEM_TYPEWRITER) && !textFields.isEmpty() && player.hasPermission(Permissions.LOCOMOTIVE_CONTROL)) {
+            ItemTypewriter.onStockInteract(this, player, hand);
+            return ClickResult.ACCEPTED;
+        }
         return super.onClick(player, hand);
     }
 
@@ -343,7 +341,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             ModCore.info("[Lua] Found more than one TextField defined as %s, using first!", groupName);
         }
 
-        TextField textField = this.textFields.computeIfAbsent(groupName, t -> TextField.createTextField(groupList.get(0), resX.toint(), resY.toint()));
+        TextField textField = this.textFields.computeIfAbsent(groupName, t -> TextField.createTextField(groupList.get(0), resX.toint(), resY.toint(), f -> f.setSelectable(false)));
         LuaLibrary lib = LuaLibrary.create();
 
         LuaTable[] funcHolder = new LuaTable[1];
@@ -363,11 +361,14 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         }).addFunctionWithReturn("setGap", g -> {
             textField.setGap(g.toint());
             return funcHolder[0];
+        }).addFunctionWithReturn("setSpacing", s -> {
+            textField.setOffset(s.toint());
+            return funcHolder[0];
         }).addFunctionWithReturn("setText", t -> {
             textField.setText(t.tojstring());
             return funcHolder[0];
-        }).addFunctionWithReturn("setReadout", r -> {
-            textField.setTextSupplier(() -> String.valueOf(Readouts.valueOf(r.tojstring())));
+        }).addFunctionWithReturn("setGlobal", g -> {
+            textField.setGlobal(g.toboolean());
             return funcHolder[0];
         }).addFunctionWithReturn("update", () -> {
             new TextField.PacketSyncTextField(this, this.textFields).sendToObserving(this);
@@ -442,7 +443,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         return this.tag;
     }
 
-    public void callFuction() {
+    public void callFunction() {
         if (!tickEvent.isnil()) {
             tickEvent.call();
         }
@@ -539,6 +540,11 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                     this.texture.equals(other.texture) &&
                     this.alwaysRunning == other.alwaysRunning;
         }
+    }
+
+    public void addAllTextFields(Map<String, TextField> textFields) {
+        this.textFields.putAll(textFields);
+        new TextField.PacketSyncTextField(this, this.textFields).sendToObserving(this);
     }
 
     @Deprecated

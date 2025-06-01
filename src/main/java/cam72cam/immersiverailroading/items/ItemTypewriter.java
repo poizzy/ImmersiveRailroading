@@ -1,12 +1,11 @@
 package cam72cam.immersiverailroading.items;
 
 import cam72cam.immersiverailroading.ImmersiveRailroading;
-import cam72cam.immersiverailroading.entity.EntityRollingStock;
+import cam72cam.immersiverailroading.entity.EntityScriptableRollingStock;
 import cam72cam.immersiverailroading.library.ChatText;
 import cam72cam.immersiverailroading.library.GuiTypes;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.item.*;
-import cam72cam.mod.net.Packet;
 import cam72cam.mod.world.World;
 
 import java.util.Collections;
@@ -31,7 +30,7 @@ public class ItemTypewriter extends CustomItem {
         return Collections.singletonList(ItemTabs.MAIN_TAB);
     }
 
-    public static void onStockInteract(EntityRollingStock stock, Player player, Player.Hand hand) {
+    public static void onStockInteract(EntityScriptableRollingStock stock, Player player, Player.Hand hand) {
         if (player.getWorld().isClient) {
             GuiTypes.TEXT_FIELD.open(player);
         }
@@ -41,58 +40,6 @@ public class ItemTypewriter extends CustomItem {
     public void onClickAir(Player player, World world, Player.Hand hand) {
         if (world.isServer) {
             player.sendMessage(ChatText.TYPEWRITER_NO_STOCK.getMessage());
-        }
-    }
-
-    public static class TypewriterPacket extends Packet {
-//        @TagField("stock")
-//        public EntityRollingStock stock;
-//        @TagField(value = "settings", mapper = TextRenderOptions.TextRenderOptionsMapper.class)
-//        public TextRenderOptions settings;
-
-        public TypewriterPacket() {
-        }
-
-//        public TypewriterPacket(EntityRollingStock stock, TextRenderOptions settings) {
-//           this.stock = stock;
-//          this.settings = settings;
-//
-//        }
-
-        @Override
-        protected void handle() {
-//            if (settings.global) {
-//                ((EntityScriptableRollingStock)stock).setTextGlobal(settings);
-//            } else {
-//                ((EntityScriptableRollingStock)stock).setText(settings);
-//            }
-//            new TypewriterSyncPacket(stock, settings).sendToObserving(stock);
-        }
-    }
-
-    public static class TypewriterSyncPacket extends Packet {
-//        @TagField("stock")
-//        public EntityRollingStock stock;
-//        @TagField(value = "settings", mapper = TextRenderOptions.TextRenderOptionsMapper.class)
-//        public TextRenderOptions settings;
-
-        public TypewriterSyncPacket() {
-
-        }
-
-//        public TypewriterSyncPacket(EntityRollingStock stock, TextRenderOptions settings) {
-//            this.stock = stock;
-//            this.settings = settings;
-//        }
-
-        // TODO re-add with new implementation
-        @Override
-        protected void handle() {
-//            if (settings.global) {
-//                ((EntityScriptableRollingStock)stock).setTextGlobal(settings);
-//            } else {
-//                ((EntityScriptableRollingStock)stock).setText(settings);
-//            }
         }
     }
 }
