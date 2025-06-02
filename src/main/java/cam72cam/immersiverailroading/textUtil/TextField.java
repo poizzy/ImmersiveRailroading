@@ -264,7 +264,7 @@ public class TextField {
      * @return Instance of TextField
      */
     public TextField setNumberPlate(boolean numberPlate) {
-        this.unique = true;
+        this.unique = numberPlate;
         this.numberPlate = numberPlate;
         return this;
     }
