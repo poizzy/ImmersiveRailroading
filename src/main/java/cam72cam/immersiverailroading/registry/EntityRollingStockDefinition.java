@@ -91,7 +91,7 @@ public abstract class EntityRollingStockDefinition {
     private float interiorLightLevel;
     private boolean hasIndependentBrake;
     private boolean hasPressureBrake;
-    private final Map<ModelComponentType, List<ModelComponent>> renderComponents;
+    private final EnumMap<ModelComponentType, List<ModelComponent>> renderComponents;
     private final List<ItemComponentType> itemComponents;
     private final Function<EntityBuildableRollingStock, float[][]> heightmap;
     private final Map<String, LightDefinition> lights = new HashMap<>();
@@ -346,11 +346,10 @@ public abstract class EntityRollingStockDefinition {
         this.model = createModel();
         this.itemGroups = model.groups.keySet().stream().filter(x -> !ModelComponentType.shouldRender(x)).collect(Collectors.toList());
 
-        // Not quite sure if it's necessary to load the mesh on another thread
-        this.mesh = Executors.newCachedThreadPool().submit(() -> Mesh.loadMesh(this.model)).get();
+        this.mesh = Mesh.loadMesh(this.model);
         this.navMesh = new NavMesh(this.mesh);
 
-        this.renderComponents = new HashMap<>();
+        this.renderComponents = new EnumMap<>(ModelComponentType.class);
         for (ModelComponent component : model.allComponents) {
             renderComponents.computeIfAbsent(component.type, v -> new ArrayList<>())
                     .add(0, component);
