@@ -34,8 +34,6 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -866,6 +864,13 @@ public abstract class EntityRollingStockDefinition {
     public List<String> getTooltip(Gauge gauge) {
         List<String> tips = new ArrayList<>();
         tips.add(GuiText.WEIGHT_TOOLTIP.toString(this.getWeight(gauge)));
+        tips.add(GuiText.MODELER_TOOLTIP.toString(modelerName));
+        tips.add(GuiText.PACK_TOOLTIP.toString(packName));
+        return tips;
+    }
+
+    public List<String> getModelerTooltip() {
+        List<String> tips = new ArrayList<>();
         tips.add(GuiText.MODELER_TOOLTIP.toString(modelerName));
         tips.add(GuiText.PACK_TOOLTIP.toString(packName));
         return tips;
