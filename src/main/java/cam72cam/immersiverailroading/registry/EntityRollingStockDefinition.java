@@ -389,7 +389,7 @@ public abstract class EntityRollingStockDefinition {
 
         this.heightmap = initHeightmap();
 
-        textFields = parseTextFields(transformData(data).getBlocks("textFields"));
+        textFields = parseTextFields(transformData(data).getBlocks("text_fields"));
     }
 
     public final EntityRollingStock spawn(World world, Vec3d pos, float yaw, Gauge gauge, String texture) {
