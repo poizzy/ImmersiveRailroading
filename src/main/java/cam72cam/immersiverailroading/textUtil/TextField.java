@@ -638,6 +638,8 @@ public class TextField {
 
         Vec3d normal = group.normal;
 
+        int bufferIndex = 0;
+
         for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
             String line = lines[lineIndex];
             int lineWidth = lineWidths[lineIndex];
@@ -662,8 +664,6 @@ public class TextField {
 
             RGBA currentColor = this.color;
             int charIndex = 0;
-
-            int bufferIndex = 0;
 
             while (charIndex < line.length()) {
                 char c = line.charAt(charIndex);
