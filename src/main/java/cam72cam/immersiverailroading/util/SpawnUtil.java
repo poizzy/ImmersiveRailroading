@@ -15,16 +15,13 @@ import cam72cam.immersiverailroading.registry.UnitDefinition;
 import cam72cam.immersiverailroading.textUtil.TextField;
 import cam72cam.mod.entity.Player;
 import cam72cam.immersiverailroading.thirdparty.trackapi.ITrack;
-import cam72cam.mod.math.Rotation;
 import cam72cam.mod.text.PlayerMessage;
 import cam72cam.mod.util.DegreeFuncs;
-import cam72cam.mod.util.Facing;
 import cam72cam.mod.world.World;
 import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.item.ItemStack;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.math.Vec3i;
-import org.apache.commons.lang3.tuple.Pair;
 
 public class SpawnUtil {
 	public static ClickResult placeStock(Player player, Player.Hand hand, World worldIn, Vec3i pos, EntityRollingStockDefinition def, List<ItemComponentType> list) {
@@ -96,33 +93,40 @@ public class SpawnUtil {
 			if (stock instanceof EntityScriptableRollingStock && !def.textFields.isEmpty()) {
 				EntityScriptableRollingStock scriptable  = (EntityScriptableRollingStock) stock;
 
+				String number = null;
+
 				// Wow is this ugly...
-				def.textFields.forEach((n, t) -> {
+                for (Map.Entry<String, TextField> entry : def.textFields.entrySet()) {
+					String n = entry.getKey();
+					TextField t = entry.getValue();
 					if (t.getAvailableFonts() != null) {
 						t.setFont(t.getAvailableFonts().get(0));
 					}
 
 
 					if (t.getNumberPlate()) {
+
 						List<String> filter = t.getFilterAsList().stream().filter(s -> !def.inputs.containsValue(Collections.singletonMap(t.getObject(), s))).collect(Collectors.toList());
-						Random random = new Random();
-
-						String text = filter.get(random.nextInt(filter.size()));
-						t.setText(text);
-						def.inputs.put(stock.getUUID(), Collections.singletonMap(t.getObject(), text));
-
-						if (t.getLinked() != null) {
-							t.getLinked().forEach(l -> {
-								TextField field = def.textFields.get(l);
-								if (field != null) {
-									field.setText(text);
-								}
-							});
+						if (number == null) {
+							Random random = new Random();
+							number = filter.get(random.nextInt(filter.size()));
 						}
-					}
-				});
 
-				scriptable.addAllTextFields(def.textFields);
+						t.setText(number);
+						def.inputs.put(stock.getUUID(), Collections.singletonMap(t.getObject(), number));
+					}
+
+					if (t.getLinked() != null) {
+						t.getLinked().forEach(l -> {
+							TextField field = def.textFields.get(l);
+							if (field != null) {
+								field.setText(t.getText());
+							}
+						});
+					}
+				}
+
+                scriptable.addAllTextFields(def.textFields);
 			}
 
 
@@ -142,7 +146,7 @@ public class SpawnUtil {
 
 		for (UnitDefinition.Stock rollingStock : unit.unitList) {
 			EntityRollingStockDefinition def = rollingStock.definition;
-			boolean isFlipped = rollingStock.flipped;
+			boolean isFlipped = rollingStock.direction.getDirection();
 
 			List<ItemComponentType> list = def.getItemComponents();
 
@@ -181,6 +185,9 @@ public class SpawnUtil {
 				center = initte.getNextPosition(center, VecUtil.fromWrongYaw(0.1, originalRot));
 				center = initte.getNextPosition(center, VecUtil.fromWrongYaw(offset, originalRot));
 				stock.setPosition(center);
+
+				// Set default control group values
+				rollingStock.controlGroup.forEach(stock::setControlPosition);
 
 				if (stock instanceof EntityMoveableRollingStock) {
 					EntityMoveableRollingStock moveable = (EntityMoveableRollingStock)stock;
