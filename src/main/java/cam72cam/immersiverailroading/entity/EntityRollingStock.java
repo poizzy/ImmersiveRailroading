@@ -23,6 +23,7 @@ import cam72cam.mod.sound.SoundCategory;
 import cam72cam.mod.text.PlayerMessage;
 import cam72cam.mod.util.SingleCache;
 import org.apache.commons.lang3.tuple.Pair;
+import org.luaj.vm2.LuaValue;
 import util.Matrix4;
 
 import java.util.Arrays;
@@ -31,7 +32,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class EntityRollingStock extends CustomEntity implements ITickable, IClickable, IKillable, ControlPositionEventHandler {
+public class EntityRollingStock extends CustomEntity implements ITickable, IClickable, IKillable {
 	@TagField("defID")
     protected String defID;
 	@TagField("gauge")
@@ -315,7 +316,9 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 
 	public void setControlPressed(Control<?> control, boolean pressed) {
 		controlPositions.put(control.controlGroup, Pair.of(pressed, getControlPosition(control)));
-
+		if (this instanceof EntityScriptableRollingStock) {
+			((EntityScriptableRollingStock) this).triggerEvent("onControlGroupChange", LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(getControlPosition(control)));
+		}
 	}
 
 	public float getControlPosition(Control<?> control) {
@@ -328,13 +331,22 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 
 	public void setControlPosition(Control<?> control, float val) {
 		val = Math.min(1, Math.max(0, val));
-		handleControlPositionEvent(control, val, controlPositions, getControlPressed(control));
-
+		controlPositions.put(control.controlGroup, Pair.of(getControlPressed(control), val));
+		if (this instanceof EntityScriptableRollingStock) {
+			((EntityScriptableRollingStock) this).triggerEvent("onControlGroupChange", LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(val));
+		}
 	}
 
 	public void setControlPosition(String control, float val) {
 		val = Math.min(1, Math.max(0, val));
 		controlPositions.put(control, Pair.of(false, val));
+		if (this instanceof EntityScriptableRollingStock) {
+			if (control.equals("MOVINGFORWARD") || control.equals("NOTMOVING") || control.equals("MOVINGBACKWARD") ||
+					control.equals("REVERSERFORWARD") || control.equals("REVERSERNEUTRAL") || control.equals("REVERSERBACKWARD")) {
+				return;
+			}
+			((EntityScriptableRollingStock) this).triggerEvent("onControlGroupChange", LuaValue.valueOf(control), LuaValue.valueOf(val));
+		}
 	}
 
 	public void setControlPositions(ModelComponentType type, float val) {

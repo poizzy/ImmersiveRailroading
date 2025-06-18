@@ -33,9 +33,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public abstract class EntityScriptableRollingStock extends EntityCoupleableRollingStock {
-    private LuaValue load;
-    private LuaValue save;
-    private LuaValue tickEvent = LuaValue.NIL;
     public boolean isLuaLoaded = false;
     private boolean isSleeping;
     private long lastExecutionTime;
@@ -51,6 +48,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     @TagSync
     @TagField(value = "luaTagField", mapper = LuaMapper.class)
     private final Map<String, LuaValue> tagFields = new HashMap<>();
+    private final Map<String, List<LuaValue>> luaEventCallbacks = new HashMap<>();
 
     @Override
     public void onTick() {
@@ -94,7 +92,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             }
 
             // Execute Lua script if not sleeping or luaScriptSleep is 0
-            callFunction();
+            triggerEvent("onTick");
         }
 
         schedule.removeIf(t -> {
@@ -222,6 +220,15 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                 .addFunction("wait", this::luaWait)
                 .setInGlobals(globals);
 
+        LuaLibrary.create("Events")
+                .addFunction("registerEvent", (name, func) -> {
+                    if (func.isfunction()) {
+                        luaEventCallbacks.computeIfAbsent(name.tojstring(), k -> new ArrayList<>()).add(func);
+                    } else {
+                        ModCore.warn("registerEvent called with non-function for event: " + name.tojstring());
+                    }
+                }).setInGlobals(globals);
+
         ScriptVectorUtil.VecUtil.setInGlobals(globals);
 
         if (getDefinition().addScripts != null) {
@@ -245,13 +252,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             tagField.set(entry.getKey(), entry.getValue());
         }
 
-
-        tickEvent = globals.get("tickEvent");
-        if (tickEvent.isnil()) {
-            ModCore.error("Function \"tickEvent\" in lua script %s is not defined!", script);
-        }
-
-        load = globals.get("load");
         ModCore.info(String.format("Lua environment from %s initialized and script loaded successfully", this.defID));
         isLuaLoaded = true;
     }
@@ -311,6 +311,19 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                     stock.controlPositions.put(controlName, Pair.of(false, newValControl));
                 }
                 break;
+            }
+        }
+    }
+
+    protected void triggerEvent(String eventName, LuaValue... args) {
+        List<LuaValue> callBacks = luaEventCallbacks.get(eventName);
+        if (callBacks != null) {
+            for (LuaValue callback : callBacks) {
+                try {
+                    callback.invoke(LuaValue.varargsOf(args));
+                } catch (Exception e) {
+                    ModCore.error("Lua callback for event %s failed: %s", eventName, e.getMessage());
+                }
             }
         }
     }
@@ -409,6 +422,12 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         }).addFunctionWithReturn("setSelectable", b -> {
             textField.setSelectable(b.toboolean());
             return funcHolder[0];
+        }).addFunctionWithReturn("setVerticalAlign", a -> {
+            textField.setVerticalAlign(a.tojstring());
+            return funcHolder[0];
+        }).addFunctionWithReturn("setScale", s -> {
+            textField.setScale(s.tofloat());
+            return funcHolder[0];
         }).addFunctionWithReturn("update", () -> {
             new TextField.PacketSyncTextField(this, this.textFields).sendToObserving(this);
             return funcHolder[0];
@@ -501,12 +520,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         return this.tag;
     }
 
-    public void callFunction() {
-        if (!tickEvent.isnil()) {
-            tickEvent.call();
-        }
-    }
-
     public void setIndividualCG(LuaValue stockUnit) {
         List<List<EntityCoupleableRollingStock>> allUnit = getUnit(false);
         int unit = stockUnit.checktable().get(1).toint();
@@ -533,6 +546,12 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             return LuaValue.valueOf(value.getRight());
         } else {
             return LuaValue.valueOf(0);
+        }
+    }
+
+    public void setTextField(String name, TextField field) {
+        if (getDefinition().getMesh().getGroup(name) != null) {
+            this.textFields.put(name, field);
         }
     }
 
@@ -641,9 +660,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         return LuaValue.valueOf(0);
     }
 
-    @Override
     public void wakeLuaScript() {
-        super.wakeLuaScript();
         wakeLuaScriptCalled = true;
     }
 
