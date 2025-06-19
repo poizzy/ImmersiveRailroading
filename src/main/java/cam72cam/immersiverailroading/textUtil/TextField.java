@@ -7,7 +7,6 @@ import cam72cam.immersiverailroading.entity.EntityScriptableRollingStock;
 import cam72cam.immersiverailroading.floor.Mesh;
 import cam72cam.immersiverailroading.model.animation.StockAnimation;
 import cam72cam.immersiverailroading.util.VecUtil;
-import cam72cam.mod.entity.sync.TagSync;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.Vec2f;
 import cam72cam.mod.model.obj.VertexBuffer;
@@ -356,6 +355,20 @@ public class TextField {
      */
     public Align getAlign() {
         return this.align;
+    }
+
+    /**
+     * @return Current vertical alignment as String
+     */
+    public String getVerticalAlignAsString() {
+        return this.verticalAlign.toString();
+    }
+
+    /**
+     * @return Current vertical alignment
+     */
+    public VerticalAlign getVerticalAlign() {
+        return this.verticalAlign;
     }
 
     /**

@@ -952,6 +952,8 @@ public abstract class EntityRollingStockDefinition {
 
                         Optional.ofNullable(config.getValue("unique").asBoolean()).ifPresent(defaults::setUnique);
                         Optional.ofNullable(config.getValue("numberPlate").asBoolean()).ifPresent(defaults::setNumberPlate);
+                        Optional.ofNullable(config.getValue("verticalAlign").asString()).ifPresent(defaults::setVerticalAlign);
+                        Optional.ofNullable(config.getValue("scale").asFloat()).ifPresent(defaults::setScale);
                     }
             );
 
