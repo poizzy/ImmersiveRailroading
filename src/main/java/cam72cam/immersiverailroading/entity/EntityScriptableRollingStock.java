@@ -1,11 +1,14 @@
 package cam72cam.immersiverailroading.entity;
 
+import cam72cam.immersiverailroading.ConfigSound;
 import cam72cam.immersiverailroading.IRItems;
+import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.floor.Mesh;
 import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
 import cam72cam.immersiverailroading.items.ItemTypewriter;
 import cam72cam.immersiverailroading.library.Permissions;
+import cam72cam.immersiverailroading.net.SoundPacket;
 import cam72cam.immersiverailroading.script.LuaLibrary;
 import cam72cam.immersiverailroading.script.ScriptVectorUtil;
 import cam72cam.immersiverailroading.textUtil.Font;
@@ -17,6 +20,7 @@ import cam72cam.mod.entity.Player;
 import cam72cam.mod.entity.sync.TagSync;
 import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.math.Vec3d;
+import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.*;
 import cam72cam.mod.text.PlayerMessage;
@@ -194,6 +198,8 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                 .addFunctionWithReturn("initTextField", this::initTextField)
                 .addFunctionWithReturn("getFont", this::getFont)
                 .addFunctionWithReturn("isBuilt", () -> LuaValue.valueOf(this.isBuilt()))
+                .addFunction("playSound", this::playSound)
+                .addFunctionWithReturn("getObjectPos", this::getObjectPos)
                 .setInGlobals(globals);
 
         LuaLibrary.create("World")
@@ -362,6 +368,27 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
 
     protected void setPerformance(LuaValue performanceType, LuaValue val) {
         /* */
+    }
+
+    public LuaValue getObjectPos(LuaValue name) {
+        Optional<Map.Entry<String, OBJGroup>> entryMap = getDefinition().getModel().groups.entrySet().stream().filter(e -> e.getKey().contains(name.tojstring())).findFirst();
+
+        if (!entryMap.isPresent()) {
+            return LuaValue.NIL;
+        }
+
+        OBJGroup group = entryMap.get().getValue();
+
+        Vec3d center = group.min.add(group.max.subtract(group.min).scale(0.5));
+        return ScriptVectorUtil.constructVec3Table(center);
+    }
+
+    public void playSound(LuaValue identifier, LuaValue luaPos, LuaValue repeats) {
+        Identifier sound = new Identifier(ImmersiveRailroading.MODID, identifier.tojstring());
+        Vec3d objPos = ScriptVectorUtil.convertToVec3d(luaPos);
+        Vec3d pos = this.getPosition().add(objPos);
+
+        new SoundPacket(sound, pos, getVelocity(), 1, 1, 10, ConfigSound.SoundCategories.controls(), SoundPacket.PacketSoundCategory.SCRIPTED).sendToObserving(this);
     }
 
     public void setCouplerEngagedLua(LuaValue positionLua, LuaValue engagedLua) {
