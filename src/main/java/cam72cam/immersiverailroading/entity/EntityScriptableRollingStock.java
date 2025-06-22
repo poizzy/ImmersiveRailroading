@@ -10,6 +10,7 @@ import cam72cam.immersiverailroading.items.ItemTypewriter;
 import cam72cam.immersiverailroading.library.Permissions;
 import cam72cam.immersiverailroading.net.SoundPacket;
 import cam72cam.immersiverailroading.script.LuaLibrary;
+import cam72cam.immersiverailroading.script.MarkupLibrary;
 import cam72cam.immersiverailroading.script.ScriptVectorUtil;
 import cam72cam.immersiverailroading.textUtil.Font;
 import cam72cam.immersiverailroading.textUtil.FontLoader;
@@ -236,6 +237,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                 }).setInGlobals(globals);
 
         ScriptVectorUtil.VecUtil.setInGlobals(globals);
+        MarkupLibrary.FUNCTION.setInGlobals(globals);
 
         if (getDefinition().addScripts != null) {
             for (String modules : getDefinition().addScripts) {
@@ -383,12 +385,22 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         return ScriptVectorUtil.constructVec3Table(center);
     }
 
-    public void playSound(LuaValue identifier, LuaValue luaPos, LuaValue repeats) {
-        Identifier sound = new Identifier(ImmersiveRailroading.MODID, identifier.tojstring());
-        Vec3d objPos = ScriptVectorUtil.convertToVec3d(luaPos);
-        Vec3d pos = this.getPosition().add(objPos);
+    public void playSound(LuaValue identifier, LuaValue luaPos, LuaValue volume) {
+        Vec3d pos;
+        if (luaPos != LuaValue.NIL) {
+            Vec3d objPos = ScriptVectorUtil.convertToVec3d(luaPos);
+            pos = getPosition().add(objPos);
+        } else {
+            pos = getPosition();
+        }
 
-        new SoundPacket(sound, pos, getVelocity(), 1, 1, 10, ConfigSound.SoundCategories.controls(), SoundPacket.PacketSoundCategory.SCRIPTED).sendToObserving(this);
+        if (volume == LuaValue.NIL) {
+            volume = LuaValue.valueOf(1);
+        }
+
+        Identifier sound = new Identifier(ImmersiveRailroading.MODID, identifier.tojstring());
+
+        new SoundPacket(sound, pos, getVelocity(), volume.tofloat(), 1, 10, ConfigSound.SoundCategories.controls(), SoundPacket.PacketSoundCategory.SCRIPTED).sendToObserving(this);
     }
 
     public void setCouplerEngagedLua(LuaValue positionLua, LuaValue engagedLua) {
