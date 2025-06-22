@@ -52,7 +52,7 @@ public class UnitDefinition {
             }
 
             String texture = valueMap.get("texture").asString(null);
-            Direction flipped = Direction.parse(valueMap.get("flipped"));
+            Direction flipped = Direction.parse(valueMap.get("direction"));
 
             Stock s = new Stock(stockDef, flipped, texture, controlGroup);
             unitList.add(s);
