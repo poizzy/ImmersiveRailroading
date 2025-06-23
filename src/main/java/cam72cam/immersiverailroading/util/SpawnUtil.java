@@ -262,7 +262,7 @@ public class SpawnUtil {
 
 				Vec3d length = VecUtil.fromWrongYaw(def.getCouplerPosition(isFlipped ? CouplerType.BACK : CouplerType.FRONT, stock.gauge), originalRot);
 
-				player.sendMessage(PlayerMessage.direct(String.format("Placed stock %s at position %s With offset %s", stock.getDefinition().defID, spawnPos, length)));
+//				player.sendMessage(PlayerMessage.direct(String.format("Placed stock %s at position %s With offset %s", stock.getDefinition().defID, spawnPos, length)));
 				worldIn.spawnEntity(stock);
 
 				// TODO Support for non Straight tracks?? I have no clue how tho
