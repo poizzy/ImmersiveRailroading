@@ -11,7 +11,7 @@ public class UnitDefinition {
     private final DataBlock block;
     public String defId;
     public String name;
-    public Set<String> tooltips;
+    public Set<String> tooltips = new HashSet<>();
     public LinkedList<Stock> unitList = new LinkedList<>();
 
     public UnitDefinition(String defId, DataBlock block) {
@@ -51,7 +51,9 @@ public class UnitDefinition {
                 continue;
             }
 
-            String texture = valueMap.get("texture").asString(null);
+            DataBlock.Value text = valueMap.get("texture");
+
+            String texture = text != null ? text.asString() : "";
             Direction flipped = Direction.parse(valueMap.get("direction"));
 
             Stock s = new Stock(stockDef, flipped, texture, controlGroup);
