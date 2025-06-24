@@ -261,7 +261,6 @@ public class LuaLibrary {
                                     ((Runnable) func.getValue()[0]).run();
                                     return NIL;
                                 }
-                                break;
                             case 1:
                                 if (func.getValue()[1] instanceof Function) {
                                     return ((Function<LuaValue, LuaValue>) func.getValue()[1]).apply(args.arg(1));
@@ -269,7 +268,6 @@ public class LuaLibrary {
                                     ((Consumer<LuaValue>) func.getValue()[1]).accept(args.arg(1));
                                     return NIL;
                                 }
-                                break;
                             case 2:
                                 if (func.getValue()[2] instanceof BiFunction) {
                                     return ((BiFunction<LuaValue, LuaValue, LuaValue>) func.getValue()[2])
@@ -279,7 +277,6 @@ public class LuaLibrary {
                                             .accept(args.arg(1), args.arg(2));
                                     return NIL;
                                 }
-                                break;
                             case 3:
                                 if (func.getValue()[3] instanceof TriFunction) {
                                     return ((TriFunction<LuaValue, LuaValue, LuaValue, LuaValue>) func.getValue()[3])
@@ -289,7 +286,6 @@ public class LuaLibrary {
                                             .accept(args.arg(1), args.arg(2), args.arg(3));
                                     return NIL;
                                 }
-                                break;
                             default:
                                 if (func.getValue()[4] instanceof Function) {
                                     return ((Function<Varargs, Varargs>) func.getValue()[4]).apply(args);
@@ -297,7 +293,6 @@ public class LuaLibrary {
                                     ((Consumer<Varargs>) func.getValue()[4]).accept(args);
                                     return NIL;
                                 }
-
                         }
                     } catch (Exception e) {
                         ModCore.error("Error invoking LuaFunction: " + e.getMessage());
