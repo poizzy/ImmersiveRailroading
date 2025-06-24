@@ -9,6 +9,8 @@ import cam72cam.immersiverailroading.library.*;
 import cam72cam.immersiverailroading.model.part.Control;
 import cam72cam.immersiverailroading.registry.DefinitionManager;
 import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
+import cam72cam.immersiverailroading.util.DataBlock;
+import cam72cam.immersiverailroading.util.ObservableMap;
 import cam72cam.mod.entity.*;
 import cam72cam.mod.entity.sync.TagSync;
 import cam72cam.mod.entity.custom.*;
@@ -26,6 +28,8 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.luaj.vm2.LuaValue;
 import util.Matrix4;
 
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -276,7 +280,13 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 
 	@TagSync
 	@TagField(value="controlPositions", mapper = ControlPositionMapper.class)
-	protected Map<String, Pair<Boolean, Float>> controlPositions = new HashMap<>();
+	protected Map<String, Pair<Boolean, Float>> controlPositions = new ObservableMap<String, Pair<Boolean, Float>>().addPropertyChangeListener(evt -> {
+        if (EntityRollingStock.this instanceof EntityScriptableRollingStock) {
+			@SuppressWarnings("unchecked")
+			Pair<Boolean, Float> pair = (Pair<Boolean, Float>) evt.getNewValue();
+            ((EntityScriptableRollingStock) EntityRollingStock.this).triggerEvent("onControlGroupChange", LuaValue.valueOf(evt.getPropertyName()), LuaValue.valueOf(pair.getRight()));
+        }
+    });
 
 	public void onDragStart(Control<?> control) {
 		setControlPressed(control, true);
@@ -316,9 +326,6 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 
 	public void setControlPressed(Control<?> control, boolean pressed) {
 		controlPositions.put(control.controlGroup, Pair.of(pressed, getControlPosition(control)));
-		if (this instanceof EntityScriptableRollingStock) {
-			((EntityScriptableRollingStock) this).triggerEvent("onControlGroupChange", LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(getControlPosition(control)));
-		}
 	}
 
 	public float getControlPosition(Control<?> control) {
@@ -332,21 +339,11 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 	public void setControlPosition(Control<?> control, float val) {
 		val = Math.min(1, Math.max(0, val));
 		controlPositions.put(control.controlGroup, Pair.of(getControlPressed(control), val));
-		if (this instanceof EntityScriptableRollingStock) {
-			((EntityScriptableRollingStock) this).triggerEvent("onControlGroupChange", LuaValue.valueOf(control.controlGroup), LuaValue.valueOf(val));
-		}
 	}
 
 	public void setControlPosition(String control, float val) {
 		val = Math.min(1, Math.max(0, val));
 		controlPositions.put(control, Pair.of(false, val));
-		if (this instanceof EntityScriptableRollingStock) {
-			if (control.equals("MOVINGFORWARD") || control.equals("NOTMOVING") || control.equals("MOVINGBACKWARD") ||
-					control.equals("REVERSERFORWARD") || control.equals("REVERSERNEUTRAL") || control.equals("REVERSERBACKWARD")) {
-				return;
-			}
-			((EntityScriptableRollingStock) this).triggerEvent("onControlGroupChange", LuaValue.valueOf(control), LuaValue.valueOf(val));
-		}
 	}
 
 	public void setControlPositions(ModelComponentType type, float val) {
