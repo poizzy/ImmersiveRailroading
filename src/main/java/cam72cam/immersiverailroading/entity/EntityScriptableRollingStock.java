@@ -28,6 +28,7 @@ import cam72cam.mod.text.PlayerMessage;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.luaj.vm2.*;
+import org.luaj.vm2.lib.VarArgFunction;
 import org.luaj.vm2.lib.jse.JsePlatform;
 import org.luaj.vm2.LuaValue;
 
@@ -234,7 +235,16 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                     } else {
                         ModCore.warn("registerEvent called with non-function for event: " + name.tojstring());
                     }
-                }).setInGlobals(globals);
+                }).addVarArgsFunction("triggerEvent", args -> {
+                    String funcName = args.arg1().tojstring();
+                    if (funcName.equals("onTick") || funcName.equals("onControlGroupChange")) {
+                        ModCore.error("[Lua] Cannot call \"onTick\" or \"onControlGroupChange\" manually. Please use another name for your event!");
+                        return;
+                    }
+                    Varargs varargs = args.subargs(2);
+                    this.mapTrain(this, false, stock -> ((EntityScriptableRollingStock) stock).triggerEvent(funcName, varargs));
+                })
+                .setInGlobals(globals);
 
         ScriptVectorUtil.VecUtil.setInGlobals(globals);
         MarkupLibrary.FUNCTION.setInGlobals(globals);
@@ -329,6 +339,19 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             for (LuaValue callback : callBacks) {
                 try {
                     callback.invoke(LuaValue.varargsOf(args));
+                } catch (Exception e) {
+                    ModCore.error("Lua callback for event %s failed: %s", eventName, e.getMessage());
+                }
+            }
+        }
+    }
+
+    protected void triggerEvent(String eventName, Varargs args) {
+        List<LuaValue> callBacks = luaEventCallbacks.get(eventName);
+        if (callBacks != null) {
+            for (LuaValue callback : callBacks) {
+                try {
+                    callback.invoke(args);
                 } catch (Exception e) {
                     ModCore.error("Lua callback for event %s failed: %s", eventName, e.getMessage());
                 }
