@@ -12,6 +12,7 @@ import cam72cam.immersiverailroading.net.SoundPacket;
 import cam72cam.immersiverailroading.script.LuaLibrary;
 import cam72cam.immersiverailroading.script.MarkupLibrary;
 import cam72cam.immersiverailroading.script.ScriptVectorUtil;
+import cam72cam.immersiverailroading.script.SoundConfig;
 import cam72cam.immersiverailroading.textUtil.Font;
 import cam72cam.immersiverailroading.textUtil.FontLoader;
 import cam72cam.immersiverailroading.textUtil.TextField;
@@ -55,6 +56,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     @TagField(value = "luaTagField", mapper = LuaMapper.class)
     private final Map<String, LuaValue> tagFields = new HashMap<>();
     private final Map<String, List<LuaValue>> luaEventCallbacks = new HashMap<>();
+    public Map<String, SoundConfig> sounds = new HashMap<String, SoundConfig>();
 
     @Override
     public void onTick() {
@@ -202,6 +204,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                 .addFunctionWithReturn("isBuilt", () -> LuaValue.valueOf(this.isBuilt()))
                 .addFunction("playSound", this::playSound)
                 .addFunctionWithReturn("getObjectPos", this::getObjectPos)
+                .addVarArgsFunctionWithReturn("initSound", this::initSound)
                 .setInGlobals(globals);
 
         LuaLibrary.create("World")
@@ -425,6 +428,45 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
 
         new SoundPacket(sound, pos, getVelocity(), volume.tofloat(), 1, 10, ConfigSound.SoundCategories.controls(), SoundPacket.PacketSoundCategory.SCRIPTED).sendToObserving(this);
     }
+
+    public LuaValue initSound(Varargs args) {
+        String soundLocation = args.arg1().tojstring();
+        boolean repeats = args.narg() > 1 && args.arg(2).toboolean();
+        int distance = args.narg() > 2 ? args.arg(3).toint() : 10;
+
+
+        SoundConfig config = sounds.computeIfAbsent(soundLocation, k -> new SoundConfig(this, soundLocation, repeats, distance));
+
+        LuaLibrary lib = LuaLibrary.create();
+
+        lib.addFunctionWithReturn("play", (s, p) -> {
+            config.play(ScriptVectorUtil.convertToVec3d(p));
+            return s;
+        }).addFunctionWithReturn("play", s -> {
+            config.play();
+            return s;
+        }).addFunctionWithReturn("setPosition", (s, p) -> {
+            config.setPos(ScriptVectorUtil.convertToVec3d(p));
+            return s;
+        }).addFunctionWithReturn("setPitch", (s, f) -> {
+            config.setPitch(f.tofloat());
+            return s;
+        }).addFunctionWithReturn("setVolume", (s, f) -> {
+            config.setVolume(f.tofloat());
+            return s;
+        }).addFunctionWithReturn("setVelocity", (s, v) -> {
+            if (v == LuaValue.NIL) v = ScriptVectorUtil.constructVec3Table(getVelocity());
+            config.setMotion(ScriptVectorUtil.convertToVec3d(v));
+            return s;
+        }).addFunctionWithReturn("stop", s -> {
+            config.stop();
+            return s;
+        });
+
+        return lib.getAsTable();
+    }
+
+    public void clientSound() {}
 
     public void setCouplerEngagedLua(LuaValue positionLua, LuaValue engagedLua) {
         String position = positionLua.tojstring();
