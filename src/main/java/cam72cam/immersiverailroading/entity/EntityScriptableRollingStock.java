@@ -29,7 +29,6 @@ import cam72cam.mod.text.PlayerMessage;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.luaj.vm2.*;
-import org.luaj.vm2.lib.VarArgFunction;
 import org.luaj.vm2.lib.jse.JsePlatform;
 import org.luaj.vm2.LuaValue;
 
@@ -425,6 +424,11 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         }
 
         Identifier sound = new Identifier(ImmersiveRailroading.MODID, identifier.tojstring());
+
+        if (!sound.canLoad()) {
+            ModCore.error("[Lua] Sound file %s does not exist! Not playing sound.", sound.toString());
+            return;
+        }
 
         new SoundPacket(sound, pos, getVelocity(), volume.tofloat(), 1, 10, ConfigSound.SoundCategories.controls(), SoundPacket.PacketSoundCategory.SCRIPTED).sendToObserving(this);
     }

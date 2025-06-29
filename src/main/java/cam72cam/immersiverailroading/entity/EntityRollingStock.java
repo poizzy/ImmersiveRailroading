@@ -280,13 +280,18 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 
 	@TagSync
 	@TagField(value="controlPositions", mapper = ControlPositionMapper.class)
-	protected Map<String, Pair<Boolean, Float>> controlPositions = new ObservableMap<String, Pair<Boolean, Float>>().addPropertyChangeListener(evt -> {
-        if (EntityRollingStock.this instanceof EntityScriptableRollingStock) {
-			@SuppressWarnings("unchecked")
-			Pair<Boolean, Float> pair = (Pair<Boolean, Float>) evt.getNewValue();
-            ((EntityScriptableRollingStock) EntityRollingStock.this).triggerEvent("onControlGroupChange", LuaValue.valueOf(evt.getPropertyName()), LuaValue.valueOf(pair.getRight()));
-        }
-    });
+	protected Map<String, Pair<Boolean, Float>> controlPositions = new ObservableMap<String, Pair<Boolean, Float>>() {
+		@Override
+		public void onChange(String key, Pair<Boolean, Float> oldValue, Pair<Boolean, Float> newValue) {
+			if (newValue == null) {
+				return;
+			}
+
+			if ((oldValue == null || !oldValue.getRight().equals(newValue.getRight())) && EntityRollingStock.this instanceof EntityScriptableRollingStock) {
+				((EntityScriptableRollingStock) EntityRollingStock.this).triggerEvent("onControlGroupChange", LuaValue.valueOf(key), LuaValue.valueOf(newValue.getRight()));
+			}
+		}
+	};
 
 	public void onDragStart(Control<?> control) {
 		setControlPressed(control, true);
@@ -301,7 +306,8 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 		setControlPressed(control, false);
 
 		if (control.toggle) {
-			setControlPosition(control, Math.abs(getControlPosition(control) - 1));
+			float controlPos = getControlPosition(control);
+			setControlPosition(control, Math.abs(controlPos - 1));
 		}
 		if (control.press) {
 			setControlPosition(control, 0);
