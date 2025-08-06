@@ -21,11 +21,14 @@ import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.entity.sync.TagSync;
 import cam72cam.mod.item.ClickResult;
+import cam72cam.mod.item.ItemStack;
 import cam72cam.mod.math.Vec3d;
+import cam72cam.mod.math.Vec3i;
 import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.*;
 import cam72cam.mod.text.PlayerMessage;
+import cam72cam.mod.world.BlockInfo;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.luaj.vm2.*;
@@ -55,52 +58,34 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     @TagField(value = "luaTagField", mapper = LuaMapper.class)
     private final Map<String, LuaValue> tagFields = new HashMap<>();
     private final Map<String, List<LuaValue>> luaEventCallbacks = new HashMap<>();
-    public Map<String, SoundConfig> sounds = new HashMap<String, SoundConfig>();
+    public Map<String, SoundConfig> sounds = new HashMap<>();
 
     @Override
     public void onTick() {
         super.onTick();
+
         if (getWorld().isClient) {
             return;
         }
-        if (getDefinition().script != null && !ConfigPerformance.disableLuaScript) {
-            if (!isLuaLoaded) {
-                try {
-                    loadLuaFile();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
 
-
-            long currentTime = System.currentTimeMillis();
-
-            // Handle sleep logic if luaScriptSleep is greater than 0
-            if (ConfigPerformance.luaScriptSleep > 0) {
-                long elapsedTime = currentTime - lastExecutionTime;
-
-                if (!isSleeping && elapsedTime >= ConfigPerformance.luaScriptSleep * 1000L) {
-                    isSleeping = true;
-                }
-
-                if (isSleeping) {
-                    if (wakeLuaScriptCalled || getPassengerCount() > 0) {
-                        wakeLuaScriptCalled = false;
-                        isSleeping = false;
-                        lastExecutionTime = currentTime;
-                    } else {
-                        return;
-                    }
-                }
-            } else {
-                // If luaScriptSleep is 0, reset sleep state
-                isSleeping = false;
-                lastExecutionTime = currentTime;
-            }
-
-            // Execute Lua script if not sleeping or luaScriptSleep is 0
-            triggerEvent("onTick");
+        if (ConfigPerformance.disableLuaScript) {
+            return;
         }
+
+        if (getDefinition().script == null) {
+            return;
+        }
+
+        if (!isLuaLoaded) {
+            try {
+                loadLuaFile();
+            } catch (IOException e) {
+                ModCore.error("Couldn't load script for Stock %s. Error: %s", getDefinition().defID, e);
+                return;
+            }
+        }
+
+        triggerEvent("onTick");
 
         schedule.removeIf(t -> {
             t.ticks--;
@@ -145,24 +130,85 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         Map<String, LuaValue> tempMap = new HashMap<>();
         globals.set("_TagField", createTagField(tempMap));
 
-        // Get Lua file from Json
+
         Identifier script = getDefinition().script;
-        InputStream inputStream = script.getResourceStream();
 
-        if (inputStream == null) {
-            ModCore.error("Script file %s does not exist", script);
-            return;
+        LuaValue chunk;
+        try (InputStream inputStream = script.getResourceStream()) {
+            if (inputStream == null) {
+                ModCore.error("Script file %s does not exist", script);
+                return;
+            }
+
+            String luaScript = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+
+            if (luaScript.isEmpty()) {
+                ModCore.error("Lua script %s 's content is empty", script);
+                return;
+            }
+
+            chunk = globals.load(luaScript);
         }
 
-        String luaScript = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
-        if (luaScript == null) {
-            ModCore.error("Lua script file %s not found", script);
-            return;
-        } else if (luaScript.isEmpty()) {
-            ModCore.error("Lua script %s 's content is empty", script);
-            return;
+        this.loadLuaFunctions(globals);
+        ScriptVectorUtil.VecUtil.setInGlobals(globals);
+        MarkupLibrary.FUNCTION.setInGlobals(globals);
+
+        this.preloadModules(globals, script);
+
+//        if (getDefinition().addScripts != null) {
+//            for (String modules : getDefinition().addScripts) {
+//                Identifier newModule = script.getRelative(modules);
+//                moduleMap.put(modules.replace(".lua", ""), newModule.getResourceStream());
+//            }
+//            preloadModules(globals, moduleMap);
+//        }
+
+        chunk.call();
+
+        for (Map.Entry<String, LuaValue> entry : tempMap.entrySet()) {
+            tagFields.putIfAbsent(entry.getKey(), entry.getValue());
         }
 
+        globals.set("_TagField", createTagField(tagFields));
+        LuaTable tagField = (LuaTable) globals.get("_TagField");
+        for (Map.Entry<String, LuaValue> entry : tagFields.entrySet()) {
+            tagField.set(entry.getKey(), entry.getValue());
+        }
+
+        ModCore.info(String.format("Lua environment from %s initialized and script loaded successfully", this.defID));
+        isLuaLoaded = true;
+    }
+
+    private void preloadModules(Globals globals, Identifier script) {
+        Map<String, InputStream> moduleStreams = getDefinition().addScripts.stream().collect(Collectors.toMap(s -> s.replace(".lua", ""), m -> {
+            try {
+                return script.getRelative(m).getResourceStream();
+            } catch (IOException e) {
+                ModCore.error("Package %s does not exist in the directory %s", m, new File(script.getPath()).getPath());
+                return null;
+            }
+        }));
+
+        moduleStreams = moduleStreams.entrySet().stream().filter(e -> e.getValue() != null).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        LuaValue packageLib = globals.get("package");
+        LuaValue preloadTable = packageLib.get("preload");
+
+        for (Map.Entry<String, InputStream> entry : moduleStreams.entrySet()) {
+            String moduleName = entry.getKey();
+            InputStream moduleStream = entry.getValue();
+
+            try {
+                LuaValue chunk = globals.load(moduleStream, moduleName, "bt", globals);
+                preloadTable.set(moduleName, chunk);
+            } catch (Exception e) {
+                ModCore.error("An error occurred while preloading lua modules", e);
+            }
+        }
+    }
+
+    private void loadLuaFunctions(Globals globals) {
         LuaLibrary.create("IR")
                 .addFunction("setCG", (control, val) -> this.setControlGroup(control.tojstring(), val.tofloat()))
                 .addFunctionWithReturn("getCG", control -> LuaValue.valueOf(this.getControlGroup(control.tojstring())))
@@ -208,12 +254,14 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
 
         LuaLibrary.create("World")
                 .addFunctionWithReturn("isRainingAt", pos -> LuaValue.valueOf(this.getWorld().isRaining(ScriptVectorUtil.convertToVec3i(pos))))
+                .addFunctionWithReturn("isSnowingAt", pos -> LuaValue.valueOf(this.getWorld().isSnowing(ScriptVectorUtil.convertToVec3i(pos))))
                 .addFunctionWithReturn("getTemperatureAt", pos -> LuaValue.valueOf(this.getWorld().getTemperature(ScriptVectorUtil.convertToVec3i(pos))))
                 .addFunctionWithReturn("getSnowLevelAt", pos -> LuaValue.valueOf(this.getWorld().getSnowLevel(ScriptVectorUtil.convertToVec3i(pos))))
                 .addFunctionWithReturn("getBlockLightLevelAt", pos -> LuaValue.valueOf(this.getWorld().getBlockLightLevel(ScriptVectorUtil.convertToVec3i(pos))))
                 .addFunctionWithReturn("getSkyLightLevelAt", pos -> LuaValue.valueOf(this.getWorld().getSkyLightLevel(ScriptVectorUtil.convertToVec3i(pos))))
                 .addFunctionWithReturn("getDimension", () -> LuaValue.valueOf(this.getWorld().getId()))
                 .addFunctionWithReturn("getTicks", () -> LuaValue.valueOf(this.getWorld().getTicks()))
+                .addFunctionWithReturn("getBlock", this::getBlock)
                 .setInGlobals(globals);
 
         LuaLibrary.create("Debug")
@@ -245,52 +293,8 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
                     }
                     Varargs varargs = args.subargs(2);
                     this.mapTrain(this, false, stock -> ((EntityScriptableRollingStock) stock).triggerEvent(funcName, varargs));
-                })
+                }).addVarArgsFunction("triggerCouplerEvent", this::couplerEvent)
                 .setInGlobals(globals);
-
-        ScriptVectorUtil.VecUtil.setInGlobals(globals);
-        MarkupLibrary.FUNCTION.setInGlobals(globals);
-
-        if (getDefinition().addScripts != null) {
-            for (String modules : getDefinition().addScripts) {
-                Identifier newModule = script.getRelative(modules);
-                moduleMap.put(modules.replace(".lua", ""), newModule.getResourceStream());
-            }
-            preloadModules(globals, moduleMap);
-        }
-
-        LuaValue chunk = globals.load(luaScript);
-        chunk.call();
-
-        for (Map.Entry<String, LuaValue> entry : tempMap.entrySet()) {
-            tagFields.putIfAbsent(entry.getKey(), entry.getValue());
-        }
-
-        globals.set("_TagField", createTagField(tagFields));
-        LuaTable tagField = (LuaTable) globals.get("_TagField");
-        for (Map.Entry<String, LuaValue> entry : tagFields.entrySet()) {
-            tagField.set(entry.getKey(), entry.getValue());
-        }
-
-        ModCore.info(String.format("Lua environment from %s initialized and script loaded successfully", this.defID));
-        isLuaLoaded = true;
-    }
-
-    private void preloadModules(Globals globals, Map<String, InputStream> moduleStreams) {
-        LuaValue packageLib = globals.get("package");
-        LuaValue preloadTable = packageLib.get("preload");
-
-        for (Map.Entry<String, InputStream> entry : moduleStreams.entrySet()) {
-            String moduleName = entry.getKey();
-            InputStream moduleStream = entry.getValue();
-
-            try {
-                LuaValue chunk = globals.load(moduleStream, moduleName, "bt", globals);
-                preloadTable.set(moduleName, chunk);
-            } catch (Exception e) {
-                ModCore.error("An error occurred while preloading lua modules", e);
-            }
-        }
     }
 
     private LuaTable createTagField(Map<String, LuaValue> tagFields) {
@@ -336,16 +340,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     }
 
     protected void triggerEvent(String eventName, LuaValue... args) {
-        List<LuaValue> callBacks = luaEventCallbacks.get(eventName);
-        if (callBacks != null) {
-            for (LuaValue callback : callBacks) {
-                try {
-                    callback.invoke(LuaValue.varargsOf(args));
-                } catch (Exception e) {
-                    ModCore.error("Lua callback for event %s failed: %s", eventName, e.getMessage());
-                }
-            }
-        }
+        triggerEvent(eventName, LuaValue.varargsOf(args));
     }
 
     protected void triggerEvent(String eventName, Varargs args) {
@@ -470,7 +465,15 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         return lib.getAsTable();
     }
 
-    public void clientSound() {}
+    public LuaValue getBlock(LuaValue luaPos) {
+        Vec3i pos = ScriptVectorUtil.convertToVec3i(luaPos);
+        // It will work, hopefully :)
+        ItemStack stack = getWorld().getItemStack(pos);
+
+        String name = stack.getDisplayName();
+
+        return LuaValue.valueOf(name);
+    }
 
     public void setCouplerEngagedLua(LuaValue positionLua, LuaValue engagedLua) {
         String position = positionLua.tojstring();
@@ -607,7 +610,16 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         return table;
     }
 
-    private LuaTable getCoupled(LuaValue type) {
+    private void couplerEvent(Varargs args) {
+        String functionName = args.arg1().tojstring();
+        CouplerType coupler = CouplerType.valueOf(args.arg(2).tojstring().toUpperCase());
+
+        EntityScriptableRollingStock stock = (EntityScriptableRollingStock) getCoupled(coupler);
+
+        stock.triggerEvent(functionName, args.subargs(3));
+    }
+
+    public LuaTable getCoupled(LuaValue type) {
         LuaTable table = new LuaTable();
         String sType = type.tojstring();
 
@@ -624,7 +636,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         return table;
     }
 
-    private String getTag() {
+    public String getTag() {
         return this.tag;
     }
 
@@ -733,7 +745,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     }
 
     @Deprecated
-    private void particleDefinition(LuaValue result) {
+    public void particleDefinition(LuaValue result) {
     }
 
     @Deprecated
