@@ -39,6 +39,8 @@ public class LuaContext {
         os.set("clock", env.get("os").get("clock"));
         os.set("difftime", env.get("os").get("difftime"));
 
+        env.set("os", os);
+
         MarkupLibrary.register(env);
         // TODO convert ScriptVectorUtil to new implementation!
         ScriptVectorUtil.VecUtil.setInGlobals(env);
