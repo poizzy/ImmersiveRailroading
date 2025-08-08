@@ -22,17 +22,6 @@ public class FontLoader {
     public static final Identifier DEFAULT = new Identifier("minecraft", "textures/font/ascii.png");
 
     private FontLoader() {}
-    /*
-      Static block to load the default font (minecraft Ascii font)
-     */
-    static {
-        // Aww man this is really awful. But this is the only thing I was able to find, that gives me conformation that this runs Serverside
-        if (ModCore.instance.getGPUTextureSize() == -1) {
-            Identifier jsonLocation = new Identifier(ImmersiveRailroading.MODID, "textures/font/ascii.json");
-            Font font = loadFont(DEFAULT, jsonLocation);
-            fonts.put(DEFAULT, font);
-        }
-    }
 
     /**
      * Get or create a font from an Identifier
@@ -41,7 +30,16 @@ public class FontLoader {
      * @see Font
      */
     public static Font getOrCreateFont(Identifier font) {
+        if (!fonts.containsKey(DEFAULT)) {
+            initDefaultFont();
+        }
         return fonts.computeIfAbsent(font, i -> loadFont(i, null));
+    }
+
+    private static void initDefaultFont() {
+        Identifier jsonLocation = new Identifier(ImmersiveRailroading.MODID, "textures/font/ascii.json");
+        Font font = loadFont(DEFAULT, jsonLocation);
+        fonts.put(DEFAULT, font);
     }
 
     /**
@@ -83,9 +81,7 @@ public class FontLoader {
                 }
             }
 
-            Texture image = Texture.wrap(font);
-
-            return new Font(height, width, image, glyphs);
+            return new Font(height, width, font, glyphs);
 
         } catch (IOException e) {
             ModCore.error("An error occurred while loading font %s, maybe file does not exist. Error %s", font, e.getMessage());

@@ -288,10 +288,6 @@ public class LocomotiveDiesel extends Locomotive {
 			setControlPositions(ModelComponentType.REVERSER_X, getReverser()/-2 + 0.5f);
 		}
 	}
-	@Override
-	public void setTurnedOnLua(LuaValue b) {
-		setTurnedOn(b.toboolean());
-	}
 
 	@Override
 	public boolean getEngineState() {
