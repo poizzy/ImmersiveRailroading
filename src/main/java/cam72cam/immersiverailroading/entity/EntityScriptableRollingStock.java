@@ -457,6 +457,21 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         return LuaValue.valueOf(getPassengerCount());
     }
 
+    @LuaFunction(module = "IR")
+    public LuaValue isStockFlipped() {
+        Collection<DirectionalStock> train = getDirectionalTrain(false);
+
+        boolean flipped = false;
+        for (DirectionalStock stock : train) {
+            if (stock.stock == this) {
+                flipped = !stock.direction;
+                break;
+            }
+        }
+
+        return LuaValue.valueOf(flipped);
+    }
+
 
     /**
      * <h2>World Functions (World)</h2>
