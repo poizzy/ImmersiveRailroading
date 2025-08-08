@@ -18,6 +18,7 @@ import cam72cam.immersiverailroading.script.sound.SoundConfig;
 import cam72cam.immersiverailroading.textUtil.Font;
 import cam72cam.immersiverailroading.textUtil.FontLoader;
 import cam72cam.immersiverailroading.textUtil.TextField;
+import cam72cam.immersiverailroading.util.Speed;
 import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Player;
@@ -470,6 +471,18 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         }
 
         return LuaValue.valueOf(flipped);
+    }
+
+    @LuaFunction(module = "IR")
+    public LuaValue getSpeedKmh() {
+        Speed speed = getCurrentSpeed();
+        return LuaValue.valueOf(speed.metric());
+    }
+
+    @LuaFunction(module = "IR")
+    public LuaValue getSpeedMph() {
+        Speed speed = getCurrentSpeed();
+        return LuaValue.valueOf(speed.imperial());
     }
 
 
