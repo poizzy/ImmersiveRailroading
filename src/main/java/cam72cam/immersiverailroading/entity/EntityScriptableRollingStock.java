@@ -464,7 +464,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
 
         boolean flipped = false;
         for (DirectionalStock stock : train) {
-            if (stock.stock == this) {
+            if (stock.stock.getUUID().equals(this.getUUID())) {
                 flipped = !stock.direction;
                 break;
             }
@@ -645,5 +645,4 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
 
         stock.triggerEvent(functionName, LuaValue.varargsOf(Arrays.copyOfRange(args, 2, args.length)));
     }
-
 }
