@@ -213,11 +213,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     }
 
     @LuaFunction(module = "IR")
-    public void setUnit() {
-        // Currently Disabled
-    }
-
-    @LuaFunction(module = "IR")
     public void setTag(LuaValue tag) {
         setEntityTag(tag.tojstring());
     }
@@ -244,16 +239,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         }
 
         return consist;
-    }
-
-    @LuaFunction(module = "IR")
-    public void setIndividualCG() {
-        // Currently Disabled
-    }
-
-    @LuaFunction(module = "IR")
-    public LuaValue getIndividualCG() {
-        return LuaValue.NIL;
     }
 
     @LuaFunction(module = "IR", name = "isTurnedOn")
