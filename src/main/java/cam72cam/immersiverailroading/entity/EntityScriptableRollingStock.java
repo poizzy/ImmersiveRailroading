@@ -485,6 +485,19 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         return LuaValue.valueOf(speed.imperial());
     }
 
+    @LuaFunction(module = "IR")
+    public LuaValue getTemperature() {
+        if (this instanceof LocomotiveSteam) {
+            float temp = ((LocomotiveSteam) this).getBoilerTemperature();
+            return LuaValue.valueOf(temp);
+        } else if (this instanceof LocomotiveDiesel) {
+            float temp = ((LocomotiveDiesel) this).getEngineTemperature();
+            return LuaValue.valueOf(temp);
+        } else {
+            return LuaValue.valueOf(0);
+        }
+    }
+
 
     /**
      * <h2>World Functions (World)</h2>
