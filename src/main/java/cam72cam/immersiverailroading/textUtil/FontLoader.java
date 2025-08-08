@@ -21,16 +21,16 @@ public class FontLoader {
     public static final Map<Identifier, Font> fonts = new HashMap<>();
     public static final Identifier DEFAULT = new Identifier("minecraft", "textures/font/ascii.png");
 
+    private FontLoader() {}
     /*
       Static block to load the default font (minecraft Ascii font)
      */
     static {
-        Identifier jsonLocation = new Identifier(ImmersiveRailroading.MODID, "textures/font/ascii.json");
-        try {
+        // Aww man this is really awful. But this is the only thing I was able to find, that gives me conformation that this runs Serverside
+        if (ModCore.instance.getGPUTextureSize() == -1) {
+            Identifier jsonLocation = new Identifier(ImmersiveRailroading.MODID, "textures/font/ascii.json");
             Font font = loadFont(DEFAULT, jsonLocation);
             fonts.put(DEFAULT, font);
-        } catch (Exception ignore) {
-            // Probably Server side *_*
         }
     }
 
