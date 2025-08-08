@@ -493,9 +493,19 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         } else if (this instanceof LocomotiveDiesel) {
             float temp = ((LocomotiveDiesel) this).getEngineTemperature();
             return LuaValue.valueOf(temp);
-        } else {
-            return LuaValue.valueOf(0);
         }
+
+        return LuaValue.valueOf(0);
+    }
+
+    @LuaFunction(module = "IR", name = "getBoilerPressure")
+    public LuaValue getBoilerPressureLua() {
+        if (this instanceof LocomotiveSteam) {
+            float pressure = ((LocomotiveSteam) this).getBoilerPressure();
+            return LuaValue.valueOf(pressure);
+        }
+
+        return LuaValue.valueOf(0);
     }
 
 
