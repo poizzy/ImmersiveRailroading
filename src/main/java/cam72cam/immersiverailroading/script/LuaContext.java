@@ -134,10 +134,11 @@ public class LuaContext {
 
     public void loadScript(Identifier path) {
         try (InputStream inputStream = path.getResourceStream()) {
-            LuaValue chunk = globals.load(inputStream, "ImmersiveRailroading", "t", globals);
+            String fileName = new File(path.getPath()).getName();
+            LuaValue chunk = globals.load(inputStream, fileName, "t", globals);
             chunk.call();
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            ModCore.catching(e);
         }
     }
 
