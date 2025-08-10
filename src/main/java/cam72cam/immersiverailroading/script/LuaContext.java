@@ -138,7 +138,7 @@ public class LuaContext {
             LuaValue chunk = globals.load(inputStream, fileName, "t", globals);
             chunk.call();
         } catch (Exception e) {
-            ModCore.catching(e);
+            ModCore.catching(e, "An error occurred while loading script %s", path.getPath());
         }
     }
 
