@@ -150,7 +150,7 @@ public class LuaContext {
             String name = module.replace(".lua", "");
 
             try (InputStream inputStream = origin.getRelative(module).getResourceStream()) {
-                LuaValue chunk = globals.load(inputStream, name, "bt", globals);
+                LuaValue chunk = globals.load(inputStream, name, "t", globals);
                 preloadTable.set(name, chunk);
             } catch (Exception e) {
                 ModCore.error("Package %s does not exist in the directory %s", module, new File(origin.getPath()).getPath());
