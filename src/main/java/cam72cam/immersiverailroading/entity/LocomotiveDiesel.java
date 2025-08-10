@@ -131,6 +131,11 @@ public class LocomotiveDiesel extends Locomotive {
 	}
 
 	@Override
+	public float getThrottleDelta() {
+		return 1F / this.getDefinition().getThrottleNotches();
+	}
+
+	@Override
 	public boolean providesElectricalPower() {
 		return this.isRunning();
 	}
@@ -142,12 +147,9 @@ public class LocomotiveDiesel extends Locomotive {
 
 	@Override
 	public void setThrottle(float newThrottle) {
-		int notches = getDefinition().getThrottleNotches();
-		if (newThrottle > getThrottle()) {
-			super.setThrottle((float) (Math.ceil(newThrottle * notches) / notches));
-		} else {
-			super.setThrottle((float) (Math.floor(newThrottle * notches) / notches));
-		}
+		int targetNotch = Math.round(newThrottle / getThrottleDelta());
+		//issue #1526: when dragging or control with augment throttle glitches
+		super.setThrottle(targetNotch * getThrottleDelta());
 	}
 
 	@Override
