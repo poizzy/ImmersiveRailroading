@@ -118,6 +118,11 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         }
     }
 
+    @LuaFunction(module = "")
+    public void print(LuaValue str) {
+        ModCore.info("[Lua, %s] %s", getDefinition().name(), str.tojstring());
+    }
+
 
     @LuaFunction(module = "Utils")
     public void wait(LuaValue sec, LuaValue func) {
