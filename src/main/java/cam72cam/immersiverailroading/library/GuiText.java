@@ -53,6 +53,9 @@ public enum GuiText {
 	TRACK_SWITCHER_TOOLTIP("item.track_exchanger"),
 	PAINT_BRUSH_MODE_TOOLTIP("item.paint_brush.mode"),
 	PAINT_BRUSH_DESCRIPTION_TOOLTIP("item.paint_brush.description"),
+
+	ON("overlay.on"),
+	OFF("overlay.off"),
 	NONE("none"),
 	;
 

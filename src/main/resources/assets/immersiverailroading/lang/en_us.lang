@@ -117,6 +117,9 @@ gui.immersiverailroading:stock.weight=Weight:          %s Kg
 gui.immersiverailroading:stock.modeler=Modeler:        %s
 gui.immersiverailroading:stock.pack=Pack:            %s
 
+gui.immersiverailroading:overlay.on=On
+gui.immersiverailroading:overlay.off=Off
+
 immersiverailroading:gauge.brunel=Brunel
 immersiverailroading:gauge.standard=Standard
 immersiverailroading:gauge.narrow=Narrow
@@ -202,6 +205,16 @@ part.immersiverailroading:component.reach_rod=Reach Rod
 part.immersiverailroading:component.walcherts_linkage=Walcherts Linkage
 part.immersiverailroading:component.valve_rod=Valve Gear Component
 
+part.immersiverailroading:controls.cylinder_drain=Cylinder Drain
+part.immersiverailroading:controls.bell=Bell
+part.immersiverailroading:controls.whistle=Whistle
+part.immersiverailroading:controls.horn=Horn
+part.immersiverailroading:controls.train_brake=Train Brake
+part.immersiverailroading:controls.independent_brake=Independent Brake
+part.immersiverailroading:controls.throttle=Throttle
+part.immersiverailroading:controls.reverser=Reverser
+part.immersiverailroading:controls.throttle_brake=Throttle Brake
+part.immersiverailroading:controls.engine_start=Engine Start
 
 immersiverailroading:crafting_type.casting=Casting
 immersiverailroading:crafting_type.casting_hammer=Casting,Power Hammer

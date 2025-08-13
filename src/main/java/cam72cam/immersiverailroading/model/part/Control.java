@@ -3,6 +3,7 @@ package cam72cam.immersiverailroading.model.part;
 import cam72cam.immersiverailroading.ConfigGraphics;
 import cam72cam.immersiverailroading.entity.EntityMoveableRollingStock;
 import cam72cam.immersiverailroading.entity.EntityRollingStock;
+import cam72cam.immersiverailroading.library.GuiText;
 import cam72cam.immersiverailroading.library.ModelComponentType;
 import cam72cam.immersiverailroading.library.ModelComponentType.ModelPosition;
 import cam72cam.immersiverailroading.model.ModelState;
@@ -297,7 +298,7 @@ public class Control<T extends EntityMoveableRollingStock> extends Interactable<
                     percent *= -2;
                 }
                 if (toggle || press) {
-                    labelstate = percent == 1 ? " (On)" : " (Off)";
+                    labelstate = percent == 1 ? " ("+ GuiText.ON +")" : " ("+ GuiText.OFF +")";
                 } else {
                     labelstate = String.format(" (%d%%)", (int)(percent * 100));
                 }
@@ -307,12 +308,12 @@ public class Control<T extends EntityMoveableRollingStock> extends Interactable<
                     return;
                 }
                 if (toggle || press) {
-                    labelstate = percent == 1 ? " (On)" : " (Off)";
+                    labelstate = percent == 1 ? " ("+ GuiText.ON +")" : " ("+ GuiText.OFF +")";
                 } else {
                     labelstate = String.format(" (%d%%)", (int)(percent * 100));
                 }
         }
-        String str = (label != null ? label : formatLabel(part.type)) + labelstate;
+        String str = (label != null ? label : part.type.getOverlayName()) + labelstate;
         if (isPressed) {
             str = TextColor.BOLD.wrap(str);
         }
