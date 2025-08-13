@@ -62,10 +62,13 @@ chat.immersiverailroading:switch_state.locked=Switch locked to %s
 chat.immersiverailroading:switch_state.reset=The last-locked switch has been wirelessly unlocked!
 chat.immersiverailroading:switch_state.cant_reset=You haven't locked any switches with this key!
 chat.immersiverailroading:switch_state.already_reset=The last-locked switch is already unlocked!
+chat.immersiverailroading:multiblock.select=Select multiblock: %s
 
 gui.immersiverailroading:label.brake=Brake
 gui.immersiverailroading:label.throttle=Throttle
 gui.immersiverailroading:label.reverser=Reverser
+gui.immersiverailroading:slider.zoom=Zoom: %s
+gui.immersiverailroading:selector.page=Page %s of %s
 gui.immersiverailroading:selector.type=Type: %s
 gui.immersiverailroading:selector.gauge=Gauge: %s
 gui.immersiverailroading:selector.track=Track Style: %s
@@ -82,9 +85,15 @@ gui.immersiverailroading:selector.plate_type=Plate Type: %s
 gui.immersiverailroading:selector.plate_boiler=Plate Boiler: %s
 gui.immersiverailroading:selector.cast_single=Single Casting
 gui.immersiverailroading:selector.cast_repeat=Repeat Casting
+gui.immersiverailroading:selector.paintbrush_random=Apply random variant
+gui.immersiverailroading:selector.paintbrush_apply_to_stock=Apply to single stock
+gui.immersiverailroading:selector.paintbrush_apply_to_train=Apply to whole train
 
 gui.immersiverailroading:item.switch_key=Right-Click a switch to cycle between: [ locked straight, locked turn, unlocked ]. Redstone is ignored when locked!
 gui.immersiverailroading:item.switch_key.data=Last locked switch: %s in %s
+
+gui.immersiverailroading:item.radio_card.linked_to=Not linked to any locomotive
+gui.immersiverailroading:item.radio_card.not_linked=Linked to %s
 
 gui.immersiverailroading:item.track_exchanger=Right-Click in air to open the selection gui. Right-Click on a track to change it's track type to the one defined in the gui
 gui.immersiverailroading:item.paint_brush.mode=Current mode: %s
@@ -215,6 +224,12 @@ part.immersiverailroading:controls.throttle=Throttle
 part.immersiverailroading:controls.reverser=Reverser
 part.immersiverailroading:controls.throttle_brake=Throttle Brake
 part.immersiverailroading:controls.engine_start=Engine Start
+
+multiblock.immersiverailroading:boiler_machine=Boiler Machine
+multiblock.immersiverailroading:casting=Casting Basin
+multiblock.immersiverailroading:plate_machine=Plate Machine
+multiblock.immersiverailroading:rail_machine=Rail Machine
+multiblock.immersiverailroading:steam_hammer=Steam Hammer
 
 immersiverailroading:crafting_type.casting=Casting
 immersiverailroading:crafting_type.casting_hammer=Casting,Power Hammer

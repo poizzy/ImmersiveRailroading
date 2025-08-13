@@ -296,7 +296,8 @@ public class TrackGui implements IScreen {
 		};
 		ytop += height;
 
-		Slider zoom_slider = new Slider(screen, GUIHelpers.getScreenWidth() / 2 - 150, (int) (GUIHelpers.getScreenHeight()*0.75 - height), "Zoom: ", 0.1, 2, 1, true) {
+		Slider zoom_slider = new Slider(screen, GUIHelpers.getScreenWidth() / 2 - 150, (int) (GUIHelpers.getScreenHeight()*0.75 - height),
+										GuiText.SLIDER_ZOOM.toString(), 0.1, 2, 1, true) {
 			@Override
 			public void onSlider() {
 				zoom = this.getValue();
