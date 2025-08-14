@@ -20,6 +20,7 @@ import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.render.GlobalRender;
 import cam72cam.mod.render.opengl.RenderState;
 import cam72cam.mod.text.TextColor;
+import cam72cam.mod.text.TextUtil;
 import cam72cam.mod.util.Axis;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.text.WordUtils;
@@ -313,7 +314,20 @@ public class Control<T extends EntityMoveableRollingStock> extends Interactable<
                     labelstate = String.format(" (%d%%)", (int)(percent * 100));
                 }
         }
-        String str = (label != null ? label : part.type.getOverlayName()) + labelstate;
+        //Try to translate label
+        String str;
+        if (this.label != null) {
+            String[] parts = stock.getDefinitionID().split("/");
+            String key1 = "label.immersiverailroading:" + parts[1] + "." + parts[2].replace(".json", "") + "." + label;
+            str = TextUtil.translate(key1);
+            if (str.equals(key1)) {
+                String key2 = "label.immersiverailroading:" + label;
+                str = TextUtil.translate(key2).equals(key2) ? label : TextUtil.translate(key2);
+            }
+        } else {
+            str = part.type.getOverlayName();
+        }
+        str += labelstate;
         if (isPressed) {
             str = TextColor.BOLD.wrap(str);
         }
