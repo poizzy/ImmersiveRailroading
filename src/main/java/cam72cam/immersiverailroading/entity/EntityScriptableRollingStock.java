@@ -5,6 +5,7 @@ import cam72cam.immersiverailroading.IRItems;
 import cam72cam.immersiverailroading.items.ItemTypewriter;
 import cam72cam.immersiverailroading.library.Permissions;
 import cam72cam.immersiverailroading.script.*;
+import cam72cam.immersiverailroading.script.library.ILuaEvent;
 import cam72cam.immersiverailroading.script.library.LuaSerialization;
 import cam72cam.immersiverailroading.script.library.ScheduleEvent;
 import cam72cam.immersiverailroading.script.modules.*;
@@ -16,11 +17,12 @@ import cam72cam.mod.entity.sync.TagSync;
 import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.TagField;
+import org.luaj.vm2.Globals;
 import org.luaj.vm2.LuaValue;
 
 import java.util.*;
 
-public abstract class EntityScriptableRollingStock extends EntityCoupleableRollingStock {
+public abstract class EntityScriptableRollingStock extends EntityCoupleableRollingStock implements ILuaEvent {
     private LuaContext context;
     /**
      * Used by {@link IRModule}
@@ -97,12 +99,17 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         getDefinition().inputs.remove(getUUID());
     }
 
+    @Override
+    public Map<String, List<LuaValue>> getLuaEventCallbacks() {
+        return luaEventCallbacks;
+    }
+
     private void registerModules() {
         context.registerLibrary(new ScriptVectorUtil.VectorLibrary());
         context.registerLibrary(new MarkupModule());
 
         context.registerLibrary(new IRModule(this));
-        context.registerLibrary(new WorldModule(this));
+        context.registerLibrary(new WorldModule(getWorld()));
         context.registerLibrary(new DebugModule(this));
         context.registerLibrary(new EventModule(this));
     }
@@ -116,6 +123,15 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         if (script.canLoad()) {
             context.loadScript(script);
         }
+    }
+
+    public Globals getGlobals() {
+        return context.getGlobals();
+    }
+
+    @LuaFunction(module = "")
+    private LuaValue getName() {
+        return LuaValue.valueOf(getDefinition().name());
     }
 
     @LuaFunction(module = "")
@@ -141,5 +157,4 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         ScheduleEvent event = new ScheduleEvent(runnable, ticks, func);
         schedule.add(event);
     }
-
 }
