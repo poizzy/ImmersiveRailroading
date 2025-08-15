@@ -185,8 +185,6 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 		}
 
 		context.refreshSerialization(tagFields);
-
-		getWorld().getEntities(Player.class).forEach(p -> p.sendMessage(PlayerMessage.direct(String.format("Lua script %s has been loaded! On %s", script.getPath(), getWorld().isServer ? "server" : "client"))));
 	}
 
 	public void setRedstoneLevel(int newLevel) {
