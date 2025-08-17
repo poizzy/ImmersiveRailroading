@@ -10,7 +10,8 @@ import cam72cam.immersiverailroading.script.library.LuaSerialization;
 import cam72cam.immersiverailroading.script.library.ScheduleEvent;
 import cam72cam.immersiverailroading.script.modules.*;
 import cam72cam.immersiverailroading.script.sound.SoundConfig;
-import cam72cam.immersiverailroading.textUtil.TextField;
+import cam72cam.immersiverailroading.textfield.TextFieldConfig;
+import cam72cam.immersiverailroading.textfield.library.TextFieldMapMapper;
 import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.entity.sync.TagSync;
@@ -21,14 +22,17 @@ import org.luaj.vm2.Globals;
 import org.luaj.vm2.LuaValue;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public abstract class EntityScriptableRollingStock extends EntityCoupleableRollingStock implements ILuaEvent {
     private LuaContext context;
     /**
      * Used by {@link IRModule}
      */
-    @TagField(value = "textFields", mapper = TextField.TextFieldMapMapper.class)
-    public Map<String, TextField> textFields = new HashMap<>();
+    // TagSync is actually a terrible idea in this case. Due to it creating an instance of TextFieldConfig every tick, the memory usage will go up by around 1GB before the GC erases it.
+    // @TagSync
+    @TagField(mapper = TextFieldMapMapper.class)
+    public Map<String, TextFieldConfig> textFields = new HashMap<>();
     public Map<String, SoundConfig> sounds = new HashMap<>();
     /**
      * Used by {@link EventModule}
@@ -129,14 +133,45 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         return context.getGlobals();
     }
 
+    public Map<String, TextFieldConfig> getTextFieldConfig() {
+        return this.textFields;
+    }
+
+    public void initTextField(TextFieldConfig config) {
+        if (config.isGlobal()) {
+            mapTrain(this, false, stock -> {
+                EntityScriptableRollingStock next = (EntityScriptableRollingStock) stock;
+                if (next.getDefinition().getModel().groups().stream().anyMatch(g -> g.contains(config.getObject()))) {
+                    next.textFields.put(config.getObject(), config);
+                }
+            });
+        }
+
+        if (config.getLinked() != null && !config.getLinked().isEmpty()) {
+            config.getLinked().forEach(l -> {
+                TextFieldConfig linked = textFields.get(String.format("TEXTFIELD_%s", l));
+                if (linked == null) {
+                    return;
+                }
+
+                linked.copyConfig(config);
+                initTextField(linked);
+            });
+        }
+
+        textFields.put(config.getObject(), config);
+    }
+
     @LuaFunction(module = "")
     private LuaValue getName() {
         return LuaValue.valueOf(getDefinition().name());
     }
 
     @LuaFunction(module = "")
-    public void print(LuaValue str) {
-        ModCore.info("[Lua, %s] %s", getDefinition().name(), str.tojstring());
+    public void print(LuaValue... str) {
+        List<String> args = Arrays.stream(str).map(LuaValue::tojstring).collect(Collectors.toList());
+        String formatedArgs = String.join("    ", args);
+        ModCore.info("[Lua, %s] %s", getDefinition().name(), formatedArgs);
     }
 
 
