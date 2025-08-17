@@ -1,16 +1,13 @@
-name: Immersive Railroading Build Pipeline
+name: Immersive Railroading Release Pipeline
 
-on: 
-  push:
-    branches:
-      - 'master'
+on: [workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        branch: [1.7.10-forge, 1.10.2-forge, 1.11.2-forge, 1.12.2-forge, 1.14.4-forge, 1.15.2-forge, 1.16.5-forge, 1.17.1-forge, 1.18.2-forge, 1.19.4-forge, 1.20.1-forge]
+        branch: [1.7.10-forge, 1.10.2-forge, 1.11.2-forge, 1.12.2-forge, 1.14.4-forge, 1.15.2-forge, 1.16.5-forge]
     steps:
     - uses: actions/checkout@v4
     - name: Set up JDK 1.8
@@ -33,12 +30,12 @@ jobs:
     - name: Run Data (optionalish)
       run: xvfb-run --auto-servernum ./gradlew runData || xvfb-run --auto-servernum ./gradlew runData || true
     - name: Gradle build
-      run: ./gradlew build
+      run: ./gradlew build -Dtarget=release
     - name: Gradle publish
       env:
         MAVENCI_PASS: ${{ secrets.MAVENCI_PASS }}
-      run: ./gradlew publish
+      run: ./gradlew publish -Dtarget=release
     - uses: actions/upload-artifact@v4
       with:
         name: Immersive Railroading ${{matrix.branch}}
-        path: build/libs/ImmersiveRailroading-${{matrix.branch}}-*
+        path: build/libs/ImmersiveRailroading-${{matrix.branch}}*
