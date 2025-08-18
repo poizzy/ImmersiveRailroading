@@ -18,6 +18,7 @@ import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.serialization.StrictTagMapper;
 import cam72cam.mod.serialization.TagField;
 import cam72cam.mod.world.World;
+import org.luaj.vm2.LuaValue;
 
 import java.util.OptionalDouble;
 import java.util.UUID;
