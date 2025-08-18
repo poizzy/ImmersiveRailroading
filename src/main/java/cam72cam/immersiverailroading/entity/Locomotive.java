@@ -18,14 +18,13 @@ import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.serialization.StrictTagMapper;
 import cam72cam.mod.serialization.TagField;
 import cam72cam.mod.world.World;
-import org.luaj.vm2.LuaValue;
 
 import java.util.OptionalDouble;
 import java.util.UUID;
 
 import static cam72cam.immersiverailroading.library.PhysicalMaterials.*;
 
-public abstract class Locomotive extends FreightTank{
+public abstract class Locomotive extends FreightTank {
 	private static final float throttleDelta = 0.04f;
 	private static final float trainBrakeNotch = 0.04f;
 
@@ -160,22 +159,22 @@ public abstract class Locomotive extends FreightTank{
 				}
             break;
 		case THROTTLE_UP:
-			setThrottle(getThrottle() + throttleDelta);
+			setThrottle(getThrottle() + getThrottleDelta());
 			break;
 		case THROTTLE_ZERO:
 			setThrottle(0f);
 			break;
 		case THROTTLE_DOWN:
-			setThrottle(getThrottle() - throttleDelta);
+			setThrottle(getThrottle() - getThrottleDelta());
 			break;
 		case REVERSER_UP:
 			if (linkThrottleReverser) {
 				float mixed = getThrottle() * (getReverser() >= 0 ? 1 : -1);
 				if (mixed < 0) {
-					setRealThrottle(-mixed - throttleDelta);
+					setRealThrottle(-mixed - getThrottleDelta());
 					setReverser(-1);
 				} else {
-					setRealThrottle(mixed + throttleDelta);
+					setRealThrottle(mixed + getThrottleDelta());
 					setReverser(1);
 				}
 			} else {
@@ -192,10 +191,10 @@ public abstract class Locomotive extends FreightTank{
 			if (linkThrottleReverser) {
 				float mixed = getThrottle() * (getReverser() >= 0 ? 1 : -1);
 				if (mixed > 0) {
-					setRealThrottle(mixed - throttleDelta);
+					setRealThrottle(mixed - getThrottleDelta());
 					setReverser(1);
 				} else {
-					setRealThrottle(-mixed + throttleDelta);
+					setRealThrottle(-mixed + getThrottleDelta());
 					setReverser(-1);
 				}
 			} else {
@@ -233,7 +232,7 @@ public abstract class Locomotive extends FreightTank{
 
 
 	protected float getReverserDelta() {
-		return throttleDelta;
+		return 0.04f;
 	}
 
 	public void onDrag(Control<?> component, double newValue) {
@@ -434,8 +433,8 @@ public abstract class Locomotive extends FreightTank{
 		}
 		return 0;
 	}
-	
-	public double getTractiveEffortNewtons(Speed speed) {	
+
+	public double getTractiveEffortNewtons(Speed speed) {
 		if (!this.isBuilt()) {
 			return 0;
 		}
@@ -496,7 +495,6 @@ public abstract class Locomotive extends FreightTank{
 		}
 	}
 
-
 	public float getThrottle() {
 		return throttle;
 	}
@@ -516,11 +514,13 @@ public abstract class Locomotive extends FreightTank{
 			setControlPositions(ModelComponentType.THROTTLE_BRAKE_X, getThrottle()/2 + (1- getTrainBrake())/2);
 		}
 	}
+	public float getThrottleDelta() {
+		return 0.04F;
+	};
 
 	public float getReverser() {
 		return reverser;
 	}
-
 
 	public void setReverser(float newReverser) {
 		setRealReverser(newReverser);

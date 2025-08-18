@@ -1,7 +1,6 @@
 package cam72cam.immersiverailroading;
 
 import cam72cam.immersiverailroading.library.Gauge;
-import cam72cam.mod.config.ConfigFile;
 import cam72cam.mod.config.ConfigFile.Comment;
 import cam72cam.mod.config.ConfigFile.File;
 import cam72cam.mod.config.ConfigFile.Name;
@@ -17,7 +16,7 @@ import java.util.stream.Collectors;
 @File("immersiverailroading.cfg")
 public class Config {
 	public static void init() {
-		if (ConfigBalance.dieselFuels.size() == 0) {
+		if (ConfigBalance.dieselFuels.isEmpty()) {
 			// BC
 			ConfigBalance.dieselFuels.put("oil", 100);
 			ConfigBalance.dieselFuels.put("oil_heavy", 70);
@@ -187,7 +186,7 @@ public class Config {
 		public static boolean canDieselEnginesOverheat = true;
 
         public static List<ItemStack> getVillagerPayout() {
-			return Arrays.stream(villagerPayoutItems).map(f -> f.example()).collect(Collectors.toList());
+			return Arrays.stream(villagerPayoutItems).map(Fuzzy::example).collect(Collectors.toList());
 		}
 		
 		@Comment("Only select Locomotives with suitable equipment can be radio-controlled")
@@ -215,6 +214,10 @@ public class Config {
 		@Comment("Angles per tick to rotate turntables (used server side)")
 		@Range(min = 0, max = 5)
 		public static double TurnTableSpeed = 0.4;
+
+		@Comment("Meters per tick to move transfer tables (used server side)")
+		@Range(min = 0, max = 1)
+		public static double TransferTableSpeed = 0.03;
 
 		@Comment("Diesel locomotive capacity multiplier, set to 10 for old functionality")
 		@Range(min = 1, max = 10)
@@ -293,6 +296,9 @@ public class Config {
 		@Comment("Number of physics steps to cache for future movement / send in packets.  DO NOT CHANGE UNLESS YOU KNOW WHAT YOU ARE DOING")
 		@Range(min = 10, max = 60)
 		public static int physicsFutureTicks = 10;
+
+		@Comment("Does stock drops itself/components when player is in creative mode?")
+		public static boolean stockDropInCreativeMode = true;
 
 		@Comment("Render Debug lines of text fields")
 		public static boolean renderDebugLines = false;
