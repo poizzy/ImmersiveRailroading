@@ -5,6 +5,7 @@ import cam72cam.immersiverailroading.script.LuaModule;
 import cam72cam.mod.item.ItemStack;
 import cam72cam.mod.math.Vec3i;
 import cam72cam.mod.world.World;
+import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
 
 public class WorldModule implements LuaModule {
@@ -54,6 +55,16 @@ public class WorldModule implements LuaModule {
     @LuaFunction(module = "World")
     public LuaValue getDimension() {
         return LuaValue.valueOf(world.getId());
+    }
+
+    @LuaFunction(module = "World")
+    public LuaValue getTime() {
+        return LuaValue.valueOf(world.getTime());
+    }
+
+    @LuaFunction(module = "World")
+    public LuaValue isSkyVisible(LuaValue pos) {
+        return LuaValue.valueOf(world.canSeeSky(ScriptVectorUtil.convertToVec3i(pos)));
     }
 
     @LuaFunction(module = "World")
