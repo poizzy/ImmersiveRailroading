@@ -223,8 +223,8 @@ public abstract class Locomotive extends FreightTank {
 			}
 			break;
 			default:
-				super.handleKeyPress(source, key, disableIndependentThrottle);
 		}
+		super.handleKeyPress(source, key, disableIndependentThrottle);
 	}
 
 	protected boolean forceLinkThrottleReverser() {

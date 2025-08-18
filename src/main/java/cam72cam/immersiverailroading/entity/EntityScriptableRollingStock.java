@@ -3,6 +3,7 @@ package cam72cam.immersiverailroading.entity;
 import cam72cam.immersiverailroading.Config;
 import cam72cam.immersiverailroading.IRItems;
 import cam72cam.immersiverailroading.items.ItemTypewriter;
+import cam72cam.immersiverailroading.library.KeyTypes;
 import cam72cam.immersiverailroading.library.Permissions;
 import cam72cam.immersiverailroading.script.*;
 import cam72cam.immersiverailroading.script.library.ILuaEvent;
@@ -106,6 +107,26 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     @Override
     public Map<String, List<LuaValue>> getLuaEventCallbacks() {
         return luaEventCallbacks;
+    }
+
+    @Override
+    public void handleKeyPress(Player source, KeyTypes key, boolean disableIndependentThrottle) {
+        boolean hasPermission;
+        switch (key) {
+            case INDEPENDENT_BRAKE_UP:
+            case INDEPENDENT_BRAKE_DOWN:
+            case INDEPENDENT_BRAKE_ZERO:
+                hasPermission = source.hasPermission(Permissions.BRAKE_CONTROL);
+                break;
+            default:
+                hasPermission = source.hasPermission(Permissions.LOCOMOTIVE_CONTROL);
+                break;
+        }
+        if (getWorld().isServer) {
+            triggerEvent("onKeyPress", LuaValue.valueOf(key.toString()), LuaValue.valueOf(hasPermission));
+        }
+
+        super.handleKeyPress(source, key, disableIndependentThrottle);
     }
 
     private void registerModules() {

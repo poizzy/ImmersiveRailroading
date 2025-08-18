@@ -115,7 +115,6 @@ public class LocomotiveDiesel extends Locomotive {
 					return;
 				}
 				reverserCooldown = 3;
-				super.handleKeyPress(source, key, disableIndependentThrottle);
 				break;
 			case THROTTLE_UP:
 			case THROTTLE_ZERO:
@@ -124,11 +123,11 @@ public class LocomotiveDiesel extends Locomotive {
 					return;
 				}
 				throttleCooldown = 2;
-				super.handleKeyPress(source, key, disableIndependentThrottle);
 				break;
 			default:
-				super.handleKeyPress(source, key, disableIndependentThrottle);
 		}
+
+		super.handleKeyPress(source, key, disableIndependentThrottle);
 	}
 
 	@Override
