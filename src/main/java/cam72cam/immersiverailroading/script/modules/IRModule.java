@@ -442,5 +442,18 @@ public class IRModule implements LuaModule {
         return LuaValue.valueOf(0);
     }
 
+    @LuaFunction(module = "IR")
+    public LuaValue isSliding() {
+        return LuaValue.valueOf(stock.isSliding());
+    }
 
+    @LuaFunction(module = "IR")
+    public LuaValue getBrakePressure() {
+        return LuaValue.valueOf(stock.getBrakePressure());
+    }
+
+    @LuaFunction(module = "IR")
+    public LuaValue getWeight() {
+        return LuaValue.valueOf(stock.getWeight());
+    }
 }
