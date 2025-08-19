@@ -170,7 +170,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
 
         if (config.getLinked() != null && !config.getLinked().isEmpty()) {
             config.getLinked().forEach(l -> {
-                TextFieldConfig linked = textFields.get(String.format("TEXTFIELD_%s", l));
+                TextFieldConfig linked = textFields.get(l);
                 if (linked == null) {
                     return;
                 }
