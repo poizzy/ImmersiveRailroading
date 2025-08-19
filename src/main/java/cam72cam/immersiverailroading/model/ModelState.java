@@ -6,11 +6,19 @@ import cam72cam.immersiverailroading.model.components.ModelComponent;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.OBJGroup;
+import cam72cam.mod.model.obj.OBJModel;
+import cam72cam.mod.render.OptiFine;
 import cam72cam.mod.render.obj.OBJRender;
 import cam72cam.mod.render.opengl.BlendMode;
+import cam72cam.mod.render.opengl.RenderContext;
+import cam72cam.mod.render.opengl.RenderState;
+import cam72cam.mod.render.opengl.Texture;
+import cam72cam.mod.resource.Identifier;
+import cam72cam.mod.util.With;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.apache.commons.lang3.tuple.Pair;
+import org.lwjgl.opengl.GL11;
 import util.Matrix4;
 
 import java.util.*;
@@ -309,7 +317,10 @@ public class ModelState {
                     litGroups.stream().filter(g -> animatedGroups.containsKey(g)).filter(g -> !g.contains("ALPHA")).collect(Collectors.toList());
             List<String> notAnimated = animatedGroups.isEmpty() ? litGroups.stream().filter(g -> !g.contains("ALPHA")).collect(Collectors.toList()) :
                     litGroups.stream().filter(g -> !animatedGroups.containsKey(g)).filter(g -> !g.contains("ALPHA")).collect(Collectors.toList());
-            List<String> transparent = litGroups.stream().filter(g -> g.contains("ALPHA")).collect(Collectors.toList());
+            List<String> transparent = animatedGroups.isEmpty() ? litGroups.stream().filter(g -> g.contains("ALPHA")).collect(Collectors.toList()) :
+                    litGroups.stream().filter(g -> !animatedGroups.containsKey(g)).filter(g -> g.contains("ALPHA")).collect(Collectors.toList());
+            List<String> transparentAnimated = animatedGroups.isEmpty() ? Collections.emptyList() :
+                    litGroups.stream().filter(animatedGroups::containsKey).filter(g -> g.contains("ALPHA")).collect(Collectors.toList());
 
             if (!notAnimated.isEmpty()) {
                 vbo.draw(notAnimated, state -> {
@@ -335,27 +346,28 @@ public class ModelState {
                 });
             }
             if (!transparent.isEmpty()) {
-                Player player = stock.getWorld().getEntities(Player.class).stream().min(Comparator.comparingDouble(p -> p.getPosition().distanceToSquared(stock.getPosition()))).orElse(null);
-                if (player != null) {
-                    Vec3d stockPos = stock.getPosition();
-                    Vec3d playerPos = player.getPosition();
+                vbo.draw(transparent, state -> {
+                    state.blend(new BlendMode(BlendMode.GL_SRC_ALPHA, BlendMode.GL_ONE_MINUS_SRC_ALPHA)).depth_mask(false);
 
-                    List<String> sortedTransparent = new ArrayList<>(transparent);
-
-                    sortedTransparent.sort((g1, g2) -> {
-                        OBJGroup group1 = stock.getDefinition().getModel().groups.get(g1);
-                        OBJGroup group2 = stock.getDefinition().getModel().groups.get(g2);
-                        Vec3d center1 = new Vec3d((group1.min.x + group1.max.x) / 2, (group1.min.y + group1.max.y) / 2, (group1.min.z + group1.max.z) / 2).add(stockPos);
-                        Vec3d center2 = new Vec3d((group2.min.x + group2.max.x) / 2, (group2.min.y + group2.max.y) / 2, (group2.min.z + group2.max.z) / 2).add(stockPos);
-                        double d1 = center1.distanceToSquared(playerPos);
-                        double d2 = center2.distanceToSquared(playerPos);
-                        return Double.compare(d2, d1);
-                    });
-
-                    vbo.draw(sortedTransparent, state -> {
+                    if (level != null) {
+                        state.lightmap(level.getKey(), level.getValue());
+                    }
+                });
+            }
+            if (!transparentAnimated.isEmpty()) {
+                transparentAnimated.forEach(group -> {
+                    vbo.draw(Collections.singletonList(group), state -> {
                         state.blend(new BlendMode(BlendMode.GL_SRC_ALPHA, BlendMode.GL_ONE_MINUS_SRC_ALPHA)).depth_mask(false);
+
+                        if (matrix != null) {
+                            state.model_view().multiply(matrix);
+                        }
+                        state.model_view().multiply(animatedGroups.get(group));
+                        if (level != null) {
+                            state.lightmap(level.getKey(), level.getValue());
+                        }
                     });
-                }
+                });
             }
         });
 
