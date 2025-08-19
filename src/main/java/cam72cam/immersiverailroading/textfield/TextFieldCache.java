@@ -85,6 +85,10 @@ public class TextFieldCache {
 
         Texture texture = textureCache.computeIfAbsent(font, f -> Texture.wrap(f.texture));
 
+        if (buffers.containsKey(config.getObject())) {
+            buffers.get(config.getObject()).free();
+        }
+
         VBO vbo = new VBO(() -> buffer, s -> {
             s.texture(texture).lightmap(config.isFullbright() ? 1 : 0, 1);
         });
