@@ -22,7 +22,7 @@ public interface ILuaEvent {
                 try {
                     callback.invoke(args);
                 } catch (Exception e) {
-                    ModCore.error("Lua callback for event %s failed: %s", eventName, e);
+                    ModCore.catching(e, "Lua callback for event %s failed:", eventName);
                 }
             }
         }
