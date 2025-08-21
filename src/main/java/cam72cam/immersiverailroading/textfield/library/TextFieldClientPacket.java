@@ -29,6 +29,6 @@ public class TextFieldClientPacket extends Packet {
 
         config.markDirty(true);
 
-        scriptableRollingStock.textFields.put(config.getObject(), config);
+        scriptableRollingStock.initTextField(config);
     }
 }

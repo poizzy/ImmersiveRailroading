@@ -93,6 +93,30 @@ public class TextFieldConfig {
         this.resolutionY = resolutionY;
     }
 
+    public TextFieldConfig(TextFieldConfig other) {
+        this.align = other.align;
+        this.font = other.font;
+        this.availableFonts = other.availableFonts;
+        this.linked = other.linked;
+        this.filter = other.filter;
+        this.color = other.color;
+        this.object = other.object;
+        this.text = other.text;
+        this.fullbright = other.fullbright;
+        this.global = other.global;
+        this.selectable = other.selectable;
+        this.numberPlate = other.numberPlate;
+        this.unique = other.unique;
+        this.resolutionX = other.resolutionX;
+        this.resolutionY = other.resolutionY;
+        this.gap = other.gap;
+        this.offset = other.offset;
+        this.scale = other.scale;
+        this.verticalAlign = other.verticalAlign;
+        this.dirty = other.dirty;
+        this.stock = other.stock;
+    }
+
     public Align getAlign() {
         return align;
     }

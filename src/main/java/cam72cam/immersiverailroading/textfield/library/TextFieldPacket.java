@@ -27,7 +27,7 @@ public class TextFieldPacket extends Packet {
 
         EntityScriptableRollingStock scriptableStock = (EntityScriptableRollingStock) stock;
 
-        scriptableStock.initTextField(config);
+        scriptableStock.textFields.put(config.getObject(), config);
 
 //        new TextFieldClientPacket(stock, config).sendToObserving(stock);
     }

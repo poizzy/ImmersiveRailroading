@@ -165,9 +165,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         if (config.isGlobal()) {
             mapTrain(this, false, stock -> {
                 EntityScriptableRollingStock next = (EntityScriptableRollingStock) stock;
-                if (next.getDefinition().getModel().groups().stream().anyMatch(g -> g.contains(config.getObject()))) {
-                    next.textFields.put(config.getObject(), config);
-                }
+                next.textFields.computeIfPresent(config.getObject(), (k, v) -> new TextFieldConfig(config));
             });
         }
 
