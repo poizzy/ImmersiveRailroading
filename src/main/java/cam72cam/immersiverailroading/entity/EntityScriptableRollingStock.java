@@ -26,6 +26,11 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public abstract class EntityScriptableRollingStock extends EntityCoupleableRollingStock implements ILuaEvent {
+    /**
+     * The context is actually loaded for every stock, not regarding if the stock even has a script. I did this for compatibility with the LuaAugment. <br>
+     * It shouldn't cause any performance issues because it doesn't actually run anything.
+     * @see cam72cam.immersiverailroading.tile.TileRailBase
+     */
     private LuaContext context;
     /**
      * Used by {@link IRModule}
@@ -61,10 +66,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         }
 
         if (Config.ConfigPerformance.disableLuaScript) {
-            return;
-        }
-
-        if (getDefinition().script == null) {
             return;
         }
 
@@ -143,7 +144,9 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         Identifier script = getDefinition().script;
 
         List<String> modules = getDefinition().addScripts;
-        context.loadModules(modules, script);
+        if (modules != null) {
+            context.loadModules(modules, script);
+        }
 
         if (script.canLoad()) {
             context.loadScript(script);
