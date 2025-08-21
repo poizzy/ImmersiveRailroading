@@ -10,8 +10,11 @@ import cam72cam.mod.text.PlayerMessage;
 import cam72cam.mod.world.World;
 import org.luaj.vm2.LuaValue;
 
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class AugmentModule implements LuaModule {
     private final TileRailBase tile;
@@ -35,6 +38,13 @@ public class AugmentModule implements LuaModule {
                 return false;
             });
         });
+    }
+
+    @LuaFunction(module = "")
+    public void print(LuaValue... str) {
+        List<String> args = Arrays.stream(str).map(LuaValue::tojstring).collect(Collectors.toList());
+        String formatedArgs = String.join("    ", args);
+        ModCore.info("[Lua Augment] %s", formatedArgs);
     }
 
     @LuaFunction(module = "Augment")
