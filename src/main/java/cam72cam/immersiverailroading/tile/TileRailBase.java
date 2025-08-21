@@ -165,6 +165,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 	private void registerModules() {
 		context.registerLibrary(new ScriptVectorUtil.VectorLibrary());
 		context.registerLibrary(new MarkupModule());
+		context.registerLibrary(new DebugModule());
 
 		context.registerLibrary(new WorldModule(getWorld()));
 		context.registerLibrary(new AugmentModule(this));

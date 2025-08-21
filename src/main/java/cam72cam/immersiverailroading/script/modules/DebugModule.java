@@ -9,11 +9,8 @@ import cam72cam.mod.text.PlayerMessage;
 import org.luaj.vm2.LuaValue;
 
 public class DebugModule implements LuaModule {
-    private final EntityScriptableRollingStock stock;
 
-    public DebugModule(EntityScriptableRollingStock stock) {
-        this.stock = stock;
-    }
+    public DebugModule() {}
 
     @LuaFunction(module = "Debug")
     public void printToInfoLog(LuaValue arg) {
@@ -30,10 +27,4 @@ public class DebugModule implements LuaModule {
         ModCore.error(arg.tojstring());
     }
 
-    @LuaFunction(module = "Debug")
-    public void printToPassengerDialog(LuaValue arg) {
-        stock.getPassengers().stream().filter(Entity::isPlayer)
-                .map(Entity::asPlayer)
-                .forEach(player -> player.sendMessage(PlayerMessage.direct(arg.tojstring())));
-    }
 }

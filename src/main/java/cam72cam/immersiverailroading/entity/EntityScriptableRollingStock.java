@@ -136,7 +136,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
 
         context.registerLibrary(new IRModule(this));
         context.registerLibrary(new WorldModule(getWorld()));
-        context.registerLibrary(new DebugModule(this));
+        context.registerLibrary(new StockDebugModule(this));
         context.registerLibrary(new EventModule(this));
     }
 
