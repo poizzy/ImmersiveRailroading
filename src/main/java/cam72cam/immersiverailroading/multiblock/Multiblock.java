@@ -20,6 +20,7 @@ import cam72cam.mod.math.Rotation;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.math.Vec3i;
 import cam72cam.mod.text.PlayerMessage;
+import cam72cam.mod.text.TextUtil;
 import cam72cam.mod.world.BlockInfo;
 import cam72cam.mod.world.World;
 
@@ -201,6 +202,10 @@ public abstract class Multiblock {
 
 	public String getName() {
 		return name;
+	}
+
+	public String getTranslatedName() {
+		return TextUtil.translate("multiblock.immersiverailroading:"+getName().toLowerCase(Locale.ROOT));
 	}
 
 	public abstract class MultiblockInstance {
