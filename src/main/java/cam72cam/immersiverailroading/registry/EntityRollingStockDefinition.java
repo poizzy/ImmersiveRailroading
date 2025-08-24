@@ -31,7 +31,6 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -161,6 +160,8 @@ public abstract class EntityRollingStockDefinition {
         public final Identifier animatrix;
         public final float offset;
         public final boolean invert;
+        public final float rangeMin;
+        public final float rangeMax;
         public final float frames_per_tick;
         public final SoundDefinition sound;
 
@@ -175,6 +176,8 @@ public abstract class EntityRollingStockDefinition {
             mode = AnimationMode.valueOf(obj.getValue("mode").asString().toUpperCase(Locale.ROOT));
             offset = obj.getValue("offset").asFloat(0f);
             invert = obj.getValue("invert").asBoolean(false);
+            rangeMin = obj.getValue("range_min").asFloat(0f);
+            rangeMax = obj.getValue("range_max").asFloat(1f);
             frames_per_tick = obj.getValue("frames_per_tick").asFloat(1f);
             sound = SoundDefinition.getOrDefault(obj, "sound");
         }
