@@ -1,7 +1,6 @@
 package cam72cam.immersiverailroading.multiblock;
 
 import java.util.*;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import cam72cam.immersiverailroading.IRBlocks;
@@ -86,30 +85,34 @@ public abstract class Multiblock {
 		Vec3i pos = origin.add(offset.rotate(rot));
 		Fuzzy component = lookup(offset);
 		return component.matches(world.getItemStack(pos));
-	}
-	
-	public boolean tryCreate(World world, Vec3i pos) {
-		for (Vec3i activationLocation : this.componentPositions) {
-			for (Rotation rot : Rotation.values()) {
-				Vec3i origin = pos.subtract(activationLocation.rotate(rot));
-				boolean valid = true;
-				for (Vec3i offset : this.componentPositions) {
-					valid = valid && checkValid(world, origin, offset, rot);
-				}
-				if (valid) {
-					if (world.isServer) {
-						instance(world, origin, rot).onCreate();
-					}
-					return true;
-				}
-			}
-		}
-		return false;
-	}
+    }
+
+    public boolean tryCreate(World world, Vec3i pos) {
+        for (Rotation rot : Rotation.values()) {
+            Optional<Vec3i> validLocation =
+                    this.componentPositions.parallelStream()
+                                           .filter(activationLocation -> {
+                                               Vec3i origin = pos.subtract(activationLocation.rotate(rot));
+                                               return this.componentPositions
+                                                       .stream()
+                                                       .allMatch(offset -> checkValid(world, origin, offset, rot));
+                                           }).findFirst();
+
+            if (validLocation.isPresent()) {
+                Vec3i activationLocation = validLocation.get();
+                Vec3i origin = pos.subtract(activationLocation.rotate(rot));
+                if (world.isServer) {
+                    instance(world, origin, rot).onCreate();
+                }
+                return true;
+            }
+        }
+        return false;
+    }
 	
 	public abstract Vec3i placementPos();
 	public void place(World world, Player player, Vec3i pos, Rotation rot) {
-		Map<String, Integer> missing = new HashMap<String, Integer>();
+		Map<String, Integer> missing = new HashMap<>();
 		Vec3i origin = pos.subtract(this.placementPos().rotate(rot));
 		for (Vec3i offset : this.componentPositions) {
 			Fuzzy component = lookup(offset);
@@ -144,7 +147,7 @@ public abstract class Multiblock {
 			}
 		}
 
-		if (missing.size() != 0) {
+		if (!missing.isEmpty()) {
 			player.sendMessage(ChatText.BUILD_MISSING.getMessage("", ""));
 			for (String name : missing.keySet()) {
 				player.sendMessage(PlayerMessage.direct(String.format("  - %d x %s", missing.get(name), name)));
