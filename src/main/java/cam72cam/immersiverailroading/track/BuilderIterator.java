@@ -28,7 +28,11 @@ public abstract class BuilderIterator extends BuilderBase implements IIterableTr
 		this(info, world, pos, false);
 	}
 
+	//Not sensitive to dynamic stepSize, like physics system
 	public abstract List<PosStep> getPath(double stepSize);
+
+	//Sensitive to dynamic stepSize, return the changed stepSize as well
+	public abstract Pair<Double, List<PosStep>> getPathForRender(double targetStepSize);
 
 	public BuilderIterator(RailInfo info, World world, Vec3i pos, boolean endOfTrack) {
 		super(info, world, pos);
@@ -147,8 +151,8 @@ public abstract class BuilderIterator extends BuilderBase implements IIterableTr
 	
 	@Override
 	public List<TrackBase> getTracksForRender() {
-		return this.tracks;
-	}
+        return super.getTracksForRender();
+    }
 
 	private static float delta(float a, float b) {
 		float angle = (float) Math.toDegrees(Math.toRadians(a) - Math.toRadians(b));
@@ -166,7 +170,10 @@ public abstract class BuilderIterator extends BuilderBase implements IIterableTr
 		List<VecYawPitch> data = new ArrayList<VecYawPitch>();
 
 		double scale = info.settings.gauge.scale();
-		List<PosStep> points = getPath(scale * info.getTrackModel().spacing);
+		Pair<Double, List<PosStep>> pair = getPathForRender(scale * info.getTrackModel().spacing);
+		List<PosStep> points = pair.getRight();
+        scale = pair.getLeft() / info.getTrackModel().spacing;
+		scale *= 1.005;//Avoid some gaps
 
 		boolean switchStraight = info.switchState == SwitchState.STRAIGHT;
 		int switchSize = 0;
@@ -216,15 +223,15 @@ public abstract class BuilderIterator extends BuilderBase implements IIterableTr
 			}
 			if (angle != 0) {
 				if (direction == TrackDirection.RIGHT) {
-					data.add(new VecYawPitch(switchPos.x, switchPos.y, switchPos.z, switchPos.yaw, switchPos.pitch, (1 - angle / 180) * (float) info.settings.gauge.scale(), "RAIL_LEFT"));
-					data.add(new VecYawPitch(cur.x, cur.y, cur.z, cur.yaw, cur.pitch, (1 + angle / 180) * (float) info.settings.gauge.scale(), "RAIL_RIGHT"));
+					data.add(new VecYawPitch(switchPos.x, switchPos.y, switchPos.z, switchPos.yaw, switchPos.pitch, (1 - angle / 180) * (float) scale, "RAIL_LEFT"));
+					data.add(new VecYawPitch(cur.x, cur.y, cur.z, cur.yaw, cur.pitch, (1 + angle / 180) * (float) scale, "RAIL_RIGHT"));
 				} else {
-					data.add(new VecYawPitch(cur.x, cur.y, cur.z, cur.yaw, cur.pitch, (1 - angle / 180) * (float) info.settings.gauge.scale(), "RAIL_LEFT"));
-					data.add(new VecYawPitch(switchPos.x, switchPos.y, switchPos.z, switchPos.yaw, switchPos.pitch, (1 + angle / 180) * (float) info.settings.gauge.scale(), "RAIL_RIGHT"));
+					data.add(new VecYawPitch(cur.x, cur.y, cur.z, cur.yaw, cur.pitch, (1 - angle / 180) * (float) scale, "RAIL_LEFT"));
+					data.add(new VecYawPitch(switchPos.x, switchPos.y, switchPos.z, switchPos.yaw, switchPos.pitch, (1 + angle / 180) * (float) scale, "RAIL_RIGHT"));
 				}
-				data.add(new VecYawPitch(cur.x, cur.y, cur.z, cur.yaw, cur.pitch, "RAIL_BASE"));
+				data.add(new VecYawPitch(cur.x, cur.y, cur.z, cur.yaw, cur.pitch, (float) scale, "RAIL_BASE"));
 			} else {
-				data.add(new VecYawPitch(cur.x, cur.y, cur.z, cur.yaw, cur.pitch));
+				data.add(new VecYawPitch(cur.x, cur.y, cur.z, cur.yaw, cur.pitch, (float) scale));
 			}
 		}
 		
