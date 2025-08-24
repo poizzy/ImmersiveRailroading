@@ -1,5 +1,6 @@
 package cam72cam.immersiverailroading.model;
 
+import cam72cam.immersiverailroading.ConfigGraphics;
 import cam72cam.immersiverailroading.entity.EntityMoveableRollingStock;
 import cam72cam.immersiverailroading.library.ModelComponentType;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
@@ -364,40 +365,42 @@ public class ModelState {
             }
         }
 
-        for (Map.Entry<Pair<Float, Float>, RenderGroup> entry : levels.entrySet()) {
-            Pair<Float, Float> level = entry.getKey();
-            RenderGroup renderGroup = entry.getValue();
+        if (ConfigGraphics.RenderSemiTransparentParts) {
+            for (Map.Entry<Pair<Float, Float>, RenderGroup> entry : levels.entrySet()) {
+                Pair<Float, Float> level = entry.getKey();
+                RenderGroup renderGroup = entry.getValue();
 
-            List<String> notAnimated = renderGroup.notAnimated.transparent;
-            List<String> animated = renderGroup.animated.transparent;
+                List<String> notAnimated = renderGroup.notAnimated.transparent;
+                List<String> animated = renderGroup.animated.transparent;
 
-            if (!notAnimated.isEmpty()) {
-                vbo.draw(notAnimated, state -> {
-                    state.blend(new BlendMode(BlendMode.GL_SRC_ALPHA, BlendMode.GL_ONE_MINUS_SRC_ALPHA)).depth_mask(false);
-
-                    if (matrix != null) {
-                        state.model_view().multiply(matrix);
-                    }
-                    if (level != null) {
-                        state.lightmap(level.getKey(), level.getValue());
-                    }
-                });
-            }
-
-            if (!animated.isEmpty()) {
-                animated.forEach(group -> {
-                    vbo.draw(Collections.singletonList(group), state -> {
+                if (!notAnimated.isEmpty()) {
+                    vbo.draw(notAnimated, state -> {
                         state.blend(new BlendMode(BlendMode.GL_SRC_ALPHA, BlendMode.GL_ONE_MINUS_SRC_ALPHA)).depth_mask(false);
 
                         if (matrix != null) {
                             state.model_view().multiply(matrix);
                         }
-                        state.model_view().multiply(animatedGroups.get(group));
                         if (level != null) {
                             state.lightmap(level.getKey(), level.getValue());
                         }
                     });
-                });
+                }
+
+                if (!animated.isEmpty()) {
+                    animated.forEach(group -> {
+                        vbo.draw(Collections.singletonList(group), state -> {
+                            state.blend(new BlendMode(BlendMode.GL_SRC_ALPHA, BlendMode.GL_ONE_MINUS_SRC_ALPHA)).depth_mask(false);
+
+                            if (matrix != null) {
+                                state.model_view().multiply(matrix);
+                            }
+                            state.model_view().multiply(animatedGroups.get(group));
+                            if (level != null) {
+                                state.lightmap(level.getKey(), level.getValue());
+                            }
+                        });
+                    });
+                }
             }
         }
 

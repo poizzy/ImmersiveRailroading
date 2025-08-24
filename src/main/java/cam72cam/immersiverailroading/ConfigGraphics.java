@@ -71,4 +71,7 @@ public class ConfigGraphics {
 	@Comment("The track's maximum visibility range")
 	@Range(min = 256, max = 4096)
 	public static double TrackRenderDistance = 256;
+
+	@Comment("Should semi-transparent parts render? Disable this if you are experiencing problems with semi-transparent parts when using a Shader")
+	public static boolean RenderSemiTransparentParts = true;
 }
