@@ -226,6 +226,39 @@ public class ModelState {
         return false;
     }
 
+    private static class Opacity {
+        final List<String> opaque = new ArrayList<>();
+        final List<String> transparent = new ArrayList<>();
+
+        void add(boolean isTransparent, String group) {
+            if (isTransparent) {
+                transparent.add(group);
+            } else {
+                opaque.add(group);
+            }
+        }
+    }
+
+    private static class RenderGroup {
+        public Opacity animated = new Opacity();
+        public Opacity notAnimated = new Opacity();
+        private final Set<String> animatedGroups;
+
+        public RenderGroup(Map<String, Matrix4> animatedGroups) {
+            this.animatedGroups = animatedGroups.keySet();
+        }
+
+        public void add(String group) {
+            boolean hasAlpha = group.contains("ALPHA");
+
+            if (animatedGroups.contains(group)) {
+                animated.add(hasAlpha, group);
+            } else {
+                notAnimated.add(hasAlpha, group);
+            }
+        }
+    }
+
     // TODO check performance impact of streams
     public void render(OBJRender.Binding vbo, EntityMoveableRollingStock stock, List<ModelComponentType> available, float partialTicks) {
         // Get all groups that we can render from components that are available
@@ -265,7 +298,7 @@ public class ModelState {
         boolean hasInterior = lighting.hasInterior != null && lighting.hasInterior;
 
 
-        Map<Pair<Float, Float>, List<String>> levels = new HashMap<>();
+        Map<Pair<Float, Float>, RenderGroup> levels = new HashMap<>();
         for (String group : groups) {
             if (!lcgCache.containsKey(group)) {
                 Matcher matcher = lcgPattern.matcher(group);
@@ -296,18 +329,15 @@ public class ModelState {
                 }
             }
 
-            levels.computeIfAbsent(key, p -> new ArrayList<>()).add(group);
+            levels.computeIfAbsent(key, p -> new RenderGroup(animatedGroups)).add(group);
         }
 
-        levels.forEach((level, litGroups) -> {
-            List<String> animated = animatedGroups.isEmpty() ? Collections.emptyList() :
-                    litGroups.stream().filter(g -> animatedGroups.containsKey(g)).filter(g -> !g.contains("ALPHA")).collect(Collectors.toList());
-            List<String> notAnimated = animatedGroups.isEmpty() ? litGroups.stream().filter(g -> !g.contains("ALPHA")).collect(Collectors.toList()) :
-                    litGroups.stream().filter(g -> !animatedGroups.containsKey(g)).filter(g -> !g.contains("ALPHA")).collect(Collectors.toList());
-            List<String> transparent = animatedGroups.isEmpty() ? litGroups.stream().filter(g -> g.contains("ALPHA")).collect(Collectors.toList()) :
-                    litGroups.stream().filter(g -> !animatedGroups.containsKey(g)).filter(g -> g.contains("ALPHA")).collect(Collectors.toList());
-            List<String> transparentAnimated = animatedGroups.isEmpty() ? Collections.emptyList() :
-                    litGroups.stream().filter(animatedGroups::containsKey).filter(g -> g.contains("ALPHA")).collect(Collectors.toList());
+        for (Map.Entry<Pair<Float, Float>, RenderGroup> entry : levels.entrySet()) {
+            Pair<Float, Float> level = entry.getKey();
+            RenderGroup renderGroup = entry.getValue();
+
+            List<String> notAnimated = renderGroup.notAnimated.opaque;
+            List<String> animated = renderGroup.animated.opaque;
 
             if (!notAnimated.isEmpty()) {
                 vbo.draw(notAnimated, state -> {
@@ -332,17 +362,30 @@ public class ModelState {
                     });
                 });
             }
-            if (!transparent.isEmpty()) {
-                vbo.draw(transparent, state -> {
+        }
+
+        for (Map.Entry<Pair<Float, Float>, RenderGroup> entry : levels.entrySet()) {
+            Pair<Float, Float> level = entry.getKey();
+            RenderGroup renderGroup = entry.getValue();
+
+            List<String> notAnimated = renderGroup.notAnimated.transparent;
+            List<String> animated = renderGroup.animated.transparent;
+
+            if (!notAnimated.isEmpty()) {
+                vbo.draw(notAnimated, state -> {
                     state.blend(new BlendMode(BlendMode.GL_SRC_ALPHA, BlendMode.GL_ONE_MINUS_SRC_ALPHA)).depth_mask(false);
 
+                    if (matrix != null) {
+                        state.model_view().multiply(matrix);
+                    }
                     if (level != null) {
                         state.lightmap(level.getKey(), level.getValue());
                     }
                 });
             }
-            if (!transparentAnimated.isEmpty()) {
-                transparentAnimated.forEach(group -> {
+
+            if (!animated.isEmpty()) {
+                animated.forEach(group -> {
                     vbo.draw(Collections.singletonList(group), state -> {
                         state.blend(new BlendMode(BlendMode.GL_SRC_ALPHA, BlendMode.GL_ONE_MINUS_SRC_ALPHA)).depth_mask(false);
 
@@ -356,7 +399,7 @@ public class ModelState {
                     });
                 });
             }
-        });
+        }
 
         for (ModelState child : children) {
             child.render(vbo, stock, available, partialTicks);
