@@ -19,6 +19,7 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
     public Vec3d getMountOffset(Entity passenger, Vec3d off) {
         NavMesh navMesh = getDefinition().navMesh;
         if (navMesh.hasNavMesh()) {
+            off = off.scale(gauge.scale());
             Vec3d seat = getSeatPosition(passenger.getUUID());
             if (seat != null) {
                 return seat;
@@ -31,7 +32,7 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
             );
 
             List<Mesh.Face> nearby = new ArrayList<>();
-            navMesh.queryBVH(navMesh.root, queryBox, nearby);
+            navMesh.queryBVH(navMesh.root, queryBox, nearby, this.gauge.scale());
 
             Vec3d closestPoint = null;
             double closestDistanceSq = Double.MAX_VALUE;
@@ -77,7 +78,7 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
             );
             List<Mesh.Face> nearby = new ArrayList<>();
             NavMesh navMesh = getDefinition().navMesh;
-            navMesh.queryBVH(navMesh.root, rayBox, nearby);
+            navMesh.queryBVH(navMesh.root, rayBox, nearby, this.gauge.scale());
 
             double closestY = Float.NEGATIVE_INFINITY;
             boolean hit = false;
@@ -123,7 +124,7 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
         );
         List<Mesh.Face> nearby = new ArrayList<>();
         NavMesh navMesh = getDefinition().navMesh;
-        navMesh.queryBVH(navMesh.collisionRoot, rayBox, nearby);
+        navMesh.queryBVH(navMesh.collisionRoot, rayBox, nearby, this.gauge.scale());
 
         Vec3d rayStart = localOffset.add(0, 1, 0);
         Vec3d rayDir = movement.rotateYaw(-90).normalize();
@@ -253,7 +254,7 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
 
         List<Mesh.Face> nearby = new ArrayList<>();
         NavMesh navMesh = getDefinition().navMesh;
-        navMesh.queryBVH(navMesh.root, queryBox, nearby);
+        navMesh.queryBVH(navMesh.root, queryBox, nearby, this.gauge.scale());
 
         for (Mesh.Face tri : nearby) {
             Vec3d p0 = tri.vertices.get(0);
