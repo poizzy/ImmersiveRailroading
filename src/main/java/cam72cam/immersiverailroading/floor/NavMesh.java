@@ -58,19 +58,39 @@ public class NavMesh {
         return node;
     }
 
-    public void queryBVH(BVHNode node, CollisionBox query, List<Mesh.Face> result) {
+    public void queryBVH(BVHNode node, CollisionBox query, List<Mesh.Face> result, double scale) {
+        query = unscaleBoxUniform(query, scale);
+        queryBVHInternal(node, query, result, scale);
+    }
+
+
+
+    public void queryBVHInternal(BVHNode node, CollisionBox query, List<Mesh.Face> result, double scale) {
 //        if (!node.bounds.intersects(query)) return;
+
+//        query = unscaleBoxUniform(query, scale);
 
         if (node.isLeaf()) {
             for (Mesh.Face tri : node.triangles) {
                 if (tri.getCollisionBox().intersects(query)) {
-                    result.add(tri);
+                    result.add(tri.scale(scale));
                 }
             }
         } else {
-            queryBVH(node.left, query, result);
-            queryBVH(node.right, query, result);
+            queryBVHInternal(node.left, query, result, scale);
+            queryBVHInternal(node.right, query, result, scale);
         }
+    }
+
+    private static CollisionBox unscaleBoxUniform(CollisionBox box, double s) {
+        Vec3d a = box.min.scale(1.0 / s);
+        Vec3d b = box.max.scale(1.0 / s);
+
+        CollisionBox out = new CollisionBox(
+                new Vec3d(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.min(a.z, b.z)),
+                new Vec3d(Math.max(a.x, b.x), Math.max(a.y, b.y), Math.max(a.z, b.z))
+        );
+        return out;
     }
 
     private double getCentroid(Mesh.Face tri, int axis) {

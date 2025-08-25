@@ -38,6 +38,14 @@ public class Mesh {
             Vec3d max = vertices.get(0).max(vertices.get(1).max(vertices.get(2)));
             return new CollisionBox(min, max);
         }
+
+        public Face scale(double scale) {
+            Face scaled = new Face();
+            vertices.forEach(vec3d -> scaled.vertices.add(vec3d.scale(scale)));
+            scaled.normal = new Vec3d(normal.internal());
+            scaled.uv = new ArrayList<>(uv);
+            return scaled;
+        }
     }
 
     public final Map<String, Group> groups = new HashMap<>();
