@@ -148,7 +148,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             context.loadModules(modules, script);
         }
 
-        if (script.canLoad()) {
+        if (script != null && script.canLoad()) {
             context.loadScript(script);
         }
     }
