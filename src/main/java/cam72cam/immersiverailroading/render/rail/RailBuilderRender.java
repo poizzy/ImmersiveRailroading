@@ -15,12 +15,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class RailBuilderRender {
-    private static final ExpireableMap<String, VBO> cache = new ExpireableMap<String, VBO>() {
-        @Override
-        public void onRemove(String key, VBO value) {
-            value.free();
-        }
-    };
+    private static final ExpireableMap<String, VBO> cache = new ExpireableMap<>((k, v) -> v.free());
 
     public static void renderRailBuilder(RailInfo info, List<VecYawPitch> renderData, RenderState state) {
         TrackModel model = DefinitionManager.getTrack(info.settings.track, info.settings.gauge.value());
