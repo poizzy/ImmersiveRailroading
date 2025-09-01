@@ -68,6 +68,7 @@ properties =                # Required:
 #        blinkIntervalSeconds = 0    # Optional: How often this should blink
 #        blinkOffsetSeconds = 0      # Optional: How much to offset the start of blinking from other lights
 #        blinkFullBright = True      # Optional: Should this add the emissive modifier when enabled?
+#        revertDirection = False     # Optional: Should this light face the opposite direction? Like a front-facing light at stock's tail
 #        reverseColor = null         # Optional: How to tint the light when the stock is in reverse, red example: 0xFF2222
 #        castsLight = True           # Optional: If optifine is installed, should we try to fake real lighting?  Too many of these can cause performance issues!
 #        lightTex = "immersiverailroading:textures/light.png"    # Optional: light flare texture

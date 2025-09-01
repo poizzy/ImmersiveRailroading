@@ -193,6 +193,7 @@ public abstract class EntityRollingStockDefinition {
         public final float blinkIntervalSeconds;
         public final float blinkOffsetSeconds;
         public final boolean blinkFullBright;
+        public final boolean revertDirection;
         public final String reverseColor;
         public final Identifier lightTex;
         public final boolean castsLight;
@@ -201,6 +202,7 @@ public abstract class EntityRollingStockDefinition {
             blinkIntervalSeconds = data.getValue("blinkIntervalSeconds").asFloat(0f);
             blinkOffsetSeconds = data.getValue("blinkOffsetSeconds").asFloat(0f);
             blinkFullBright = data.getValue("blinkFullBright").asBoolean(true);
+            revertDirection = data.getValue("revertDirection").asBoolean(false);
             reverseColor = data.getValue("reverseColor").asString();
             lightTex = data.getValue("texture").asIdentifier(default_light_tex);
             castsLight = data.getValue("castsLight").asBoolean(true);
