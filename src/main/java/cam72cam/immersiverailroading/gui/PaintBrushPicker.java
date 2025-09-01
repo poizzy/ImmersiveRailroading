@@ -67,7 +67,7 @@ public class PaintBrushPicker implements IScreen {
             }
         };
 
-        width = 80;
+        width = 100;
         Button random = new Button(screen, GUIHelpers.getScreenWidth() / 2 - width, ytop, width, height,
                                    GuiText.SELECTOR_PAINTBRUSH_RANDOM.toString()) {
             @Override
