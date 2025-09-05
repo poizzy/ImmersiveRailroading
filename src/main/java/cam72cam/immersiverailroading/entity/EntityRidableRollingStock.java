@@ -58,7 +58,7 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 		}
 	}
 
-	private Vec3d getSeatPosition(UUID passenger) {
+	protected Vec3d getSeatPosition(UUID passenger) {
 		String seat = seatedPassengers.entrySet().stream()
 				.filter(x -> x.getValue().equals(passenger))
 				.map(Map.Entry::getKey).findFirst().orElse(null);
@@ -126,7 +126,7 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 		return offset;
 	}
 
-	private boolean isNearestDoorOpen(Player source) {
+	protected boolean isNearestDoorOpen(Player source) {
 		// Find any doors that are close enough that are closed (and then negate)
 		return !this.getDefinition().getModel().getDoors().stream()
 				.filter(d -> d.type == Door.Types.CONNECTING)
@@ -136,7 +136,7 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 				.isPresent();
 	}
 
-	private Vec3d playerMovement(Player source, Vec3d offset) {
+	protected Vec3d playerMovement(Player source, Vec3d offset) {
 		Vec3d movement = source.getMovementInput();
         /*
         if (sprinting) {

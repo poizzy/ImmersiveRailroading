@@ -3,16 +3,17 @@ package cam72cam.immersiverailroading.registry;
 import cam72cam.immersiverailroading.Config;
 import cam72cam.immersiverailroading.ConfigSound;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
-import cam72cam.immersiverailroading.entity.EntityBuildableRollingStock;
+import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
-import cam72cam.immersiverailroading.entity.EntityMoveableRollingStock;
-import cam72cam.immersiverailroading.entity.EntityRollingStock;
+import cam72cam.immersiverailroading.floor.Mesh;
+import cam72cam.immersiverailroading.floor.NavMesh;
 import cam72cam.immersiverailroading.util.*;
 import cam72cam.immersiverailroading.gui.overlay.GuiBuilder;
 import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.library.*;
 import cam72cam.immersiverailroading.model.StockModel;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
+import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.EntityRegistry;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.OBJGroup;
@@ -29,9 +30,7 @@ import cam72cam.mod.world.World;
 
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
+import java.io.*;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -67,7 +66,7 @@ public abstract class EntityRollingStockDefinition {
     public float darken;
     public Identifier modelLoc;
     protected StockModel<?, ?> model;
-    private Vec3d passengerCenter;
+    public Vec3d passengerCenter;
     private float bogeyFront;
     private float bogeyRear;
     private float couplerOffsetFront;
@@ -86,7 +85,7 @@ public abstract class EntityRollingStockDefinition {
     private float interiorLightLevel;
     private boolean hasIndependentBrake;
     private boolean hasPressureBrake;
-    private final Map<ModelComponentType, List<ModelComponent>> renderComponents;
+    private final EnumMap<ModelComponentType, List<ModelComponent>> renderComponents;
     private final List<ItemComponentType> itemComponents;
     private final Function<EntityBuildableRollingStock, float[][]> heightmap;
     private final Map<String, LightDefinition> lights = new HashMap<>();
@@ -105,6 +104,9 @@ public abstract class EntityRollingStockDefinition {
     public List<AnimationDefinition> animations;
     public Map<String, Float> cgDefaults;
     public Map<String, DataBlock> widgetConfig;
+
+    public Mesh mesh;
+    public NavMesh navMesh;
 
     public static class SoundDefinition {
         public final Identifier start;
@@ -144,6 +146,27 @@ public abstract class EntityRollingStockDefinition {
             }
             return null;
         }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (obj == null || getClass() != obj.getClass()) return false;
+            SoundDefinition that = (SoundDefinition) obj;
+
+            return Objects.equals(start, that.start) &&
+                    Objects.equals(main, that.main) &&
+                    looping == that.looping &&
+                    Objects.equals(stop, that.stop) &&
+                    Objects.equals(distance, that.distance) &&
+                    Objects.equals(volume, that.volume);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(start, main, looping, stop, distance, volume);
+        }
+
+
     }
 
     public static class AnimationDefinition {
@@ -309,7 +332,10 @@ public abstract class EntityRollingStockDefinition {
         this.model = createModel();
         this.itemGroups = model.groups.keySet().stream().filter(x -> !ModelComponentType.shouldRender(x)).collect(Collectors.toList());
 
-        this.renderComponents = new HashMap<>();
+        this.mesh = Mesh.loadMesh(this.model);
+        this.navMesh = new NavMesh(this.mesh);
+
+        this.renderComponents = new EnumMap<>(ModelComponentType.class);
         for (ModelComponent component : model.allComponents) {
             renderComponents.computeIfAbsent(component.type, v -> new ArrayList<>())
                     .add(0, component);
@@ -435,7 +461,7 @@ public abstract class EntityRollingStockDefinition {
             for (DataBlock alternate : alternates) {
                 alternate.getValueMap().forEach((key, value) -> textureNames.put(value.asString(), key));
             }
-        } catch (java.io.FileNotFoundException ex) {
+        } catch (FileNotFoundException ex) {
             ImmersiveRailroading.catching(ex);
         }
 
@@ -900,4 +926,7 @@ public abstract class EntityRollingStockDefinition {
         return brakeCoefficient;
     }
 
+    public Mesh getMesh() {
+        return this.mesh;
+    }
 }
