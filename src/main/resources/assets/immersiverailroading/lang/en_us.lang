@@ -62,10 +62,13 @@ chat.immersiverailroading:switch_state.locked=Switch locked to %s
 chat.immersiverailroading:switch_state.reset=The last-locked switch has been wirelessly unlocked!
 chat.immersiverailroading:switch_state.cant_reset=You haven't locked any switches with this key!
 chat.immersiverailroading:switch_state.already_reset=The last-locked switch is already unlocked!
+chat.immersiverailroading:multiblock.select=Select multiblock: %s
 
 gui.immersiverailroading:label.brake=Brake
 gui.immersiverailroading:label.throttle=Throttle
 gui.immersiverailroading:label.reverser=Reverser
+gui.immersiverailroading:slider.zoom=Zoom:
+gui.immersiverailroading:selector.page=Page %s of %s
 gui.immersiverailroading:selector.type=Type: %s
 gui.immersiverailroading:selector.gauge=Gauge: %s
 gui.immersiverailroading:selector.track=Track Style: %s
@@ -84,9 +87,15 @@ gui.immersiverailroading:selector.plate_type=Plate Type: %s
 gui.immersiverailroading:selector.plate_boiler=Plate Boiler: %s
 gui.immersiverailroading:selector.cast_single=Single Casting
 gui.immersiverailroading:selector.cast_repeat=Repeat Casting
+gui.immersiverailroading:selector.paintbrush_random=Apply random variant
+gui.immersiverailroading:selector.paintbrush_apply_to_stock=Apply to single stock
+gui.immersiverailroading:selector.paintbrush_apply_to_train=Apply to whole train
 
 gui.immersiverailroading:item.switch_key=Right-Click a switch to cycle between: [ locked straight, locked turn, unlocked ]. Redstone is ignored when locked!
 gui.immersiverailroading:item.switch_key.data=Last locked switch: %s in %s
+
+gui.immersiverailroading:item.radio_card.linked_to=Linked to %s
+gui.immersiverailroading:item.radio_card.not_linked=Not linked to any locomotive
 
 gui.immersiverailroading:item.track_exchanger=Right-Click in air to open the selection gui. Right-Click on a track to change it's track type to the one defined in the gui
 gui.immersiverailroading:item.paint_brush.mode=Current mode: %s
@@ -118,6 +127,9 @@ gui.immersiverailroading:stock.freight_capacity=Capacity:       %s Stacks
 gui.immersiverailroading:stock.weight=Weight:          %s Kg
 gui.immersiverailroading:stock.modeler=Modeler:        %s
 gui.immersiverailroading:stock.pack=Pack:            %s
+
+gui.immersiverailroading:overlay.on=On
+gui.immersiverailroading:overlay.off=Off
 
 immersiverailroading:gauge.brunel=Brunel
 immersiverailroading:gauge.standard=Standard
@@ -205,6 +217,22 @@ part.immersiverailroading:component.reach_rod=Reach Rod
 part.immersiverailroading:component.walcherts_linkage=Walcherts Linkage
 part.immersiverailroading:component.valve_rod=Valve Gear Component
 
+part.immersiverailroading:controls.cylinder_drain=Cylinder Drain
+part.immersiverailroading:controls.bell=Bell
+part.immersiverailroading:controls.whistle=Whistle
+part.immersiverailroading:controls.horn=Horn
+part.immersiverailroading:controls.train_brake=Train Brake
+part.immersiverailroading:controls.independent_brake=Independent Brake
+part.immersiverailroading:controls.throttle=Throttle
+part.immersiverailroading:controls.reverser=Reverser
+part.immersiverailroading:controls.throttle_brake=Throttle Brake
+part.immersiverailroading:controls.engine_start=Engine Start
+
+multiblock.immersiverailroading:boiler_machine=Boiler Machine
+multiblock.immersiverailroading:casting=Casting Basin
+multiblock.immersiverailroading:plate_machine=Plate Machine
+multiblock.immersiverailroading:rail_machine=Rail Machine
+multiblock.immersiverailroading:steam_hammer=Steam Hammer
 
 immersiverailroading:crafting_type.casting=Casting
 immersiverailroading:crafting_type.casting_hammer=Casting,Power Hammer
@@ -250,6 +278,9 @@ key.categories.immersiverailroading=Immersive Railroading
 ir_keys.increase_throttle=Increase Throttle
 ir_keys.zero_throttle=Zero Throttle
 ir_keys.decrease_throttle=Decrease Throttle
+ir_keys.increase_reverser=Increase Reverser
+ir_keys.zero_reverser=Zero Reverser
+ir_keys.decrease_reverser=Decrease Reverser
 ir_keys.increase_brake=Increase Air Brake
 ir_keys.zero_brake=Zero Air Brake
 ir_keys.decrease_brake=Decrease Air Brake
@@ -261,3 +292,61 @@ ir_keys.bell=Sound Bell
 ir_keys.dead_mans_switch=Deadman's Switch
 ir_keys.start_stop_engine=Start/Stop engine
 ir_keys.config=Config
+
+# Default pack's train name
+immersiverailroading:entity.locomotives.a1_peppercorn=A1 Peppercorn
+immersiverailroading:entity.locomotives.a5_switcher=A5 Switcher
+immersiverailroading:entity.locomotives.alco_rs1=RS-1
+immersiverailroading:entity.locomotives.big_boy=Big Boy (4000 class)
+immersiverailroading:entity.locomotives.br01=br01
+immersiverailroading:entity.locomotives.class_38=Class 38
+immersiverailroading:entity.locomotives.cooke_mogul=DSP&P Mogul
+immersiverailroading:entity.locomotives.e6_atlantic=E6 Atlantic
+immersiverailroading:entity.locomotives.emd_sd40-2=EMD SD40-2
+immersiverailroading:entity.locomotives.emd_sw1500=SW1500
+immersiverailroading:entity.locomotives.firefly=Firefly
+immersiverailroading:entity.locomotives.ge_40_ton_boxcab=Class B-B-70/70-4HM829 Boxcab
+immersiverailroading:entity.locomotives.ge_b40_8=GE B40-8
+immersiverailroading:entity.locomotives.ge_b40_8w=GE B40-8w
+immersiverailroading:entity.locomotives.ge_c44_9cw=GE C44-9CW
+immersiverailroading:entity.locomotives.iron_duke=Iron Duke
+immersiverailroading:entity.locomotives.k36=D&RGW K36
+immersiverailroading:entity.locomotives.k4_pacific=K4 Pacific
+immersiverailroading:entity.locomotives.rodgers_460=Rodgers Ten Wheeler
+immersiverailroading:entity.locomotives.skookum=Skookum 2-4-4-2
+immersiverailroading:entity.tender.a1_peppercorn_tender=A1 Peppercorn Tender
+immersiverailroading:entity.tender.a5_tender=A5 Slope Tender
+immersiverailroading:entity.tender.big_boy_tender=Big Boy (4000 class) Tender
+immersiverailroading:entity.tender.br01_tender=drg class 01 tender
+immersiverailroading:entity.tender.class_38_tender=Class 38 Tender
+immersiverailroading:entity.tender.cooke_tender=Cooke Tender
+immersiverailroading:entity.tender.e6_tender=E6 Atlantic Tender
+immersiverailroading:entity.tender.k4_tender=K4 Pacific Tender
+immersiverailroading:entity.tender.k36_tender=K36 Tender
+immersiverailroading:entity.tender.rodgers_460_tender=Rodgers Ten Wheeler Tender
+immersiverailroading:entity.tender.skookum_tender=Skookum Tender
+
+immersiverailroading:entity.hand_car.hand_car_1=Hand Car
+
+immersiverailroading:entity.passenger.b70baggage=PRR B70 Baggage
+immersiverailroading:entity.passenger.br_coach_mk1=BR Coach MK1
+immersiverailroading:entity.passenger.p70coach1=PRR P70 Coach 1
+
+immersiverailroading:entity.freight.70t_hopper_slsf=70T Hopper SLSF
+immersiverailroading:entity.freight.attx_flatcar_1=ATTX Flatcar 1
+immersiverailroading:entity.freight.boxcar_x26=Box Car X26
+immersiverailroading:entity.freight.drgw_1000class_gondola=1000 Series Gondola
+immersiverailroading:entity.freight.drgw_3000class_boxcar=3000 Series Boxcar
+immersiverailroading:entity.freight.drgw_5500class_stockcar=5500 Series Stockcar
+immersiverailroading:entity.freight.drgw_rail_and_tie_outfit=Rail & Tie Car
+immersiverailroading:entity.freight.dw_gondola=DW Gondola
+immersiverailroading:entity.freight.n5c_cabin_car=N5c Caboose
+immersiverailroading:entity.freight.prr_flatcar_1=PRR Flatcar 1
+immersiverailroading:entity.freight.russell_snow_plow=Russell Snow Plow
+immersiverailroading:entity.freight.usra_boxcar_classrr40=USRA Boxcar Class RR-40
+immersiverailroading:entity.freight.usra_hopper_55t=USRA Hopper 55T
+immersiverailroading:entity.freight.waycar=Waycar
+
+immersiverailroading:entity.tank.kamx_t=Kamx T
+immersiverailroading:entity.tank.slag_car_1=Slag Car 1
+immersiverailroading:entity.tank.tank_us2=Tank US 2
