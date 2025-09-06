@@ -148,27 +148,6 @@ public abstract class EntityRollingStockDefinition {
             }
             return null;
         }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (obj == null || getClass() != obj.getClass()) return false;
-            SoundDefinition that = (SoundDefinition) obj;
-
-            return Objects.equals(start, that.start) &&
-                    Objects.equals(main, that.main) &&
-                    looping == that.looping &&
-                    Objects.equals(stop, that.stop) &&
-                    Objects.equals(distance, that.distance) &&
-                    Objects.equals(volume, that.volume);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(start, main, looping, stop, distance, volume);
-        }
-
-
     }
 
     public static class AnimationDefinition {
