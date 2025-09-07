@@ -67,8 +67,8 @@ public class Mesh {
 
         Mesh mesh = new Mesh();
 
+        VertexBuffer vbo = model.vbo.buffer.get();
         for (OBJGroup group : groupList) {
-            VertexBuffer vbo = model.vbo.buffer.get();
             int stride = vbo.stride;
             int vertsPerFace = vbo.vertsPerFace;
             float[] data = vbo.data;
