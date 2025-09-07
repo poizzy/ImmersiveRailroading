@@ -9,12 +9,15 @@ import java.util.stream.Collectors;
 public class NavMesh {
     public BVHNode root;
     public BVHNode collisionRoot;
-    private boolean hasNavMesh;
+    private final boolean hasNavMesh;
+    // Theoretically this could be much lower. IR floor meshes probably won't use the whole depth, but who knows
+    private static final int MAX_DEPTH = 20;
+    private static final int LEAF_SIZE = 8;
 
     public NavMesh(Mesh mesh) {
         hasNavMesh = !mesh.getGroupContains("FLOOR").isEmpty();
-        this.root = buildBVH(mesh.getGroupContains("FLOOR").stream().flatMap(m -> m.faces.stream()).collect(Collectors.toList()), 18);
-        this.collisionRoot = buildBVH(mesh.getGroupContains("COLLISION").stream().flatMap(m -> m.faces.stream()).collect(Collectors.toList()), 20);
+        this.root = buildBVH(mesh.getGroupContains("FLOOR").stream().flatMap(m -> m.faces.stream()).collect(Collectors.toList()), 0);
+        this.collisionRoot = buildBVH(mesh.getGroupContains("COLLISION").stream().flatMap(m -> m.faces.stream()).collect(Collectors.toList()), 0);
     }
 
     public boolean hasNavMesh() {
@@ -33,7 +36,7 @@ public class NavMesh {
     }
 
     public BVHNode buildBVH(List<Mesh.Face> triangles, int depth) {
-        if (triangles.size() <= 5 || depth > 20) {
+        if (triangles.size() <= LEAF_SIZE || depth > MAX_DEPTH) {
             CollisionBox bounds = new CollisionBox();
             triangles.forEach(t -> bounds.expandToFit(t.getCollisionBox()));
             BVHNode node = new BVHNode();
@@ -66,7 +69,8 @@ public class NavMesh {
 
 
     public void queryBVHInternal(BVHNode node, CollisionBox query, List<Mesh.Face> result, double scale) {
-//        if (!node.bounds.intersects(query)) return;
+        if (node == null) return;
+        if (!node.bounds.intersects(query)) return;
 
 //        query = unscaleBoxUniform(query, scale);
 
