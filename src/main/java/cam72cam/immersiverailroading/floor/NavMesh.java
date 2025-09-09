@@ -7,6 +7,9 @@ import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.math.Vec3i;
 import cam72cam.mod.model.obj.OBJFace;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -21,11 +24,17 @@ public class NavMesh {
     public NavMesh(StockModel<?, ?> model) {
         hasNavMesh = model.groups().stream().anyMatch(s -> s.contains("FLOOR"));
         if (!hasNavMesh) return;
-        // I could hook FLOOR and COLLISION to the Model Component system, but that would mean you'll have to add a separate FLOOR object to your actual floor
-        List<OBJFace> floor = model.getFaces(model.groups.values().stream().filter(n -> n.name.contains("FLOOR")).collect(Collectors.toList()));
+
+        List<OBJFace> floor = Collections.emptyList();
+        if (model.floor != null) {
+            floor = model.getFaces(model.floor.groups());
+        }
         this.root = buildBVH(floor, 0);
 
-        List<OBJFace> collision = model.getFaces(model.groups.values().stream().filter(n -> n.name.contains("COLLISION")).collect(Collectors.toList()));
+        List<OBJFace> collision = Collections.emptyList();
+        if (model.collision != null) {
+            collision = model.getFaces(model.collision.groups());
+        }
         this.collisionRoot = buildBVH(collision, 0);
     }
 
