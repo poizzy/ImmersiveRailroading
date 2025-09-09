@@ -1,14 +1,14 @@
 package cam72cam.immersiverailroading.entity;
 
 import cam72cam.immersiverailroading.ImmersiveRailroading;
-import cam72cam.immersiverailroading.floor.CollisionBox;
-import cam72cam.immersiverailroading.floor.Mesh;
 import cam72cam.immersiverailroading.floor.NavMesh;
 import cam72cam.immersiverailroading.model.part.Door;
 import cam72cam.immersiverailroading.util.VecUtil;
 import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Player;
+import cam72cam.mod.entity.boundingbox.IBoundingBox;
 import cam72cam.mod.math.Vec3d;
+import cam72cam.mod.model.obj.OBJFace;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -26,18 +26,18 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
             }
 
             Vec3d realOffset = off.rotateYaw(-90);
-            CollisionBox queryBox = new CollisionBox(
+            IBoundingBox queryBox = IBoundingBox.from(
                     realOffset.subtract(4f, 4f, 4f),
                     realOffset.add(4f, 4f, 4f)
             );
 
-            List<Mesh.Face> nearby = new ArrayList<>();
+            List<OBJFace> nearby = new ArrayList<>();
             navMesh.queryBVH(navMesh.root, queryBox, nearby, this.gauge.scale());
 
             Vec3d closestPoint = null;
             double closestDistanceSq = Double.MAX_VALUE;
 
-            for (Mesh.Face tri : nearby) {
+            for (OBJFace tri : nearby) {
                 Vec3d p0 = tri.vertices.get(0);
                 Vec3d p1 = tri.vertices.get(1);
                 Vec3d p2 = tri.vertices.get(2);
@@ -72,18 +72,18 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
 
             Vec3d localTarget = targetXZ.rotateYaw(-90);
 
-            CollisionBox rayBox = new CollisionBox(
+            IBoundingBox rayBox = IBoundingBox.from(
                     localTarget.subtract(0.5f, 0.5f, 0.5f),
                     localTarget.add(0.5f, 0.5f, 0.5f)
             );
-            List<Mesh.Face> nearby = new ArrayList<>();
+            List<OBJFace> nearby = new ArrayList<>();
             NavMesh navMesh = getDefinition().navMesh;
             navMesh.queryBVH(navMesh.root, rayBox, nearby, this.gauge.scale());
 
             double closestY = Float.NEGATIVE_INFINITY;
             boolean hit = false;
 
-            for(Mesh.Face tri : nearby) {
+            for(OBJFace tri : nearby) {
                 Double t = intersectRayTriangle(rayStart, rayDir, tri);
                 if (t != null && t >= 0) {
                     Vec3d hitPoint = rayStart.add(rayDir.scale(t));
@@ -118,18 +118,18 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
         movement = new Vec3d(movement.x, 0, movement.z).rotateYaw(this.getRotationYaw() - source.getRotationYawHead());
         Vec3d localOffset = offset.rotateYaw(-90).add(movement.rotateYaw(-90));
 
-        CollisionBox rayBox = new CollisionBox(
+        IBoundingBox rayBox = IBoundingBox.from(
                 localOffset.subtract(0.2f, 0.2f, 0.2f),
                 localOffset.add(0.2f, 0.2f, 0.2f)
         );
-        List<Mesh.Face> nearby = new ArrayList<>();
+        List<OBJFace> nearby = new ArrayList<>();
         NavMesh navMesh = getDefinition().navMesh;
         navMesh.queryBVH(navMesh.collisionRoot, rayBox, nearby, this.gauge.scale());
 
         Vec3d rayStart = localOffset.add(0, 1, 0);
         Vec3d rayDir = movement.rotateYaw(-90).normalize();
 
-        for (Mesh.Face tri : nearby) {
+        for (OBJFace tri : nearby) {
             Double t = intersectRayTriangle(rayStart, rayDir, tri);
             if (t != null && t >= 0) {
                 return offset;
@@ -189,7 +189,7 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
         return offset;
     }
 
-    public static Double intersectRayTriangle(Vec3d rayOrigin, Vec3d rayDir, Mesh.Face face) {
+    public static Double intersectRayTriangle(Vec3d rayOrigin, Vec3d rayDir, OBJFace face) {
         final float EPSILON = 1e-6f;
         
         List<Vec3d> tri = face.vertices;
@@ -230,11 +230,11 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
                 .filter(d -> !d.isOpen(this)).collect(Collectors.toList());
         boolean intersects = false;
         for (Door<?> door : doors) {
-            CollisionBox box = new CollisionBox(
+            IBoundingBox box = IBoundingBox.from(
                     door.part.min,
                     door.part.max
             );
-            intersects = box.intersects(start, end);
+            intersects = box.intersectsSegment(start, end);
             if (intersects) {
                 break;
             }
@@ -247,16 +247,16 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
         double coupler = getDefinition().getCouplerPosition(type, this.gauge);
         Vec3d couplerPos = new Vec3d(type == EntityCoupleableRollingStock.CouplerType.FRONT ? -coupler : coupler, offset.y, offset.z);
 
-        CollisionBox queryBox = new CollisionBox(
+        IBoundingBox queryBox = IBoundingBox.from(
                 couplerPos.subtract(0.2, 0.2, 0.2),
                 couplerPos.add(0.2, 0.2, 0.2)
         );
 
-        List<Mesh.Face> nearby = new ArrayList<>();
+        List<OBJFace> nearby = new ArrayList<>();
         NavMesh navMesh = getDefinition().navMesh;
         navMesh.queryBVH(navMesh.root, queryBox, nearby, this.gauge.scale());
 
-        for (Mesh.Face tri : nearby) {
+        for (OBJFace tri : nearby) {
             Vec3d p0 = tri.vertices.get(0);
             Vec3d p1 = tri.vertices.get(1);
             Vec3d p2 = tri.vertices.get(2);

@@ -5,7 +5,6 @@ import cam72cam.immersiverailroading.ConfigSound;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
-import cam72cam.immersiverailroading.floor.Mesh;
 import cam72cam.immersiverailroading.floor.NavMesh;
 import cam72cam.immersiverailroading.util.*;
 import cam72cam.immersiverailroading.gui.overlay.GuiBuilder;
@@ -107,7 +106,6 @@ public abstract class EntityRollingStockDefinition {
     public Map<String, Float> cgDefaults;
     public Map<String, DataBlock> widgetConfig;
 
-    public Mesh mesh;
     public NavMesh navMesh;
 
     public static class SoundDefinition {
@@ -319,8 +317,7 @@ public abstract class EntityRollingStockDefinition {
         this.model = createModel();
         this.itemGroups = model.groups.keySet().stream().filter(x -> !ModelComponentType.shouldRender(x)).collect(Collectors.toList());
 
-        this.mesh = Mesh.loadMesh(this.model);
-        this.navMesh = new NavMesh(this.mesh);
+        this.navMesh = new NavMesh(this.model);
 
         this.renderComponents = new EnumMap<>(ModelComponentType.class);
         for (ModelComponent component : model.allComponents) {
@@ -916,9 +913,5 @@ public abstract class EntityRollingStockDefinition {
     }
     public int getSnowLayers() {
         return snowLayers;
-    }
-
-    public Mesh getMesh() {
-        return this.mesh;
     }
 }
