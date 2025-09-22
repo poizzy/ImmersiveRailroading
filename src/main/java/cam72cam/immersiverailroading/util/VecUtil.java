@@ -1,7 +1,7 @@
 package cam72cam.immersiverailroading.util;
 
-import cam72cam.mod.ModCore;
 import cam72cam.mod.math.Vec3d;
+import cam72cam.mod.util.Axis;
 import cam72cam.mod.util.FastMath;
 import util.Matrix4;
 
@@ -74,12 +74,12 @@ public class VecUtil {
 		return new Vec3d(cx, cy, cz);
 	}
 
-	public static double getAxis(Vec3d vec, int axis) {
+	public static double getByAxis(Vec3d vec, Axis axis) {
 		switch (axis) {
-			case 0: return vec.x;
-			case 1: return vec.y;
-			case 2: return vec.z;
-			default: throw new IllegalArgumentException("Axis must be 0 (x), 1 (y), or 2 (z)");
+			case X: return vec.x;
+			case Y: return vec.y;
+			case Z: return vec.z;
+			default: throw new IllegalArgumentException("Invalid axis, did you provide a null?");
 		}
 	}
 }
