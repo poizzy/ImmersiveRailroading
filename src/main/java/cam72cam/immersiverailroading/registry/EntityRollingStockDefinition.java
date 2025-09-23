@@ -15,8 +15,7 @@ import cam72cam.immersiverailroading.model.StockModel;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
 import cam72cam.mod.entity.EntityRegistry;
 import cam72cam.mod.math.Vec3d;
-import cam72cam.mod.model.obj.OBJGroup;
-import cam72cam.mod.model.obj.VertexBuffer;
+import cam72cam.mod.model.obj.FaceAccessor;
 import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.*;
 import cam72cam.mod.serialization.ResourceCache.GenericByteBuffer;
@@ -668,33 +667,31 @@ public abstract class EntityRollingStockDefinition {
                     .collect(Collectors.toList());
             data = new float[components.size() * xRes * zRes];
 
-            VertexBuffer vb = def.model.vbo.buffer.get();
+            FaceAccessor visitor = def.model.getFaceAccessor();
 
             for (int i = 0; i < components.size(); i++) {
                 ModelComponent rc = components.get(i);
                 int idx = i * xRes * zRes;
                 for (String group : rc.modelIDs) {
-                    OBJGroup faces = def.model.groups.get(group);
+                    FaceAccessor grouped = visitor.getSubByGroup(group);
 
-                    for (int face = faces.faceStart; face <= faces.faceStop; face++) {
+                    for (FaceAccessor face : grouped) {
                         Path2D path = new Path2D.Float();
-                        float fheight = 0;
-                        boolean first = true;
-                        for (int point = 0; point < vb.vertsPerFace; point++) {
-                            int vertex = face * vb.vertsPerFace * vb.stride + point * vb.stride;
-                            float vertX = vb.data[vertex + 0];
-                            float vertY = vb.data[vertex + 1];
-                            float vertZ = vb.data[vertex + 2];
-                            vertX += def.frontBounds;
-                            vertZ += def.widthBounds / 2;
-                            if (first) {
-                                path.moveTo(vertX * ratio, vertZ * ratio);
-                                first = false;
-                            } else {
-                                path.lineTo(vertX * ratio, vertZ * ratio);
-                            }
-                            fheight += vertY / vb.vertsPerFace;
-                        }
+                        float faceHeight = 0;
+
+                        double v0x = (face.v0.x() + def.frontBounds) * ratio;
+                        double v0z = (face.v0.z() + def.widthBounds / 2) * ratio;
+                        double v1x = (face.v1.x() + def.frontBounds) * ratio;
+                        double v1z = (face.v1.z() + def.widthBounds / 2) * ratio;
+                        double v2x = (face.v2.x() + def.frontBounds) * ratio;
+                        double v2z = (face.v2.z() + def.widthBounds / 2) * ratio;
+
+                        path.moveTo(v0x, v0z);
+                        path.lineTo(v1x, v1z);
+                        path.lineTo(v2x, v2z);
+
+                        faceHeight = faceHeight + (face.v0.y() + face.v1.y() + face.v2.y()) / 3;
+
                         Rectangle2D bounds = path.getBounds2D();
                         if (bounds.getWidth() * bounds.getHeight() < 1) {
                             continue;
@@ -704,7 +701,7 @@ public abstract class EntityRollingStockDefinition {
                                 float relX = ((xRes - 1) - x);
                                 float relZ = z;
                                 if (bounds.contains(relX, relZ) && path.contains(relX, relZ)) {
-                                    float relHeight = fheight / (float) def.heightBounds;
+                                    float relHeight = faceHeight / (float) def.heightBounds;
                                     relHeight = ((int) Math.ceil(relHeight * precision)) / (float) precision;
                                     data[idx + x * zRes + z] = Math.max(data[idx + x * zRes + z], relHeight);
                                 }
