@@ -5,7 +5,7 @@ import cam72cam.immersiverailroading.util.VecUtil;
 import cam72cam.mod.entity.boundingbox.IBoundingBox;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.math.Vec3i;
-import cam72cam.mod.model.common.FaceAccessor;
+import cam72cam.mod.model.obj.FaceAccessor;
 import cam72cam.mod.model.obj.OBJFace;
 import cam72cam.mod.util.Axis;
 
