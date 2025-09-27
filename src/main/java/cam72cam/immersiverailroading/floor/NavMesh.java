@@ -5,13 +5,11 @@ import cam72cam.immersiverailroading.util.VecUtil;
 import cam72cam.mod.entity.boundingbox.IBoundingBox;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.math.Vec3i;
+import cam72cam.mod.model.obj.FaceAccessor;
 import cam72cam.mod.model.obj.OBJFace;
+import cam72cam.mod.util.Axis;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.*;
 
 public class NavMesh {
     public BVHNode root;
@@ -25,15 +23,23 @@ public class NavMesh {
         hasNavMesh = model.groups().stream().anyMatch(s -> s.contains("FLOOR"));
         if (!hasNavMesh) return;
 
-        List<OBJFace> floor = Collections.emptyList();
+        FaceAccessor accessor = model.getFaceAccessor();
+
+        List<OBJFace> floor = new ArrayList<>();
         if (model.floor != null) {
-            floor = model.getFaces(model.floor.groups());
+            model.floor.groups().forEach(group -> {
+                FaceAccessor sub = accessor.getSubByGroup(group.name);
+                sub.forEach(a -> floor.add(a.asOBJFace()));
+            });
         }
         this.root = buildBVH(floor, 0);
 
-        List<OBJFace> collision = Collections.emptyList();
+        List<OBJFace> collision = new ArrayList<>();
         if (model.collision != null) {
-            collision = model.getFaces(model.collision.groups());
+            model.collision.groups().forEach(group -> {
+                FaceAccessor sub = accessor.getSubByGroup(group.name);
+                sub.forEach(a -> collision.add(a.asOBJFace()));
+            });
         }
         this.collisionRoot = buildBVH(collision, 0);
     }
@@ -71,7 +77,7 @@ public class NavMesh {
         }
 
         Vec3d size = bounds.max().subtract(bounds.min());
-        int axis = (size.x > size.y && size.x > size.z) ? 0 : (size.y > size.z ? 1 : 2);
+        Axis axis = (size.x > size.y && size.x > size.z) ? Axis.X : (size.y > size.z ? Axis.Y : Axis.Z);
 
         triangles.sort((a, b) -> Double.compare(getCentroid(a, axis), getCentroid(b, axis)));
         int mid = triangles.size() / 2;
@@ -119,7 +125,7 @@ public class NavMesh {
         return out;
     }
 
-    private double getCentroid(OBJFace tri, int axis) {
-        return (VecUtil.getAxis(tri.vertices.get(0), axis) + VecUtil.getAxis(tri.vertices.get(1), axis) + VecUtil.getAxis(tri.vertices.get(2), axis)) / 3f;
+    private double getCentroid(OBJFace tri, Axis axis) {
+        return (VecUtil.getByAxis(tri.vertices.get(0), axis) + VecUtil.getByAxis(tri.vertices.get(1), axis) + VecUtil.getByAxis(tri.vertices.get(2), axis)) / 3f;
     }
 }
