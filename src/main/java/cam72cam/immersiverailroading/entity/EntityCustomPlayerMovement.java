@@ -273,74 +273,47 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
     }
 
     public static Vec3d closestPointOnTriangle(Vec3d p, Vec3d p0, Vec3d p1, Vec3d p2) {
-        Vec3d edge0 = p1.subtract(p0);
-        Vec3d edge1 = p2.subtract(p0);
-        Vec3d v0 = p0.subtract(p);
+        Vec3d ab = p1.subtract(p0);
+        Vec3d ac = p2.subtract(p0);
+        Vec3d ap = p.subtract(p0);
+        double d1 = ab.dotProduct(ap);
+        double d2 = ac.dotProduct(ap);
 
-        double a = VecUtil.dotProduct(edge0, edge0);
-        double b = VecUtil.dotProduct(edge0, edge1);
-        double c = VecUtil.dotProduct(edge1, edge1);
-        double d = VecUtil.dotProduct(edge0, v0);
-        double e = VecUtil.dotProduct(edge1, v0);
+        if (d1 <= 0f && d2 <= 0f) return p0;
 
-        double det = a * c - b * b;
-        double s = b * e - c * d;
-        double t = b * d - a * e;
+        Vec3d bp = p.subtract(p1);
+        double d3 = ab.dotProduct(bp);
+        double d4 = ac.dotProduct(bp);
+        if (d3 >= 0f && d4 <= d3) return p1;
 
-        if (s + t < det) {
-            if (s < 0.0) {
-                if (t < 0.0) {
-                    if (d < 0.0) {
-                        s = clamp(-d / a, 0.0, 1.0);
-                        t = 0.0;
-                    } else {
-                        s = 0.0;
-                        t = clamp(-e / c, 0.0, 1.0);
-                    }
-                } else {
-                    s = 0.0;
-                    t = clamp(-e / c, 0.0, 1.0);
-                }
-            } else if (t < 0.0) {
-                s = clamp(-d / a, 0.0, 1.0);
-                t = 0.0;
-            } else {
-                double invDet = 1.0 / det;
-                s *= invDet;
-                t *= invDet;
-            }
-        } else {
-            if (s < 0.0) {
-                double tmp0 = b + d;
-                double tmp1 = c + e;
-                if (tmp1 > tmp0) {
-                    double numer = tmp1 - tmp0;
-                    double denom = a - 2 * b + c;
-                    s = clamp(numer / denom, 0.0, 1.0);
-                    t = 1 - s;
-                } else {
-                    t = clamp(-e / c, 0.0, 1.0);
-                    s = 0.0;
-                }
-            } else if (t < 0.0) {
-                if ((a + d) > (b + e)) {
-                    double numer = c + e - b - d;
-                    double denom = a - 2 * b + c;
-                    s = clamp(numer / denom, 0.0, 1.0);
-                    t = 1 - s;
-                } else {
-                    s = clamp(-e / c, 0.0, 1.0);
-                    t = 0.0;
-                }
-            } else {
-                double numer = c + e - b - d;
-                double denom = a - 2 * b + c;
-                s = clamp(numer / denom, 0.0, 1.0);
-                t = 1.0 - s;
-            }
+        double vc = d1 * d4 - d3 * d2;
+        if (vc <= 0f && d1 >= 0f && d3 <= 0f) {
+            double v = d1 / (d1 - d3);
+            return p0.add(ab.scale(v));
         }
 
-        return p0.add(edge0.scale(s)).add(edge1.scale(t));
+        Vec3d cp = p.subtract(p2);
+        double d5 = ab.dotProduct(cp);
+        double d6 = ac.dotProduct(cp);
+        if (d6 >= 0f && d5 <= d6) return p2;
+
+        double vb = d5 * d2 - d1 * d6;
+        if (vb <= 0f && d2 >= 0f && d6 <= 0f) {
+            double w = d2 / (d2 -d6);
+            return p0.add(ac.scale(w));
+        }
+
+        double va = d3 * d6 -d5 * d4;
+        Vec3d bc = p2.subtract(p1);
+        if (va <= 0f && (d4 - d3) >= 0.0 && (d5 - d6) >= 0f) {
+            double w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+            return p1.add(bc.scale(w));
+        }
+
+        double denom = 1f / (va + vb + vc);
+        double v = vb * denom;
+        double w = vc  * denom;
+        return p0.add(ab.scale(v)).add(ac.scale(w));
     }
 
     private Vec3d removePitch(Vec3d vec, double pitchDegrees) {
