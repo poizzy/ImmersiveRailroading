@@ -147,7 +147,7 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
                 if (door.isAtOpenDoor(source, this, Door.Types.EXTERNAL)) {
                     Vec3d doorCenter = door.center(this);
                     Vec3d toDoor = doorCenter.subtract(offset).normalize();
-                    double dot = VecUtil.dotProduct(toDoor, movement.normalize());
+                    double dot = toDoor.dotProduct(movement.normalize());
                     if (dot > 0.5) {
                         this.removePassenger(source);
                         break;
@@ -197,23 +197,23 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
         Vec3d edge1 = tri.get(1).subtract(tri.get(0));
         Vec3d edge2 = tri.get(2).subtract(tri.get(0));
 
-        Vec3d h = VecUtil.crossProduct(rayDir, edge2);
-        double a = VecUtil.dotProduct(edge1, h);
+        Vec3d h = rayDir.crossProduct(edge2);
+        double a = edge1.dotProduct(h);
 
         if (Math.abs(a) < EPSILON) return null;
 
         double f = 1.0f / a;
         Vec3d s = rayOrigin.subtract(tri.get(0));
-        double u = f * VecUtil.dotProduct(s, h);
+        double u = f * s.dotProduct(h);
 
         if (u < 0.0f || u > 1.0f) return null;
 
-        Vec3d q = VecUtil.crossProduct(s, edge1);
-        double v = f * VecUtil.dotProduct(rayDir, q);
+        Vec3d q = s.crossProduct(edge1);
+        double v = f * rayDir.dotProduct(q);
 
         if (v < 0.0f || u + v > 1.0f) return null;
 
-        double t = f * VecUtil.dotProduct(edge2, q);
+        double t = f * edge2.dotProduct(q);
 
         return t >= 0 ? t : null;
     }
@@ -265,7 +265,7 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
             double distance = offset.subtract(closestPoint).length();
             if (distance < 0.5) {
                 Vec3d toCoupler = couplerPos.subtract(offset).normalize();
-                double dot = VecUtil.dotProduct(toCoupler, movement.rotateYaw(-90).normalize());
+                double dot = toCoupler.dotProduct(movement.rotateYaw(-90).normalize());
                 if (dot > 0.5) return true;
             }
         }
