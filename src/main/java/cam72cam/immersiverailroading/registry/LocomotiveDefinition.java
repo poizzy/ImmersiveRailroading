@@ -90,13 +90,13 @@ public abstract class LocomotiveDefinition extends FreightDefinition {
         tips.add(GuiText.LOCO_WORKS.toString(this.works));
         if (!isCabCar) {
             float power = ConfigGraphics.powerUnit.convertFromWatt(this.getWatt(gauge));
-            String p = String.format("%.2f", power);
+            String p = String.format("%.0f", power);
             tips.add(GuiText.LOCO_POWER.toString(p) + ConfigGraphics.powerUnit.toUnitString());
             float force = ConfigGraphics.forceUnit.convertFromNewton(this.getStartingTractionNewtons(gauge));
-            String f = String.format("%.2f", force);
+            String f = String.format("%.0f", force);
             tips.add(GuiText.LOCO_TRACTION.toString(f) + ConfigGraphics.forceUnit.toUnitString());
             float speed = (float) ConfigGraphics.speedUnit.convertFromKmh(this.getMaxSpeed(gauge).metric());
-            String v = String.format("%.2f", speed);
+            String v = String.format("%.0f", speed);
             tips.add(GuiText.LOCO_MAX_SPEED.toString(v) + ConfigGraphics.speedUnit.toUnitString());
         }
         return tips;
