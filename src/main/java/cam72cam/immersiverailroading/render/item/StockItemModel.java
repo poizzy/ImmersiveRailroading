@@ -11,8 +11,12 @@ import cam72cam.mod.model.obj.OBJModel;
 import cam72cam.mod.render.ItemRender;
 import cam72cam.mod.render.StandardModel;
 import cam72cam.mod.render.obj.OBJRender;
+import cam72cam.mod.render.opengl.Mesh;
 import cam72cam.mod.render.opengl.RenderState;
+import cam72cam.mod.render.opengl.ShaderProgram;
+import cam72cam.mod.render.opengl.ShaderType;
 import cam72cam.mod.resource.Identifier;
+import cam72cam.mod.util.With;
 import cam72cam.mod.world.World;
 
 public class StockItemModel implements ItemRender.ISpriteItemModel {
@@ -36,8 +40,12 @@ public class StockItemModel implements ItemRender.ISpriteItemModel {
 				.translate(0.5, 0, 0)
 				.rotate(-90, 0, 1, 0)
 				.scale(scale, scale, scale);
-		try (OBJRender.Binding vbo = data.def.getModel().binder().texture(data.texture).bind(state)) {
-			vbo.draw(data.def.itemGroups);
+//		try (OBJRender.Binding vbo = data.def.getModel().binder().texture(data.texture).bind(state)) {
+//			vbo.draw(data.def.itemGroups);
+//		}
+
+		try (With ignored = ShaderProgram.apply(state, ShaderType.ENTITY)) {
+			data.def.getModel().meshes.forEach(Mesh::draw);
 		}
 	}
 
@@ -71,14 +79,14 @@ public class StockItemModel implements ItemRender.ISpriteItemModel {
 			state.scale(scale, scale, scale / (modelLength / 2));
 			state.rotate(85, 0, 1, 0);
 
-			OBJModel.Binder binder = def.getModel().binder().synchronous().lod(StockModel.LOD_SMALL);
-			if (ConfigGraphics.stockItemVariants) {
-				binder.texture(data.texture);
-			}
-
-			try (OBJRender.Binding vbo = binder.bind(state, true)) {
-				vbo.draw(def.itemGroups);
-			}
+//			OBJModel.Binder binder = def.getModel().binder().synchronous().lod(StockModel.LOD_SMALL);
+//			if (ConfigGraphics.stockItemVariants) {
+//				binder.texture(data.texture);
+//			}
+//
+//			try (OBJRender.Binding vbo = binder.bind(state, true)) {
+//				vbo.draw(def.itemGroups);
+//			}
 			def.getModel().free();
 		});
 	}

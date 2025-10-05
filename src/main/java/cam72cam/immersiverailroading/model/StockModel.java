@@ -2,6 +2,7 @@ package cam72cam.immersiverailroading.model;
 
 import cam72cam.immersiverailroading.ConfigGraphics;
 import cam72cam.immersiverailroading.ConfigSound;
+import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.CarPassenger;
 import cam72cam.immersiverailroading.entity.EntityMoveableRollingStock;
 import cam72cam.immersiverailroading.entity.Locomotive;
@@ -16,18 +17,23 @@ import cam72cam.immersiverailroading.model.part.TrackFollower.TrackFollowers;
 import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
 import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition.SoundDefinition;
 import cam72cam.mod.MinecraftClient;
+import cam72cam.mod.model.ModelLoader;
+import cam72cam.mod.math.Vec3d;
+import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.model.obj.OBJModel;
-import cam72cam.mod.render.OptiFine;
+import cam72cam.mod.model.obj.VertexBuffer;
 import cam72cam.mod.render.obj.OBJRender;
+import cam72cam.mod.render.opengl.Mesh;
 import cam72cam.mod.render.opengl.RenderState;
+import cam72cam.mod.render.opengl.ShaderProgram;
+import cam72cam.mod.render.opengl.ShaderType;
+import cam72cam.mod.resource.Identifier;
+import cam72cam.mod.util.With;
 import util.Matrix4;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
+import java.util.*;
 
-public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION extends EntityRollingStockDefinition> extends OBJModel {
+public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION extends EntityRollingStockDefinition> {
     private final DEFINITION def;
     public final List<ModelComponent> allComponents;
     protected ModelState base;
@@ -63,13 +69,21 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
     private final FlangeSound flangeSound;
     private final SwaySimulator sway;
 
+    public List<Mesh> meshes = Collections.emptyList();
+    private final List<String> stringGroups = new ArrayList<>();
+    public final Map<String, OBJGroup> groups = new HashMap<>();
+    public static OBJRender vbo = null;
+    public String hash;
+
     public StockModel(DEFINITION def) throws Exception {
-        super(def.modelLoc, def.darken, def.internal_model_scale, def.textureNames.keySet(), ConfigGraphics.textureCacheSeconds, i -> {
-            List<Integer> lodSizes = new ArrayList<>();
-            lodSizes.add(LOD_LARGE);
-            lodSizes.add(LOD_SMALL);
-            return lodSizes;
-        });
+        if (vbo == null) {
+            vbo = new OBJRender(new OBJModel(new Identifier(ImmersiveRailroading.MODID, "models/rolling_stock/locomotives/a1_peppercorn/a1_peppercorn.obj"), 0), () -> new VertexBuffer(0, false));
+        }
+
+        this.hash = String.valueOf(hashCode());
+
+
+        this.meshes = ModelLoader.loadAll(def.modelLoc);
 
         this.def = def;
         boolean hasInterior = this.groups().stream().anyMatch(x -> x.contains("INTERIOR"));
@@ -150,6 +164,40 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
         slidingSound = new PartSound(new SoundDefinition(def.sliding_sound), true, 40, ConfigSound.SoundCategories.RollingStock::sliding);
         flangeSound = new FlangeSound(def.flange_sound, true, 40);
         sway = new SwaySimulator();
+    }
+
+    public List<String> groups() {
+        return this.stringGroups;
+    }
+
+    public void free() {
+        for (Mesh mesh : meshes) {
+            mesh.cleanup();
+        }
+    }
+
+    public Vec3d minOfGroup(Collection<String> group) {
+        return Vec3d.ZERO;
+    }
+
+    public Vec3d maxOfGroup(Collection<String> groups) {
+        return Vec3d.ZERO;
+    }
+
+    public double widthOfGroups(Collection<String> groups) {
+        return 8d;
+    }
+
+    public double heightOfGroups(Collection<String> groups) {
+        return 8d;
+    }
+
+    public Vec3d centerOfGroups(Collection<String> groups) {
+        return Vec3d.ZERO;
+    }
+
+    public double lengthOfGroups(Collection<String> groups) {
+        return 8d;
     }
 
     public ModelState addRoll(ModelState state) {
@@ -282,52 +330,10 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
     private int lod_level = LOD_LARGE;
     private int lod_tick = 0;
     public final void renderEntity(EntityMoveableRollingStock stock, RenderState state, float partialTicks) {
-        List<ModelComponentType> available = stock.isBuilt() ? null : stock.getItemComponents()
-                .stream().flatMap(x -> x.render.stream())
-                .collect(Collectors.toList());
-
-        state.lighting(true)
-                .cull_face(false)
-                .rescale_normal(true)
-                .scale(stock.gauge.scale(), stock.gauge.scale(), stock.gauge.scale());
-
-        if ((ConfigGraphics.OptifineEntityShaderOverrideAll || !normals.isEmpty() || !speculars.isEmpty()) &&
-                ConfigGraphics.OptiFineEntityShader != OptiFine.Shaders.Entities) {
-            state = state.shader(ConfigGraphics.OptiFineEntityShader);
-        }
-
-        // Refresh LOD every 0.5s
-        if (lod_tick + 10 < stock.getTickCount() || lod_tick > stock.getTickCount())  {
-            lod_tick = stock.getTickCount();
-
-            double playerDistanceSq = stock.getWorld().getEntities(stock.getClass()).stream()
-                    .filter(x -> Objects.equals(x.getDefinitionID(), stock.getDefinitionID()) && Objects.equals(x.getTexture(), stock.getTexture()))
-                    .mapToDouble(x -> x.getPosition().distanceToSquared(MinecraftClient.getPlayer().getPosition())).min().orElse(0);
-
-            if (playerDistanceSq > ConfigGraphics.StockLODDistance * 2 * ConfigGraphics.StockLODDistance * 2) {
-                lod_level = LOD_SMALL;
-            } else if (playerDistanceSq > ConfigGraphics.StockLODDistance * ConfigGraphics.StockLODDistance) {
-                lod_level = LOD_LARGE;
-            } else {
-                lod_level = cam72cam.mod.Config.MaxTextureSize;
+        try (With ctx = ShaderProgram.apply(state, ShaderType.ENTITY)) {
+            for (Mesh mesh : meshes) {
+                mesh.draw();
             }
-        }
-
-        Binder binder = binder().texture(stock.getTexture()).lod(lod_level);
-        try (
-                OBJRender.Binding bound = binder.bind(state);
-        ) {
-            double backup = stock.distanceTraveled;
-
-            if (!stock.isSliding()) {
-                stock.distanceTraveled = stock.distanceTraveled + stock.getCurrentSpeed().minecraft() * stock.getTickSkew() * partialTicks * 1.1;
-            }
-            stock.distanceTraveled /= stock.gauge.scale();
-
-
-            base.render(bound, stock, available, partialTicks);
-
-            stock.distanceTraveled = backup;
         }
     }
 
@@ -353,12 +359,6 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
     }
 
     protected void postRender(ENTITY stock, RenderState state, float partialTicks) {
-        state.scale(stock.gauge.scale(), stock.gauge.scale(), stock.gauge.scale());
-        state.rotate(sway.getRollDegrees(stock, partialTicks), 1, 0, 0);
-        controls.forEach(c -> c.postRender(stock, state, partialTicks));
-        doors.forEach(c -> c.postRender(stock, state, partialTicks));
-        gauges.forEach(c -> c.postRender(stock, state, partialTicks));
-        headlights.forEach(x -> x.postRender(stock, state));
     }
 
     public List<Control<ENTITY>> getControls() {

@@ -65,8 +65,8 @@ public class StockItemComponentModel implements ItemRender.IItemModel {
                 .scale(scale, scale, scale)
                 .translate(-center.x, -center.y, -center.z);
 
-        try (OBJRender.Binding vbo = model.binder().bind(state)) {
-            vbo.draw(groups);
-        }
+//        try (OBJRender.Binding vbo = model.binder().bind(state)) {
+//            vbo.draw(groups);
+//        }
     }
 }
