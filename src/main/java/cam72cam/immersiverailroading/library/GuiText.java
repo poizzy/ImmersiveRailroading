@@ -54,7 +54,8 @@ public enum GuiText {
 	UNIT_COUNT("unit.count"),
 
 	LOCO_WORKS("loco.works"),
-	LOCO_HORSE_POWER("loco.horse_power"),
+//	LOCO_HORSE_POWER("loco.horse_power"),
+	LOCO_POWER("loco.power"),
 	LOCO_TRACTION("loco.tractive_effort"),
 	LOCO_MAX_SPEED("loco.max_speed"),
 	GAUGE_TOOLTIP("stock.gauge"),
@@ -78,7 +79,7 @@ public enum GuiText {
 	NONE("none"),
 	;
 
-	private String value;
+	private final String value;
 	GuiText(String value) {
 		this.value = value;
 	}

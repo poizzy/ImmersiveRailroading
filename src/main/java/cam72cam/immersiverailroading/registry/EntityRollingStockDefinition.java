@@ -1041,6 +1041,7 @@ public abstract class EntityRollingStockDefinition {
     }
     public int getSnowLayers() {
         return snowLayers;
+    }
 
     public void setTraction(double val){
     }

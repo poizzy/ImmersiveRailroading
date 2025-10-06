@@ -17,8 +17,7 @@ import cam72cam.mod.fluid.FluidStack;
 import cam72cam.mod.serialization.TagField;
 import org.luaj.vm2.LuaValue;
 
-import java.util.List;
-import java.util.OptionalDouble;
+import java.util.*;
 
 public class LocomotiveDiesel extends Locomotive {
 
@@ -221,9 +220,12 @@ public class LocomotiveDiesel extends Locomotive {
 		
 		if (this.getLiquidAmount() > 0 && isRunning()) {
 			float consumption = Math.abs(getThrottle()) + 0.05f;
-			float burnTime = BurnUtil.getBurnTime(this.getLiquid());
+			float burnTime = getDefinition().getOverriddenFuels().getOrDefault(this.getLiquid(), 0);
 			if (burnTime == 0) {
-				burnTime = 200; //Default to 200 for unregistered liquids
+				burnTime = BurnUtil.getBurnTime(this.getLiquid());
+			}
+			if (burnTime == 0) {
+				burnTime = 200;
 			}
 			burnTime *= getDefinition().getFuelEfficiency()/100f;
 			burnTime *= (Config.ConfigBalance.locoDieselFuelEfficiency / 100f);
@@ -253,10 +255,11 @@ public class LocomotiveDiesel extends Locomotive {
 
 		setEngineTemperature(engineTemperature);
 	}
-	
+
 	@Override
 	public List<Fluid> getFluidFilter() {
-		return BurnUtil.burnableFluids();
+		Set<Fluid> set = getDefinition().getOverriddenFuels().keySet();
+		return set.isEmpty() ? BurnUtil.burnableFluids() : new ArrayList<>(set);
 	}
 
 	@Override

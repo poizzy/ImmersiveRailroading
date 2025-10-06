@@ -62,7 +62,7 @@ public class BuilderCubicCurve extends BuilderIterator {
 		}
 	}
 
-	private HashMap<Double, List<PosStep>> cache;
+	private HashMap<Double, Pair<Double, List<VecYPR>>> cache;
 
 	public CubicCurve getCurve() {
 		Vec3d nextPos = new Vec3d(new Vec3i(VecUtil.fromYaw(info.settings.length, info.placementInfo.yaw + 45)));
@@ -99,21 +99,21 @@ public class BuilderCubicCurve extends BuilderIterator {
 	}
 
 	@Override
-    public List<PosStep> getPath(double stepSize) {
+    public List<VecYPR> getPath(double stepSize) {
 		return getPathForRender(stepSize).getRight();
 	}
 
 	@Override
-	public Pair<Double, List<PosStep>> getPathForRender(double targetStepSize) {
+	public Pair<Double, List<VecYPR>> getPathForRender(double targetStepSize) {
 		if (cache == null) {
 			cache = new HashMap<>();
 		}
 
 		if (cache.containsKey(targetStepSize)) {
-			return Pair.of(targetStepSize, cache.get(targetStepSize));
+			return cache.get(targetStepSize);
 		}
 
-		List<PosStep> res = new ArrayList<>();
+		List<VecYPR> res = new ArrayList<>();
 		CubicCurve curve = getCurve();
 
 		// HACK for super long curves
@@ -127,8 +127,8 @@ public class BuilderCubicCurve extends BuilderIterator {
 			count += 1;
 		}
 		double stepSize = length / count;
-		if (stepSize * 3 > 1000){//There may be over 1 pieces in the same cache section, rebuild cache
-			curve.lengthWithCache((int) (stepSize * 3));
+		if (count * 3 > 1000){//There may be over 1 pieces in the same cache section, rebuild cache
+			curve.lengthWithCache(count * 3);
 		}
 
 		List<Vec3d> points = curve.toList(stepSize);
@@ -156,10 +156,10 @@ public class BuilderCubicCurve extends BuilderIterator {
 				pitch = (float) -Math.toDegrees(Math.atan2(next.y - prev.y, next.distanceTo(prev)));
 				yaw = VecUtil.toYaw(points.get(i+1).subtract(points.get(i-1)));
 			}
-			res.add(new PosStep(p, yaw, pitch));
+			res.add(new VecYPR(p, yaw, pitch));
 		}
-		cache.put(targetStepSize, res);
-		return Pair.of(stepSize, cache.get(targetStepSize));
+		cache.put(targetStepSize, Pair.of(stepSize, res));
+		return cache.get(targetStepSize);
 	}
 
 	/* OVERRIDES */
@@ -255,17 +255,14 @@ public class BuilderCubicCurve extends BuilderIterator {
 	}
 
 	@Override
-	public List<VecYawPitch> getRenderData() {
+	public List<VecYPR> getRenderData() {
 		if (subBuilders == null) {
 			return super.getRenderData();
 		} else {
-			List<VecYawPitch> data = new ArrayList<>();
+			List<VecYPR> data = new ArrayList<>();
 			for (BuilderBase curve : subBuilders.subList(0, Math.min(subBuilders.size(), 3))) {
 				Vec3d offset = new Vec3d(curve.pos.subtract(pos));
-				for (VecYawPitch rd : curve.getRenderData()) {
-					rd = new VecYawPitch(rd.x + offset.x, rd.y + offset.y, rd.z + offset.z, rd.yaw, rd.pitch, rd.length);
-					data.add(rd);
-				}
+				curve.getRenderData().stream().map(rd -> rd.add(offset)).forEach(data::add);
 			}
 			return data;
 		}

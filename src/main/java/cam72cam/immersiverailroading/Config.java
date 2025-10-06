@@ -60,6 +60,11 @@ public class Config {
 		@Comment("Trains should break block")
 		public static boolean TrainsBreakBlocks = true;
 
+		@Comment("Which block is reserved if TrainsBreakBlocks is true")
+		public static String[] TrainsIgnoreBlocks = new String[]{
+				"littletiles:blocklittletiles"
+		};
+
 		@Comment("How hard are blocks to break by rolling stock?")
 		@Range(min = 0, max = 500)
 		public static int blockHardness = 50;
@@ -262,6 +267,9 @@ public class Config {
 
 		@Comment("Keep rolling stock loaded even when it is not moving")
 		public static boolean keepStockLoaded = true;
+
+		@Comment("Exclude unattached wagons from chunk loading when keepStockLoaded is true")
+		public static boolean excludeStandaloneWagons = false;
 
 		@Comment( "Print extra chunk loading info" )
 		public static boolean debugLog = false;
