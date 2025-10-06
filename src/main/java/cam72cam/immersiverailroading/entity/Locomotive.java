@@ -18,6 +18,7 @@ import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.serialization.StrictTagMapper;
 import cam72cam.mod.serialization.TagField;
 import cam72cam.mod.world.World;
+import org.luaj.vm2.LuaValue;
 
 import java.util.OptionalDouble;
 import java.util.UUID;
@@ -25,6 +26,7 @@ import java.util.UUID;
 import static cam72cam.immersiverailroading.library.PhysicalMaterials.*;
 
 public abstract class Locomotive extends FreightTank {
+	private static final float throttleDelta = 0.04f;
 	private static final float trainBrakeNotch = 0.04f;
 
 	@TagField("deadMansSwitch")
@@ -66,6 +68,18 @@ public abstract class Locomotive extends FreightTank {
 	private boolean cogging = false;
 
 	protected boolean slipping = false;
+
+	@TagSync
+	@TagField("localMaxSpeed")
+	public double localMaxSpeed = -1;
+
+	@TagSync
+	@TagField("localTraction")
+	public double localTraction = -1;
+
+	@TagSync
+	@TagField("localHorsepower")
+	public double localHorsepower = -1;
 
 	/*
 	 * 
@@ -209,8 +223,8 @@ public abstract class Locomotive extends FreightTank {
 			}
 			break;
 			default:
-				super.handleKeyPress(source, key, disableIndependentThrottle);
 		}
+		super.handleKeyPress(source, key, disableIndependentThrottle);
 	}
 
 	protected boolean forceLinkThrottleReverser() {
@@ -306,7 +320,7 @@ public abstract class Locomotive extends FreightTank {
 				data.write();
 			}
 			else {
-				player.sendMessage(ChatText.RADIO_CANT_LINK.getMessage(this.getDefinition().name()));;
+				player.sendMessage(ChatText.RADIO_CANT_LINK.getMessage(this.getDefinition().name()));
 			}
 			return ClickResult.ACCEPTED;
 		}
@@ -426,7 +440,7 @@ public abstract class Locomotive extends FreightTank {
 			return 0;
 		}
 
-		if (Math.abs(speed.minecraft()) > this.getDefinition().getMaxSpeed(gauge).minecraft()) {
+		if (Math.abs(speed.minecraft()) > this.getDefinition().getScriptedMaxSpeed(gauge, this).minecraft()) {
 			return 0;
 		}
 
@@ -485,6 +499,7 @@ public abstract class Locomotive extends FreightTank {
 	public float getThrottle() {
 		return throttle;
 	}
+
 	public void setThrottle(float newThrottle) {
 		setRealThrottle(newThrottle);
 		if (this.getDefinition().muliUnitCapable) {
@@ -493,6 +508,7 @@ public abstract class Locomotive extends FreightTank {
 	}
 	private void setRealThrottle(float newThrottle) {
 		newThrottle = Math.min(1, Math.max(0, newThrottle));
+//		ModCore.info("Set Throttle to: " + newThrottle);
 		if (this.getThrottle() != newThrottle) {
 			setControlPositions(ModelComponentType.THROTTLE_X, newThrottle);
 			throttle = newThrottle;
@@ -506,6 +522,7 @@ public abstract class Locomotive extends FreightTank {
 	public float getReverser() {
 		return reverser;
 	}
+
 	public void setReverser(float newReverser) {
 		setRealReverser(newReverser);
 		if (this.getDefinition().muliUnitCapable) {
@@ -572,6 +589,7 @@ public abstract class Locomotive extends FreightTank {
 	public float getTrainBrake() {
 		return trainBrake;
 	}
+
 	@Deprecated
 	public void setAirBrake(float value) {
 		setTrainBrake(value);
@@ -636,5 +654,35 @@ public abstract class Locomotive extends FreightTank {
 	public float ambientTemperature() {
 	    // null during registration
 		return internal != null ? getWorld().getTemperature(getBlockPosition()) : 0f;
+	}
+
+	public LuaValue getPerformance(LuaValue type) {
+		String strType = type.tojstring();
+		switch (strType) {
+			case "max_speed_kmh":
+				return LuaValue.valueOf(this.localMaxSpeed == -1 ? getDefinition().getMaxSpeed() : this.localMaxSpeed);
+			case "horsepower":
+				return LuaValue.valueOf(this.localHorsepower == -1 ? getDefinition().getHorsepower() : this.localHorsepower);
+			case "traction":
+				return LuaValue.valueOf(this.localTraction == -1 ? getDefinition().getTraction() : this.localTraction);
+			default:
+				return LuaValue.valueOf(0);
+		}
+	}
+
+	public void setPerformance(LuaValue performanceType, LuaValue val) {
+		String type = performanceType.tojstring();
+		double newValue = val.todouble();
+		switch (type) {
+			case "max_speed_kmh":
+				this.localMaxSpeed = newValue;
+				break;
+			case "tractive_effort_lbf":
+				this.localTraction = newValue;
+				break;
+			case "horsepower":
+				this.localHorsepower = newValue;
+				break;
+		}
 	}
 }

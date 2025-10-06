@@ -35,6 +35,9 @@ public abstract class BuilderIterator extends BuilderBase implements IIterableTr
 	//Sensitive to dynamic stepSize, return the changed stepSize as well
 	public abstract Pair<Double, List<VecYPR>> getPathForRender(double targetStepSize);
 
+	//Sensitive to dynamic stepSize, return the changed stepSize as well
+	public abstract Pair<Double, List<PosStep>> getPathForRender(double targetStepSize);
+
 	public BuilderIterator(RailInfo info, World world, Vec3i pos, boolean endOfTrack) {
 		super(info, world, pos);
 		

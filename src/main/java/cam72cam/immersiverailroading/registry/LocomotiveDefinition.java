@@ -5,6 +5,7 @@ import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.EntityRollingStock;
 import cam72cam.immersiverailroading.library.unit.ForceDisplayType;
 import cam72cam.immersiverailroading.library.unit.PowerDisplayType;
+import cam72cam.immersiverailroading.entity.Locomotive;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.immersiverailroading.library.Gauge;
 import cam72cam.immersiverailroading.library.GuiText;
@@ -18,9 +19,9 @@ import java.util.List;
 public abstract class LocomotiveDefinition extends FreightDefinition {
     public boolean toggleBell;
     public SoundDefinition bell;
-    private String works;
-    private double power_kW;
-    private double traction_N;
+    public String works;
+    private double power;
+    private double traction;
     private Speed maxSpeed;
     private boolean hasRadioEquipment;
     public boolean muliUnitCapable;
@@ -120,6 +121,12 @@ public abstract class LocomotiveDefinition extends FreightDefinition {
         return (float) (gauge.scale() * this.power_kW * 1000);
     }
 
+    public int getScriptedHorsePower(Gauge gauge, Locomotive stock) {
+        return stock.localHorsepower != -1
+                ? (int) Math.ceil(gauge.scale() * stock.localHorsepower)
+                : (int) Math.ceil(gauge.scale() * this.power);
+    }
+
     /**
      * @return tractive effort in newtons
      */
@@ -127,8 +134,20 @@ public abstract class LocomotiveDefinition extends FreightDefinition {
         return (float) (gauge.scale() * this.traction_N);
     }
 
-    public Speed getMaxSpeed(Gauge gauge) {
+    public int getScriptedStartingTractionNewtons(Gauge gauge, Locomotive stock) {
+        return stock.localTraction != -1
+                ? (int) Math.ceil(gauge.scale() * stock.localTraction * 4.44822)
+                : (int) Math.ceil(gauge.scale() * this.traction * 4.44822);
+    }
+
+    public Speed getMaxSpeed(Gauge gauge){
         return Speed.fromMinecraft(gauge.scale() * this.maxSpeed.minecraft());
+    }
+
+    public Speed getScriptedMaxSpeed(Gauge gauge, Locomotive stock) {
+        return stock.localMaxSpeed != -1
+                ? Speed.fromMinecraft(gauge.scale() * (stock.localMaxSpeed / (20 * 3.6)))
+                : Speed.fromMinecraft(gauge.scale() * this.maxSpeed.minecraft());
     }
 
     public boolean getRadioCapability() {
@@ -153,5 +172,35 @@ public abstract class LocomotiveDefinition extends FreightDefinition {
 
     public double factorOfAdhesion() {
         return this.factorOfAdhesion;
+    }
+
+    @Override
+    public void setTraction(double val) {
+        this.traction = val;
+    }
+
+    @Override
+    public void setHorsepower(double val) {
+        this.power = val;
+    }
+
+    @Override
+    public void setMaxSpeed(double val) {
+        this.maxSpeed = Speed.fromMetric(val);
+    }
+
+    @Override
+    public double getMaxSpeed() {
+        return this.maxSpeed.metric();
+    }
+
+    @Override
+    public double getTraction() {
+        return traction;
+    }
+
+    @Override
+    public double getHorsepower() {
+        return this.power;
     }
 }
