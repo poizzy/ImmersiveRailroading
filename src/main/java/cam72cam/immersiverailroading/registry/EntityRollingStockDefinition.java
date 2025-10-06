@@ -5,7 +5,6 @@ import cam72cam.immersiverailroading.ConfigSound;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
-import cam72cam.immersiverailroading.floor.Mesh;
 import cam72cam.immersiverailroading.floor.NavMesh;
 import cam72cam.immersiverailroading.font.FontLoader;
 import cam72cam.immersiverailroading.textfield.TextFieldConfig;
@@ -19,8 +18,7 @@ import cam72cam.immersiverailroading.model.components.ModelComponent;
 import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.EntityRegistry;
 import cam72cam.mod.math.Vec3d;
-import cam72cam.mod.model.obj.OBJGroup;
-import cam72cam.mod.model.obj.VertexBuffer;
+import cam72cam.mod.model.obj.FaceAccessor;
 import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.*;
 import cam72cam.mod.serialization.ResourceCache.GenericByteBuffer;
@@ -33,6 +31,7 @@ import cam72cam.mod.world.World;
 
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
+
 import java.io.*;
 import java.util.*;
 import java.util.function.Function;
@@ -87,6 +86,7 @@ public abstract class EntityRollingStockDefinition {
     private double passengerCompartmentWidth;
     private double weight;
     private int maxPassengers;
+    private int snowLayers;
     private float interiorLightLevel;
     private boolean hasIndependentBrake;
     private boolean hasPressureBrake;
@@ -110,7 +110,6 @@ public abstract class EntityRollingStockDefinition {
     public Map<String, Float> cgDefaults;
     public Map<String, DataBlock> widgetConfig;
 
-    public Mesh mesh;
     public NavMesh navMesh;
 
     public List<Identifier> loadedFonts = new ArrayList<>();
@@ -197,6 +196,8 @@ public abstract class EntityRollingStockDefinition {
         public final Identifier animatrix;
         public final float offset;
         public final boolean invert;
+        public final float rangeMin;
+        public final float rangeMax;
         public final float frames_per_tick;
         public final SoundDefinition sound;
 
@@ -211,6 +212,8 @@ public abstract class EntityRollingStockDefinition {
             mode = AnimationMode.valueOf(obj.getValue("mode").asString().toUpperCase(Locale.ROOT));
             offset = obj.getValue("offset").asFloat(0f);
             invert = obj.getValue("invert").asBoolean(false);
+            rangeMin = obj.getValue("range_min").asFloat(0f);
+            rangeMax = obj.getValue("range_max").asFloat(1f);
             frames_per_tick = obj.getValue("frames_per_tick").asFloat(1f);
             sound = SoundDefinition.getOrDefault(obj, "sound");
         }
@@ -226,6 +229,7 @@ public abstract class EntityRollingStockDefinition {
         public final float blinkIntervalSeconds;
         public final float blinkOffsetSeconds;
         public final boolean blinkFullBright;
+        public final boolean revertDirection;
         public final String reverseColor;
         public final Identifier lightTex;
         public final boolean castsLight;
@@ -234,6 +238,7 @@ public abstract class EntityRollingStockDefinition {
             blinkIntervalSeconds = data.getValue("blinkIntervalSeconds").asFloat(0f);
             blinkOffsetSeconds = data.getValue("blinkOffsetSeconds").asFloat(0f);
             blinkFullBright = data.getValue("blinkFullBright").asBoolean(true);
+            revertDirection = data.getValue("revertDirection").asBoolean(false);
             reverseColor = data.getValue("reverseColor").asString();
             lightTex = data.getValue("texture").asIdentifier(default_light_tex);
             castsLight = data.getValue("castsLight").asBoolean(true);
@@ -345,8 +350,7 @@ public abstract class EntityRollingStockDefinition {
         this.model = createModel();
         this.itemGroups = model.groups.keySet().stream().filter(x -> !ModelComponentType.shouldRender(x)).collect(Collectors.toList());
 
-        this.mesh = Mesh.loadMesh(this.model);
-        this.navMesh = new NavMesh(this.mesh);
+        this.navMesh = new NavMesh(this.model);
 
         this.renderComponents = new EnumMap<>(ModelComponentType.class);
         for (ModelComponent component : model.allComponents) {
@@ -551,6 +555,8 @@ public abstract class EntityRollingStockDefinition {
             lights.getBlockMap().forEach((key, block) -> this.lights.put(key, new LightDefinition(block)));
         }
 
+        snowLayers = properties.getValue("snow_layers").asInteger();
+      
         addScripts = new ArrayList<>();
         List<DataBlock.Value> scripts = data.getValues("add_scripts");
         if (scripts != null) {
@@ -721,33 +727,31 @@ public abstract class EntityRollingStockDefinition {
                     .collect(Collectors.toList());
             data = new float[components.size() * xRes * zRes];
 
-            VertexBuffer vb = def.model.vbo.buffer.get();
+            FaceAccessor visitor = def.model.getFaceAccessor();
 
             for (int i = 0; i < components.size(); i++) {
                 ModelComponent rc = components.get(i);
                 int idx = i * xRes * zRes;
                 for (String group : rc.modelIDs) {
-                    OBJGroup faces = def.model.groups.get(group);
+                    FaceAccessor grouped = visitor.getSubByGroup(group);
 
-                    for (int face = faces.faceStart; face <= faces.faceStop; face++) {
+                    for (FaceAccessor face : grouped) {
                         Path2D path = new Path2D.Float();
-                        float fheight = 0;
-                        boolean first = true;
-                        for (int point = 0; point < vb.vertsPerFace; point++) {
-                            int vertex = face * vb.vertsPerFace * vb.stride + point * vb.stride;
-                            float vertX = vb.data[vertex + 0];
-                            float vertY = vb.data[vertex + 1];
-                            float vertZ = vb.data[vertex + 2];
-                            vertX += def.frontBounds;
-                            vertZ += def.widthBounds / 2;
-                            if (first) {
-                                path.moveTo(vertX * ratio, vertZ * ratio);
-                                first = false;
-                            } else {
-                                path.lineTo(vertX * ratio, vertZ * ratio);
-                            }
-                            fheight += vertY / vb.vertsPerFace;
-                        }
+                        float faceHeight = 0;
+
+                        double v0x = (face.v0.x() + def.frontBounds) * ratio;
+                        double v0z = (face.v0.z() + def.widthBounds / 2) * ratio;
+                        double v1x = (face.v1.x() + def.frontBounds) * ratio;
+                        double v1z = (face.v1.z() + def.widthBounds / 2) * ratio;
+                        double v2x = (face.v2.x() + def.frontBounds) * ratio;
+                        double v2z = (face.v2.z() + def.widthBounds / 2) * ratio;
+
+                        path.moveTo(v0x, v0z);
+                        path.lineTo(v1x, v1z);
+                        path.lineTo(v2x, v2z);
+
+                        faceHeight = faceHeight + (face.v0.y() + face.v1.y() + face.v2.y()) / 3;
+
                         Rectangle2D bounds = path.getBounds2D();
                         if (bounds.getWidth() * bounds.getHeight() < 1) {
                             continue;
@@ -757,7 +761,7 @@ public abstract class EntityRollingStockDefinition {
                                 float relX = ((xRes - 1) - x);
                                 float relZ = z;
                                 if (bounds.contains(relX, relZ) && path.contains(relX, relZ)) {
-                                    float relHeight = fheight / (float) def.heightBounds;
+                                    float relHeight = faceHeight / (float) def.heightBounds;
                                     relHeight = ((int) Math.ceil(relHeight * precision)) / (float) precision;
                                     data[idx + x * zRes + z] = Math.max(data[idx + x * zRes + z], relHeight);
                                 }
@@ -1035,6 +1039,8 @@ public abstract class EntityRollingStockDefinition {
     public double getBrakeShoeFriction() {
         return brakeCoefficient;
     }
+    public int getSnowLayers() {
+        return snowLayers;
 
     public void setTraction(double val){
     }
@@ -1058,9 +1064,5 @@ public abstract class EntityRollingStockDefinition {
     }
 
     public void setSounds(List<Map<String, DataBlock.Value>> newSound, EntityMoveableRollingStock stock) {
-    }
-
-    public Mesh getMesh() {
-        return this.mesh;
     }
 }

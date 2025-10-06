@@ -1,5 +1,9 @@
 package cam72cam.immersiverailroading.library;
 
+import cam72cam.mod.text.TextUtil;
+
+import java.util.Locale;
+
 public enum ModelComponentType {
 	// STANDARD
 	BOGEY_POS_WHEEL_X("BOGEY_#POS#_WHEEL_#ID#"),
@@ -115,6 +119,10 @@ public enum ModelComponentType {
 	BRAKE_PRESSURE_X("BRAKE_PRESSURE_#ID#"),
 	COUPLED_X("COUPLED_#ID#"),
 
+	// Floor
+	FLOOR("FLOOR"),
+	COLLISION("COLLISION"),
+
 	// REST
 	IMMERSIVERAILROADING_BASE_COMPONENT("IMMERSIVERAILROADING_BASE_COMPNOENT"),
 	REMAINING(""),
@@ -135,7 +143,31 @@ public enum ModelComponentType {
 		return group.contains("CHIMNEY_") || group.contains("CHIMINEY_") || group.contains("PRESSURE_VALVE_") || group.contains("EXHAUST_") || group.contains("CARGO_ITEMS") || group.contains("TEXTFIELD_");
 	}
 
-    public static class ModelPosition {
+	public String getOverlayName() {
+		//Get name and remove _X
+		String primary = this.name().substring(0, this.name().length() - 2);
+		switch (this) {
+			case CYLINDER_DRAIN_CONTROL_X:
+			case BELL_CONTROL_X:
+			case WHISTLE_CONTROL_X:
+			case HORN_CONTROL_X:
+				//Remove _CONTROL
+				primary = primary.substring(0, primary.length() - 8);
+				//Fallthrough
+			case TRAIN_BRAKE_X:
+			case INDEPENDENT_BRAKE_X:
+			case THROTTLE_X:
+			case REVERSER_X:
+			case THROTTLE_BRAKE_X:
+			case ENGINE_START_X:
+				return TextUtil.translate("part.immersiverailroading:controls." + primary.toLowerCase(Locale.ROOT));
+            default:
+				//Unexpected behaviour
+				return "";
+		}
+	}
+
+	public static class ModelPosition {
 		private static final ModelPosition INNER = new ModelPosition("INNER");
 		public static final ModelPosition LEFT = new ModelPosition("LEFT");
 		public static final ModelPosition INNER_LEFT = INNER.and(LEFT);

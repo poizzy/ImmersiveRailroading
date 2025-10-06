@@ -90,6 +90,7 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 		if (DefinitionManager.getDefinition(defID) == null) {
 			String error = String.format("Missing definition %s, do you have all of the required resource packs?", defID);
 			ImmersiveRailroading.error(error);
+			this.kill();
 			return error;
 		}
 		return null;
@@ -113,8 +114,7 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 	@Override
 	public void onTick() {
 		if (getWorld().isServer && this.getTickCount() % 5 == 0) {
-			EntityRollingStockDefinition def = DefinitionManager.getDefinition(defID);
-			if (def == null) {
+			if (DefinitionManager.getDefinition(defID) == null) {
 				this.kill();
 			}
 		}

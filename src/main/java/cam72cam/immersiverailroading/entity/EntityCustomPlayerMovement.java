@@ -8,7 +8,9 @@ import cam72cam.immersiverailroading.model.part.Door;
 import cam72cam.immersiverailroading.util.VecUtil;
 import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Player;
+import cam72cam.mod.entity.boundingbox.IBoundingBox;
 import cam72cam.mod.math.Vec3d;
+import cam72cam.mod.model.obj.OBJFace;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -26,18 +28,18 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
             }
 
             Vec3d realOffset = off.rotateYaw(-90);
-            CollisionBox queryBox = new CollisionBox(
+            IBoundingBox queryBox = IBoundingBox.from(
                     realOffset.subtract(4f, 4f, 4f),
                     realOffset.add(4f, 4f, 4f)
             );
 
-            List<Mesh.Face> nearby = new ArrayList<>();
+            List<OBJFace> nearby = new ArrayList<>();
             navMesh.queryBVH(navMesh.root, queryBox, nearby, this.gauge.scale());
 
             Vec3d closestPoint = null;
             double closestDistanceSq = Double.MAX_VALUE;
 
-            for (Mesh.Face tri : nearby) {
+            for (OBJFace tri : nearby) {
                 Vec3d p0 = tri.vertices.get(0);
                 Vec3d p1 = tri.vertices.get(1);
                 Vec3d p2 = tri.vertices.get(2);
@@ -72,18 +74,18 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
 
             Vec3d localTarget = targetXZ.rotateYaw(-90);
 
-            CollisionBox rayBox = new CollisionBox(
+            IBoundingBox rayBox = IBoundingBox.from(
                     localTarget.subtract(0.5f, 0.5f, 0.5f),
                     localTarget.add(0.5f, 0.5f, 0.5f)
             );
-            List<Mesh.Face> nearby = new ArrayList<>();
+            List<OBJFace> nearby = new ArrayList<>();
             NavMesh navMesh = getDefinition().navMesh;
             navMesh.queryBVH(navMesh.root, rayBox, nearby, this.gauge.scale());
 
             double closestY = Float.NEGATIVE_INFINITY;
             boolean hit = false;
 
-            for(Mesh.Face tri : nearby) {
+            for(OBJFace tri : nearby) {
                 Double t = intersectRayTriangle(rayStart, rayDir, tri);
                 if (t != null && t >= 0) {
                     Vec3d hitPoint = rayStart.add(rayDir.scale(t));
@@ -118,18 +120,18 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
         movement = new Vec3d(movement.x, 0, movement.z).rotateYaw(this.getRotationYaw() - source.getRotationYawHead());
         Vec3d localOffset = offset.rotateYaw(-90).add(movement.rotateYaw(-90));
 
-        CollisionBox rayBox = new CollisionBox(
+        IBoundingBox rayBox = IBoundingBox.from(
                 localOffset.subtract(0.2f, 0.2f, 0.2f),
                 localOffset.add(0.2f, 0.2f, 0.2f)
         );
-        List<Mesh.Face> nearby = new ArrayList<>();
+        List<OBJFace> nearby = new ArrayList<>();
         NavMesh navMesh = getDefinition().navMesh;
         navMesh.queryBVH(navMesh.collisionRoot, rayBox, nearby, this.gauge.scale());
 
         Vec3d rayStart = localOffset.add(0, 1, 0);
         Vec3d rayDir = movement.rotateYaw(-90).normalize();
 
-        for (Mesh.Face tri : nearby) {
+        for (OBJFace tri : nearby) {
             Double t = intersectRayTriangle(rayStart, rayDir, tri);
             if (t != null && t >= 0) {
                 return offset;
@@ -147,7 +149,7 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
                 if (door.isAtOpenDoor(source, this, Door.Types.EXTERNAL)) {
                     Vec3d doorCenter = door.center(this);
                     Vec3d toDoor = doorCenter.subtract(offset).normalize();
-                    double dot = VecUtil.dotProduct(toDoor, movement.normalize());
+                    double dot = toDoor.dotProduct(movement.normalize());
                     if (dot > 0.5) {
                         this.removePassenger(source);
                         break;
@@ -189,7 +191,7 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
         return offset;
     }
 
-    public static Double intersectRayTriangle(Vec3d rayOrigin, Vec3d rayDir, Mesh.Face face) {
+    public static Double intersectRayTriangle(Vec3d rayOrigin, Vec3d rayDir, OBJFace face) {
         final float EPSILON = 1e-6f;
         
         List<Vec3d> tri = face.vertices;
@@ -197,23 +199,23 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
         Vec3d edge1 = tri.get(1).subtract(tri.get(0));
         Vec3d edge2 = tri.get(2).subtract(tri.get(0));
 
-        Vec3d h = VecUtil.crossProduct(rayDir, edge2);
-        double a = VecUtil.dotProduct(edge1, h);
+        Vec3d h = rayDir.crossProduct(edge2);
+        double a = edge1.dotProduct(h);
 
         if (Math.abs(a) < EPSILON) return null;
 
         double f = 1.0f / a;
         Vec3d s = rayOrigin.subtract(tri.get(0));
-        double u = f * VecUtil.dotProduct(s, h);
+        double u = f * s.dotProduct(h);
 
         if (u < 0.0f || u > 1.0f) return null;
 
-        Vec3d q = VecUtil.crossProduct(s, edge1);
-        double v = f * VecUtil.dotProduct(rayDir, q);
+        Vec3d q = s.crossProduct(edge1);
+        double v = f * rayDir.dotProduct(q);
 
         if (v < 0.0f || u + v > 1.0f) return null;
 
-        double t = f * VecUtil.dotProduct(edge2, q);
+        double t = f * edge2.dotProduct(q);
 
         return t >= 0 ? t : null;
     }
@@ -230,11 +232,11 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
                 .filter(d -> !d.isOpen(this)).collect(Collectors.toList());
         boolean intersects = false;
         for (Door<?> door : doors) {
-            CollisionBox box = new CollisionBox(
+            IBoundingBox box = IBoundingBox.from(
                     door.part.min,
                     door.part.max
             );
-            intersects = box.intersects(start, end);
+            intersects = box.intersectsSegment(start, end);
             if (intersects) {
                 break;
             }
@@ -247,16 +249,16 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
         double coupler = getDefinition().getCouplerPosition(type, this.gauge);
         Vec3d couplerPos = new Vec3d(type == EntityCoupleableRollingStock.CouplerType.FRONT ? -coupler : coupler, offset.y, offset.z);
 
-        CollisionBox queryBox = new CollisionBox(
+        IBoundingBox queryBox = IBoundingBox.from(
                 couplerPos.subtract(0.2, 0.2, 0.2),
                 couplerPos.add(0.2, 0.2, 0.2)
         );
 
-        List<Mesh.Face> nearby = new ArrayList<>();
+        List<OBJFace> nearby = new ArrayList<>();
         NavMesh navMesh = getDefinition().navMesh;
         navMesh.queryBVH(navMesh.root, queryBox, nearby, this.gauge.scale());
 
-        for (Mesh.Face tri : nearby) {
+        for (OBJFace tri : nearby) {
             Vec3d p0 = tri.vertices.get(0);
             Vec3d p1 = tri.vertices.get(1);
             Vec3d p2 = tri.vertices.get(2);
@@ -265,7 +267,7 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
             double distance = offset.subtract(closestPoint).length();
             if (distance < 0.5) {
                 Vec3d toCoupler = couplerPos.subtract(offset).normalize();
-                double dot = VecUtil.dotProduct(toCoupler, movement.rotateYaw(-90).normalize());
+                double dot = toCoupler.dotProduct(movement.rotateYaw(-90).normalize());
                 if (dot > 0.5) return true;
             }
         }
@@ -273,161 +275,47 @@ public abstract class EntityCustomPlayerMovement extends EntityRidableRollingSto
     }
 
     public static Vec3d closestPointOnTriangle(Vec3d p, Vec3d p0, Vec3d p1, Vec3d p2) {
-        Vec3d edge0 = p1.subtract(p0);
-        Vec3d edge1 = p2.subtract(p0);
-        Vec3d v0 = p0.subtract(p);
+        Vec3d ab = p1.subtract(p0);
+        Vec3d ac = p2.subtract(p0);
+        Vec3d ap = p.subtract(p0);
+        double d1 = ab.dotProduct(ap);
+        double d2 = ac.dotProduct(ap);
 
-        double a = VecUtil.dotProduct(edge0, edge0);
-        double b = VecUtil.dotProduct(edge0, edge1);
-        double c = VecUtil.dotProduct(edge1, edge1);
-        double d = VecUtil.dotProduct(edge0, v0);
-        double e = VecUtil.dotProduct(edge1, v0);
+        if (d1 <= 0f && d2 <= 0f) return p0;
 
-        double det = a * c - b * b;
-        double s = b * e - c * d;
-        double t = b * d - a * e;
+        Vec3d bp = p.subtract(p1);
+        double d3 = ab.dotProduct(bp);
+        double d4 = ac.dotProduct(bp);
+        if (d3 >= 0f && d4 <= d3) return p1;
 
-        if (s + t < det) {
-            if (s < 0.0) {
-                if (t < 0.0) {
-                    if (d < 0.0) {
-                        s = clamp(-d / a, 0.0, 1.0);
-                        t = 0.0;
-                    } else {
-                        s = 0.0;
-                        t = clamp(-e / c, 0.0, 1.0);
-                    }
-                } else {
-                    s = 0.0;
-                    t = clamp(-e / c, 0.0, 1.0);
-                }
-            } else if (t < 0.0) {
-                s = clamp(-d / a, 0.0, 1.0);
-                t = 0.0;
-            } else {
-                double invDet = 1.0 / det;
-                s *= invDet;
-                t *= invDet;
-            }
-        } else {
-            if (s < 0.0) {
-                double tmp0 = b + d;
-                double tmp1 = c + e;
-                if (tmp1 > tmp0) {
-                    double numer = tmp1 - tmp0;
-                    double denom = a - 2 * b + c;
-                    s = clamp(numer / denom, 0.0, 1.0);
-                    t = 1 - s;
-                } else {
-                    t = clamp(-e / c, 0.0, 1.0);
-                    s = 0.0;
-                }
-            } else if (t < 0.0) {
-                if ((a + d) > (b + e)) {
-                    double numer = c + e - b - d;
-                    double denom = a - 2 * b + c;
-                    s = clamp(numer / denom, 0.0, 1.0);
-                    t = 1 - s;
-                } else {
-                    s = clamp(-e / c, 0.0, 1.0);
-                    t = 0.0;
-                }
-            } else {
-                double numer = c + e - b - d;
-                double denom = a - 2 * b + c;
-                s = clamp(numer / denom, 0.0, 1.0);
-                t = 1.0 - s;
-            }
+        double vc = d1 * d4 - d3 * d2;
+        if (vc <= 0f && d1 >= 0f && d3 <= 0f) {
+            double v = d1 / (d1 - d3);
+            return p0.add(ab.scale(v));
         }
 
-        return p0.add(edge0.scale(s)).add(edge1.scale(t));
-    }
+        Vec3d cp = p.subtract(p2);
+        double d5 = ab.dotProduct(cp);
+        double d6 = ac.dotProduct(cp);
+        if (d6 >= 0f && d5 <= d6) return p2;
 
-    public boolean isBBIntersectingGroup(CollisionBox bb, List<Mesh.Face> faces) {
-        Vec3d center = bb.getCenter();
-        Vec3d boxHalfSize = new Vec3d(
-                (bb.max.x - bb.min.x) * 0.5d,
-                (bb.max.y - bb.min.y) * 0.5d,
-                (bb.max.z - bb.min.z) * 0.5d
-        );
-
-        for (Mesh.Face face : faces) {
-            List<Vec3d> tris = face.vertices;
-
-            Vec3d v0 = tris.get(0).subtract(center);
-            Vec3d v1 = tris.get(1).subtract(center);
-            Vec3d v2 = tris.get(2).subtract(center);
-
-            Vec3d e0 = v1.subtract(v0);
-            Vec3d e1 = v2.subtract(v1);
-            Vec3d e2 = v0.subtract(v2);
-
-            double minX = Math.min(v0.x, Math.min(v1.x, v2.x));
-            double maxX = Math.max(v0.x, Math.max(v1.x, v2.x));
-            if (minX > boxHalfSize.x || maxX < -boxHalfSize.x) continue;
-
-            double minY = Math.min(v0.y, Math.min(v1.y, v2.y));
-            double maxY = Math.max(v0.y, Math.max(v1.y, v2.y));
-            if (minY > boxHalfSize.y || maxY < -boxHalfSize.y) continue;
-
-            double minZ = Math.min(v0.z, Math.min(v1.z, v2.z));
-            double maxZ = Math.max(v0.z, Math.max(v1.z, v2.z));
-            if (minZ > boxHalfSize.z || maxZ < -boxHalfSize.y) continue;
-
-            Vec3d normal = VecUtil.crossProduct(e0, e1);
-            double r = boxHalfSize.x * Math.abs(normal.x) +
-                    boxHalfSize.y * Math.abs(normal.y) +
-                    boxHalfSize.z * Math.abs(normal.z);
-
-            double s = VecUtil.dotProduct(v0, normal);
-            if (Math.abs(s) > r) continue;
-
-            Vec3d axis = new Vec3d(0, -e0.z, e0.y);
-            if (!axisTest(axis, v0, v1, v2, boxHalfSize)) continue;
-
-            axis = new Vec3d(e0.z, 0, -e0.x);
-            if (!axisTest(axis, v0, v1, v2, boxHalfSize)) continue;
-
-            axis = new Vec3d(-e0.y, e0.x, 0);
-            if (!axisTest(axis, v0, v1, v2, boxHalfSize)) continue;
-
-            axis = new Vec3d(0, -e1.z, e1.y);
-            if (!axisTest(axis, v0, v1, v2, boxHalfSize)) continue;
-
-            axis = new Vec3d(e1.z, 0, -e1.x);
-            if (!axisTest(axis, v0, v1, v2, boxHalfSize)) continue;
-
-            axis = new Vec3d(-e1.y, e1.x, 0);
-            if (!axisTest(axis, v0, v1, v2, boxHalfSize)) continue;
-
-            axis = new Vec3d(0, -e2.z, e2.y);
-            if (!axisTest(axis, v0, v1, v2, boxHalfSize)) continue;
-
-            axis = new Vec3d(e2.z, 0, -e2.x);
-            if (!axisTest(axis, v0, v1, v2, boxHalfSize)) continue;
-
-            axis = new Vec3d(-e2.y, e2.x, 0);
-            if (!axisTest(axis, v0, v1, v2, boxHalfSize)) continue;
-
-            return true;
+        double vb = d5 * d2 - d1 * d6;
+        if (vb <= 0f && d2 >= 0f && d6 <= 0f) {
+            double w = d2 / (d2 -d6);
+            return p0.add(ac.scale(w));
         }
-        return false;
-    }
 
-    private boolean axisTest(Vec3d axis, Vec3d v0, Vec3d v1, Vec3d v2, Vec3d boxHalfSize) {
-        if (axis.lengthSquared() < 1e-6) return true;
+        double va = d3 * d6 -d5 * d4;
+        Vec3d bc = p2.subtract(p1);
+        if (va <= 0f && (d4 - d3) >= 0.0 && (d5 - d6) >= 0f) {
+            double w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+            return p1.add(bc.scale(w));
+        }
 
-        double p0 = VecUtil.dotProduct(v0, axis);
-        double p1 = VecUtil.dotProduct(v1, axis);
-        double p2 = VecUtil.dotProduct(v2, axis);
-        double min = Math.min(p0, Math.min(p1, p2));
-        double max = Math.max(p0, Math.max(p1, p2));
-
-        double r = boxHalfSize.x * Math.abs(axis.x) +
-                boxHalfSize.y * Math.abs(axis.y) +
-                boxHalfSize.z * Math.abs(axis.z);
-
-        return !(min > r || max < -r);
+        double denom = 1f / (va + vb + vc);
+        double v = vb * denom;
+        double w = vc  * denom;
+        return p0.add(ab.scale(v)).add(ac.scale(w));
     }
 
     private Vec3d removePitch(Vec3d vec, double pitchDegrees) {

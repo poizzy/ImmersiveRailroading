@@ -123,12 +123,7 @@ public class Whistle {
         }
     }
 
-    private final ExpireableMap<UUID, SoundEffects> sounds = new ExpireableMap<UUID, SoundEffects>() {
-        @Override
-        public void onRemove(UUID key, SoundEffects value) {
-            value.terminate();
-        }
-    };
+    private final ExpireableMap<UUID, SoundEffects> sounds = new ExpireableMap<>((k, v) -> v.terminate());
 
     public void effects(EntityMoveableRollingStock stock, int hornTime, float hornPull) {
         // Particles and Sound

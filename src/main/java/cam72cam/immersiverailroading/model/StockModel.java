@@ -39,7 +39,9 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
     protected Bogey bogeyRear;
     protected DrivingAssembly drivingWheels;
     private ModelComponent shell;
-    private final ModelComponent remaining;
+    private ModelComponent remaining;
+    public ModelComponent floor;
+    public ModelComponent collision;
     protected final List<Door<ENTITY>> doors;
     protected final List<Control<ENTITY>> controls;
     protected final List<Readout<ENTITY>> gauges;
@@ -138,6 +140,10 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
         // A proper dependency tree would be ideal...
         this.bogeyFront = Bogey.get(provider, front, unifiedBogies(), ModelPosition.FRONT);
         this.bogeyRear = Bogey.get(provider, rear, unifiedBogies(), ModelPosition.REAR);
+
+        // Parse Floor and Collision Meshes
+        this.floor = provider.parse(ModelComponentType.FLOOR);
+        this.collision = provider.parse(ModelComponentType.COLLISION);
 
         parseComponents(provider, def);
         provider.parse(ModelComponentType.IMMERSIVERAILROADING_BASE_COMPONENT);
