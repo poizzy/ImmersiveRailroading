@@ -37,6 +37,7 @@ public enum ChatText {
 	SWITCH_CANT_RESET("switch_state.cant_reset"),
 	SWITCH_ALREADY_RESET("switch_state.already_reset"),
 	MULTIBLOCK_SELECTING("multiblock.select"),
+	TYPEWRITER_NO_STOCK("typewriter.no_stock")
 	;
 	
 	private String value;

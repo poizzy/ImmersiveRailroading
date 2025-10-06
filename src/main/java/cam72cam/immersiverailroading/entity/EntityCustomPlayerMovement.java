@@ -1,6 +1,8 @@
 package cam72cam.immersiverailroading.entity;
 
 import cam72cam.immersiverailroading.ImmersiveRailroading;
+import cam72cam.immersiverailroading.floor.CollisionBox;
+import cam72cam.immersiverailroading.floor.Mesh;
 import cam72cam.immersiverailroading.floor.NavMesh;
 import cam72cam.immersiverailroading.model.part.Door;
 import cam72cam.immersiverailroading.util.VecUtil;

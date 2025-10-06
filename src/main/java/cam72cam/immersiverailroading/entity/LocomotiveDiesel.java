@@ -15,6 +15,7 @@ import cam72cam.mod.entity.sync.TagSync;
 import cam72cam.mod.fluid.Fluid;
 import cam72cam.mod.fluid.FluidStack;
 import cam72cam.mod.serialization.TagField;
+import org.luaj.vm2.LuaValue;
 
 import java.util.List;
 import java.util.OptionalDouble;
@@ -114,7 +115,6 @@ public class LocomotiveDiesel extends Locomotive {
 					return;
 				}
 				reverserCooldown = 3;
-				super.handleKeyPress(source, key, disableIndependentThrottle);
 				break;
 			case THROTTLE_UP:
 			case THROTTLE_ZERO:
@@ -123,11 +123,11 @@ public class LocomotiveDiesel extends Locomotive {
 					return;
 				}
 				throttleCooldown = 2;
-				super.handleKeyPress(source, key, disableIndependentThrottle);
 				break;
 			default:
-				super.handleKeyPress(source, key, disableIndependentThrottle);
 		}
+
+		super.handleKeyPress(source, key, disableIndependentThrottle);
 	}
 
 	@Override
@@ -161,7 +161,7 @@ public class LocomotiveDiesel extends Locomotive {
 	@Override
 	public double getAppliedTractiveEffort(Speed speed) {
 		if (isRunning() && (getEngineTemperature() > 75 || !Config.isFuelRequired(gauge))) {
-			double maxPower_W = this.getDefinition().getHorsePower(gauge) * 745.7d;
+			double maxPower_W = this.getDefinition().getScriptedHorsePower(gauge, this) * 745.7d;
 			double efficiency = 0.82; // Similar to a *lot* of imperial references
 			double speed_M_S = (Math.abs(speed.metric())/3.6);
 			double maxPowerAtSpeed = maxPower_W * efficiency / Math.max(0.001, speed_M_S);
@@ -288,5 +288,10 @@ public class LocomotiveDiesel extends Locomotive {
 			// Make sure reverser is sync'd
 			setControlPositions(ModelComponentType.REVERSER_X, getReverser()/-2 + 0.5f);
 		}
+	}
+
+	@Override
+	public boolean getEngineState() {
+		return isTurnedOn();
 	}
 }

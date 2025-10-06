@@ -6,6 +6,9 @@ import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
 import cam72cam.immersiverailroading.floor.NavMesh;
+import cam72cam.immersiverailroading.font.FontLoader;
+import cam72cam.immersiverailroading.textfield.TextFieldConfig;
+import cam72cam.immersiverailroading.textfield.library.RGBA;
 import cam72cam.immersiverailroading.util.*;
 import cam72cam.immersiverailroading.gui.overlay.GuiBuilder;
 import cam72cam.immersiverailroading.gui.overlay.Readouts;
@@ -44,6 +47,7 @@ public abstract class EntityRollingStockDefinition {
     private final Class<? extends EntityRollingStock> type;
 
     public final List<String> itemGroups;
+    public List<String> addScripts;
     public Map<String, String> textureNames;
     public float dampeningAmount;
     public Gauge recommended_gauge;
@@ -65,6 +69,7 @@ public abstract class EntityRollingStockDefinition {
     public float darken;
     public Identifier modelLoc;
     protected StockModel<?, ?> model;
+    public Identifier script;
     public Vec3d passengerCenter;
     private float bogeyFront;
     private float bogeyRear;
@@ -107,6 +112,14 @@ public abstract class EntityRollingStockDefinition {
 
     public NavMesh navMesh;
 
+    public List<Identifier> loadedFonts = new ArrayList<>();
+    public final Map<String, TextFieldConfig> textFields;
+
+    // used for unique text fields to check if text field input is already assigned
+    public Map<UUID, Map<String, String>> inputs = new HashMap<>();
+
+    private List<DataBlock> textFieldData;
+
     public static class SoundDefinition {
         public final Identifier start;
         public final Identifier main;
@@ -145,6 +158,27 @@ public abstract class EntityRollingStockDefinition {
             }
             return null;
         }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (obj == null || getClass() != obj.getClass()) return false;
+            SoundDefinition that = (SoundDefinition) obj;
+
+            return Objects.equals(start, that.start) &&
+                    Objects.equals(main, that.main) &&
+                    looping == that.looping &&
+                    Objects.equals(stop, that.stop) &&
+                    Objects.equals(distance, that.distance) &&
+                    Objects.equals(volume, that.volume);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(start, main, looping, stop, distance, volume);
+        }
+
+
     }
 
     public static class AnimationDefinition {
@@ -359,6 +393,8 @@ public abstract class EntityRollingStockDefinition {
         heightBounds = model.heightOfGroups(heightGroups);
 
         this.heightmap = initHeightmap();
+
+        textFields = parseTextFields(transformData(data).getBlocks("text_fields"));
     }
 
     public final EntityRollingStock spawn(World world, Vec3d pos, float yaw, Gauge gauge, String texture) {
@@ -484,6 +520,20 @@ public abstract class EntityRollingStockDefinition {
         // Locomotives default to linear brake control
         isLinearBrakeControl = properties.getValue("linear_brake_control").asBoolean();
 
+        script = data.getValue("script").asIdentifier();
+
+
+        List<DataBlock.Value> fonts = data.getValues("fonts");
+        if (fonts != null) {
+            for (int i = 0; i < fonts.size(); i++) {
+                DataBlock.Value val = fonts.get(i);
+                Identifier font = new Identifier(val.asString());
+                FontLoader.getOrCreateFont(font);
+                loadedFonts.add(i, font);
+            }
+        }
+        textFieldData = data.getBlocks("textfield");
+
         brakeCoefficient = PhysicalMaterials.STEEL.kineticFriction(PhysicalMaterials.CAST_IRON);
         try {
             brakeCoefficient = PhysicalMaterials.STEEL.kineticFriction(PhysicalMaterials.valueOf(properties.getValue("brake_shoe_material").asString()));
@@ -506,6 +556,12 @@ public abstract class EntityRollingStockDefinition {
         }
 
         snowLayers = properties.getValue("snow_layers").asInteger();
+      
+        addScripts = new ArrayList<>();
+        List<DataBlock.Value> scripts = data.getValues("add_scripts");
+        if (scripts != null) {
+            scripts.forEach(value -> addScripts.add(value.asString()));
+        }
 
         DataBlock sounds = data.getBlock("sounds");
         wheel_sound = sounds.getValue("wheels").asIdentifier();
@@ -818,11 +874,86 @@ public abstract class EntityRollingStockDefinition {
         return tips;
     }
 
+    public List<String> getModelerTooltip() {
+        List<String> tips = new ArrayList<>();
+        tips.add(GuiText.MODELER_TOOLTIP.toString(modelerName));
+        tips.add(GuiText.PACK_TOOLTIP.toString(packName));
+        return tips;
+    }
+
     protected StockModel<?, ?> createModel() throws Exception {
         return new StockModel<>(this);
     }
     public StockModel<?, ?> getModel() {
         return this.model;
+    }
+
+    private Map<String, TextFieldConfig> parseTextFields(List<DataBlock> textFields) {
+        if (textFields == null) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, TextFieldConfig> list = new HashMap<>();
+
+        for (DataBlock textField : textFields) {
+            String groupName = textField.getValue("name").asString();
+            groupName = String.format("TEXTFIELD_%s", groupName);
+
+            DataBlock resolution = textField.getBlock("resolution");
+
+            DataBlock config = textField.getBlock("config");
+
+
+            String finalGroupName = groupName;
+            TextFieldConfig current = new TextFieldConfig(
+                    groupName,
+                    Optional.ofNullable(resolution.getValue("x").asInteger()).orElseGet(() -> {
+                        ModCore.warn("Text field %s doesn't have an x-resolution defined. Using default", finalGroupName);
+                        return 128;
+                    }),
+                    Optional.ofNullable(resolution.getValue("y").asInteger()).orElseGet(() -> {
+                        ModCore.warn("Text field %s doesn't have an y-resolution defined. Using default", finalGroupName);
+                        return 7;
+                    }),
+                    defaults -> {
+                        if (config == null) {
+                            return;
+                        }
+
+                        Optional.ofNullable(config.getValue("text").asString()).ifPresent(defaults::setText);
+                        Optional.ofNullable(config.getValue("color").asString()).ifPresent(c -> defaults.setColor(RGBA.fromHex(c)));
+                        Optional.ofNullable(config.getValue("fullbright").asBoolean()).ifPresent(defaults::setFullbright);
+                        Optional.ofNullable(config.getValue("gap").asInteger()).ifPresent(defaults::setGap);
+                        Optional.ofNullable(config.getValue("align").asString()).ifPresent(a -> defaults.setAlign(TextFieldConfig.Align.valueOf(a)));
+                        Optional.ofNullable(config.getValue("font").asIdentifier()).ifPresent(defaults::setFont);
+                        Optional.ofNullable(config.getValues("linked")).ifPresent(l -> defaults.setLinked(l.stream().map(v -> String.format("TEXTFIELD_%s", v.asString())).collect(Collectors.toList())));
+                        Optional.ofNullable(config.getValue("global").asBoolean()).ifPresent(defaults::setGlobal);
+                        Optional.ofNullable(config.getValue("selectable").asBoolean()).ifPresent(defaults::setSelectable);
+
+                        Set<String> fonts = Optional.ofNullable(config.getValues("availableFonts")).orElse(Collections.emptyList()).stream().map(DataBlock.Value::asString).collect(Collectors.toSet());
+                        if (!fonts.isEmpty()) {
+                            List<Identifier> availableFonts = loadedFonts.stream()
+                                    .filter(identifier -> fonts.stream().anyMatch(f -> identifier.getPath().contains(f)))
+                                    .collect(Collectors.toList());
+                            defaults.setAvailableFonts(availableFonts);
+                        }
+
+                        List<String> filter = Optional.ofNullable(config.getValues("filter")).orElse(Collections.emptyList()).stream().map(DataBlock.Value::asString).collect(Collectors.toList());
+                        if (!filter.isEmpty()) {
+                            defaults.setFilter(filter);
+                        }
+
+                        Optional.ofNullable(config.getValue("unique").asBoolean()).ifPresent(defaults::setUnique);
+                        Optional.ofNullable(config.getValue("numberPlate").asBoolean()).ifPresent(defaults::setNumberPlate);
+                        Optional.ofNullable(config.getValue("verticalAlign").asString()).ifPresent(v -> defaults.setVerticalAlign(TextFieldConfig.VerticalAlign.valueOf(v)));
+                        Optional.ofNullable(config.getValue("scale").asFloat()).ifPresent(defaults::setScale);
+                    }
+            );
+
+            list.put(groupName, current);
+        }
+
+        return list;
     }
 
     /**
@@ -910,5 +1041,28 @@ public abstract class EntityRollingStockDefinition {
     }
     public int getSnowLayers() {
         return snowLayers;
+
+    public void setTraction(double val){
+    }
+
+    public void setHorsepower(double val) {
+    }
+
+    public void setMaxSpeed(double val) {
+    }
+
+    public double getMaxSpeed() {
+        return 0d;
+    }
+
+    public double getTraction() {
+        return 0d;
+    }
+
+    public double getHorsepower() {
+        return 0d;
+    }
+
+    public void setSounds(List<Map<String, DataBlock.Value>> newSound, EntityMoveableRollingStock stock) {
     }
 }

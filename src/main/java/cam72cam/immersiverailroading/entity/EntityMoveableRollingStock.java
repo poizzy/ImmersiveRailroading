@@ -494,6 +494,10 @@ public abstract class EntityMoveableRollingStock extends EntityCustomPlayerMovem
         return retardedNewtons + independentNewtons + pressureNewtons;
     }
 
+    public boolean getEngineState() {
+        return false;
+    }
+
     public double getBrakeAdhesionEfficiency() {
         return 1;
     }
