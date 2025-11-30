@@ -170,15 +170,20 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         }
 
         if (config.getLinked() != null && !config.getLinked().isEmpty()) {
-            config.getLinked().forEach(l -> {
-                TextFieldConfig linked = textFields.get(l);
+            for (String linkedObject : config.getLinked()) {
+                if (linkedObject.equals(config.getObject())) {
+                    continue;
+                }
+
+                TextFieldConfig linked = textFields.get(linkedObject);
+
                 if (linked == null) {
-                    return;
+                    continue;
                 }
 
                 linked.copyConfig(config);
                 initTextField(linked);
-            });
+            }
         }
 
         textFields.put(config.getObject(), config);
