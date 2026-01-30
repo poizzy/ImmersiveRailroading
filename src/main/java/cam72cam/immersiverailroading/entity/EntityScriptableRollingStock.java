@@ -49,7 +49,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
      */
     @TagSync
     @TagField(value = "luaTagField", mapper = LuaSerialization.LuaMapper.class)
-    private final Map<String, LuaValue> tagFields = new HashMap<>();
+    private Map<String, LuaValue> tagFields = new HashMap<>();
 
     protected final Set<ScheduleEvent> schedule = new HashSet<>();
 

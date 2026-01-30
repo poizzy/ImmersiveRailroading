@@ -96,7 +96,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 	public final Map<String, List<LuaValue>> luaEventCallbacks = new HashMap<>();
 	@TagSync
 	@TagField(value = "luaTagField", mapper = LuaSerialization.LuaMapper.class)
-	private final Map<String, LuaValue> tagFields = new HashMap<>();
+	private Map<String, LuaValue> tagFields = new HashMap<>();
 	private boolean setNewRedstone = false;
 
 	public void setBedHeight(float height) {
