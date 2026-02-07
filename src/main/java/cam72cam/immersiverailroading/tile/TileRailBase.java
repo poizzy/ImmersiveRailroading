@@ -9,7 +9,7 @@ import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
 import cam72cam.immersiverailroading.entity.physics.SimulationState;
-import cam72cam.immersiverailroading.gui.LuaSelector;
+import cam72cam.immersiverailroading.gui.RailAugmentGUI;
 import cam72cam.immersiverailroading.items.ItemRailAugment;
 import cam72cam.immersiverailroading.items.ItemTrackExchanger;
 import cam72cam.immersiverailroading.library.*;
@@ -91,7 +91,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 	 */
 	@TagSync
 	@TagField(value = "selectedScript", mapper = SelectedScriptMapper.class)
-	public LuaSelector.ScriptDef selectedScript;
+	public RailAugmentGUI.ScriptDef selectedScript;
 	private LuaContext context;
 	public final Map<String, List<LuaValue>> luaEventCallbacks = new HashMap<>();
 	@TagSync
@@ -532,11 +532,8 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 		if (overhead == null) {
 			return null;
 		}
-		if (augmentFilterID != null && !augmentFilterID.equals(overhead.getDefinitionID())) {
-			return null;
-		}
-		if (stockTag != null && !stockTag.equals(overhead.tag)) {
-			return null;
+		if(!canInteractWith(overhead)) {
+			return overhead.as(type);
 		}
 
 		return overhead.as(type);
@@ -1055,11 +1052,15 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 			}
 			return true;
 		}
+		
 
-        if (this.augment == Augment.LUA_SCRIPTER && player.hasPermission(Permissions.AUGMENT_TRACK)) {
-			GuiTypes.LUA_SCRIPT_SELECTOR.open(player, getPos());
-			return true;
-		}
+		// TODO
+        if (this.augment != null
+                && player.hasPermission(Permissions.AUGMENT_TRACK)
+                && !player.getHeldItem(Player.Hand.PRIMARY).is(IRItems.ITEM_ROLLING_STOCK)) {
+            GuiTypes.RAIL_AUGMENT.open(player, this.getPos());
+            return true;
+        }
 		return false;
 	}
 
@@ -1180,7 +1181,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 		this.overhead = stock;
     }
 
-	public void setSelectedScript(LuaSelector.ScriptDef def) {
+	public void setSelectedScript(RailAugmentGUI.ScriptDef def) {
 		this.selectedScript = def;
 	}
 
@@ -1191,15 +1192,15 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 
 	public static class AugmentPacket extends Packet {
 		@TagField(value = "selectedScript", mapper = SelectedScriptMapper.class)
-		public LuaSelector.ScriptDef selectedScript;
+		public RailAugmentGUI.ScriptDef selectedScript;
 		@TagField(value = "scriptDef", mapper = DefTagMapper.class)
-		public List<LuaSelector.ScriptDef> scriptDef;
+		public List<RailAugmentGUI.ScriptDef> scriptDef;
 		@TagField("pos")
 		public Vec3i pos;
 
 		public AugmentPacket() {}
 
-		public AugmentPacket(TileRailBase tile, LuaSelector.ScriptDef selectedScript) {
+		public AugmentPacket(TileRailBase tile, RailAugmentGUI.ScriptDef selectedScript) {
 			this.selectedScript = selectedScript;
 			this.pos = tile.getPos();
 		}
@@ -1212,10 +1213,10 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 		}
 	}
 
-	public static class DefTagMapper implements TagMapper<List<LuaSelector.ScriptDef>> {
+	public static class DefTagMapper implements TagMapper<List<RailAugmentGUI.ScriptDef>> {
 
 		@Override
-		public TagAccessor<List<LuaSelector.ScriptDef>> apply(Class<List<LuaSelector.ScriptDef>> type, String fieldName, TagField tag) throws SerializationException {
+		public TagAccessor<List<RailAugmentGUI.ScriptDef>> apply(Class<List<RailAugmentGUI.ScriptDef>> type, String fieldName, TagField tag) throws SerializationException {
 			return new TagAccessor<>(
                     (d, o) -> {
 						if (o != null) {
@@ -1230,7 +1231,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 					},
                     d -> {
                         TagCompound cmp = d.get(fieldName);
-                        List<LuaSelector.ScriptDef> def = cmp.getList("scriptDefList", t -> new LuaSelector.ScriptDef(
+                        List<RailAugmentGUI.ScriptDef> def = cmp.getList("scriptDefList", t -> new RailAugmentGUI.ScriptDef(
                                 t.getString("name"), new Identifier(t.getString("script"))
                         )
                                 .setDesc(t.getString("desc"))
@@ -1243,11 +1244,11 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 		}
 	}
 
-	public static class SelectedScriptMapper implements TagMapper<LuaSelector.ScriptDef> {
+	public static class SelectedScriptMapper implements TagMapper<RailAugmentGUI.ScriptDef> {
 
 		@Override
-		public TagAccessor<LuaSelector.ScriptDef> apply(Class<LuaSelector.ScriptDef> type, String fieldName, TagField tag) throws SerializationException {
-			return new TagAccessor<LuaSelector.ScriptDef>(
+		public TagAccessor<RailAugmentGUI.ScriptDef> apply(Class<RailAugmentGUI.ScriptDef> type, String fieldName, TagField tag) throws SerializationException {
+			return new TagAccessor<RailAugmentGUI.ScriptDef>(
                     (d, o) -> {
 						if (o != null) {
 							d.set(fieldName, new TagCompound()
@@ -1260,7 +1261,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 					},
                     d -> {
                         TagCompound cmp = d.get(fieldName);
-                        LuaSelector.ScriptDef def = new LuaSelector.ScriptDef(cmp.getString("name"), new Identifier(cmp.getString("script")))
+                        RailAugmentGUI.ScriptDef def = new RailAugmentGUI.ScriptDef(cmp.getString("name"), new Identifier(cmp.getString("script")))
                                 .setDesc(cmp.getString("desc"))
                                 .setAdditional(cmp.getList("additional", id -> id.getString("id")));
                         return def;
