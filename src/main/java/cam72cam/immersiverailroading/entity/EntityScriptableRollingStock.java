@@ -101,9 +101,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             }
         }
 
-        if (luaEventCallbacks.containsKey("onTick")) {
-            triggerEvent("onTick");
-        }
+        triggerEvent("onTick");
     }
 
     @Override
