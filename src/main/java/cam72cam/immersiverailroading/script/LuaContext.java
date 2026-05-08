@@ -13,8 +13,31 @@ import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LuaContext {
+    /**
+     * Per-class cache of {@link LuaFunction}-annotated methods. Reflection over the full
+     * class hierarchy is expensive and the result is invariant for the lifetime of the JVM,
+     * so we compute it once per class and reuse it for every {@link LuaContext} that wraps
+     * an instance of that class.
+     */
+    private static final Map<Class<?>, List<LuaMethodEntry>> METHOD_CACHE = new ConcurrentHashMap<>();
+
+    private static final class LuaMethodEntry {
+        final Method method;
+        final String functionName;
+        final String module;
+        final boolean hasReturn;
+
+        LuaMethodEntry(Method method, String functionName, String module, boolean hasReturn) {
+            this.method = method;
+            this.functionName = functionName;
+            this.module = module;
+            this.hasReturn = hasReturn;
+        }
+    }
+
     private final Globals globals;
     private Map<String, LuaValue> backingMap;
     private LuaTable tagFieldTable;
@@ -57,37 +80,18 @@ public class LuaContext {
     }
 
     private void initializeFunctions(Object object, Globals globals) {
-        Class<?> parent = object.getClass();
-
-        ArrayList<Method> methods = new ArrayList<>();
-
-        while (parent != null && parent != Object.class) {
-            methods.addAll(Arrays.asList(parent.getDeclaredMethods()));
-            parent = parent.getSuperclass();
+        List<LuaMethodEntry> entries = getOrComputeMethods(object.getClass());
+        if (entries.isEmpty()) {
+            return;
         }
 
         Map<String, LuaValue> modules = new HashMap<>();
 
-        for (Method method : methods) {
-            method.setAccessible(true);
-
-            LuaFunction tag = method.getAnnotation(LuaFunction.class);
-
-            if (tag == null) {
-                continue;
-            }
-
-            String functionName = tag.name().isEmpty() ? method.getName() : tag.name();
-            String module = tag.module();
-
-            LuaTable functions = (LuaTable) modules.getOrDefault(module, new LuaTable());
-
-            Class<?> returnType = method.getReturnType();
-            if (!(Varargs.class.isAssignableFrom(returnType) || returnType.equals(void.class))) {
-                continue;
-            }
-
-            boolean hasReturn = !returnType.equals(void.class);
+        for (LuaMethodEntry entry : entries) {
+            final Method method = entry.method;
+            final String functionName = entry.functionName;
+            final String module = entry.module;
+            final boolean hasReturn = entry.hasReturn;
 
             LuaValue func = new VarArgFunction() {
                 @Override
@@ -111,14 +115,47 @@ public class LuaContext {
             if (module.isEmpty()) {
                 modules.put(functionName, func);
             } else {
+                LuaTable functions = (LuaTable) modules.computeIfAbsent(module, k -> new LuaTable());
                 functions.set(LuaValue.valueOf(functionName), func);
-                modules.put(module, functions);
             }
         }
 
         for (Map.Entry<String, LuaValue> functions : modules.entrySet()) {
             globals.set(functions.getKey(), functions.getValue());
         }
+    }
+
+    /**
+     * Compute (or reuse) the list of {@link LuaFunction}-annotated methods for {@code clazz} and
+     * its superclasses. Result is cached per class — the discovery is invariant for a given class.
+     * <p>
+     * Methods that are not exposable to Lua (return type neither {@code void} nor {@link Varargs})
+     * are skipped at cache-build time so the per-instance loop stays tight.
+     */
+    private static List<LuaMethodEntry> getOrComputeMethods(Class<?> clazz) {
+        return METHOD_CACHE.computeIfAbsent(clazz, c -> {
+            List<LuaMethodEntry> result = new ArrayList<>();
+            Class<?> parent = c;
+            while (parent != null && parent != Object.class) {
+                for (Method method : parent.getDeclaredMethods()) {
+                    LuaFunction tag = method.getAnnotation(LuaFunction.class);
+                    if (tag == null) {
+                        continue;
+                    }
+                    Class<?> returnType = method.getReturnType();
+                    if (!(Varargs.class.isAssignableFrom(returnType) || returnType.equals(void.class))) {
+                        continue;
+                    }
+                    method.setAccessible(true);
+                    String functionName = tag.name().isEmpty() ? method.getName() : tag.name();
+                    String module = tag.module();
+                    boolean hasReturn = !returnType.equals(void.class);
+                    result.add(new LuaMethodEntry(method, functionName, module, hasReturn));
+                }
+                parent = parent.getSuperclass();
+            }
+            return Collections.unmodifiableList(result);
+        });
     }
 
     private void initializeSerialization() {
