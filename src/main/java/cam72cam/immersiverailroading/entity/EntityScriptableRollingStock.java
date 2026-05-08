@@ -9,7 +9,6 @@ import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
 import cam72cam.immersiverailroading.script.*;
 import cam72cam.immersiverailroading.script.library.ILuaEvent;
 import cam72cam.immersiverailroading.script.library.LuaSerialization;
-import cam72cam.immersiverailroading.script.library.ScheduleEvent;
 import cam72cam.immersiverailroading.script.modules.*;
 import cam72cam.immersiverailroading.script.sound.SoundConfig;
 import cam72cam.immersiverailroading.textfield.TextFieldConfig;
@@ -58,7 +57,16 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     @TagField(value = "luaTagField", mapper = LuaSerialization.LuaMapper.class)
     private Map<String, LuaValue> tagFields = new HashMap<>();
 
-    protected final Set<ScheduleEvent> schedule = new HashSet<>();
+    /**
+     * Pending {@code Utils.wait(...)} callbacks bucketed by absolute tick at which they should fire.
+     * O(1) per-tick lookup beats the previous {@code HashSet#removeIf} pass that allocated an iterator
+     * and decremented every entry on every tick.
+     */
+    protected final Map<Long, List<Runnable>> schedule = new HashMap<>();
+    
+    @TagSync
+    @TagField(value = "LUAGUITEXT", mapper = LuaSerialization.LuaTextMapper.class)
+    private Map<String, String> luaGuiText = new HashMap<>();
 
     /**
      * <h2>Overrides</h2>
@@ -85,14 +93,12 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         ensureContext();
 
         if (!schedule.isEmpty()) {
-            schedule.removeIf(t -> {
-                t.ticks--;
-                if (t.ticks <= 0) {
-                    t.runnable.run();
-                    return true;
+            List<Runnable> due = schedule.remove((long) getTickCount());
+            if (due != null) {
+                for (int i = 0; i < due.size(); i++) {
+                    due.get(i).run();
                 }
-                return false;
-            });
+            }
         }
 
         if (luaEventCallbacks.containsKey("onTick")) {
@@ -246,6 +252,11 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
     @LuaFunction(module = "Utils")
     public void wait(LuaValue sec, LuaValue func) {
         float seconds = sec.tofloat();
+        // Clamp to >= 1 so wait(0, fn) still fires on a future tick (matches the previous
+        // semantics of 'ticks-- ... if (ticks <= 0)' which always required at least one
+        // onTick pass after the wait() call before firing).
+        int delayTicks = Math.max(1, Math.round(seconds * 20));
+        long fireAt = (long) getTickCount() + delayTicks;
 
         Runnable runnable = () -> {
             try {
@@ -255,9 +266,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             }
         };
 
-        int ticks = Math.round(seconds * 20);
-
-        ScheduleEvent event = new ScheduleEvent(runnable, ticks, func);
-        schedule.add(event);
+        schedule.computeIfAbsent(fireAt, k -> new ArrayList<>(2)).add(runnable);
     }
 }

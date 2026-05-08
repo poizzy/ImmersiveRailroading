@@ -2,7 +2,6 @@ package cam72cam.immersiverailroading.script.modules;
 
 import cam72cam.immersiverailroading.script.LuaFunction;
 import cam72cam.immersiverailroading.script.LuaModule;
-import cam72cam.immersiverailroading.script.library.ScheduleEvent;
 import cam72cam.immersiverailroading.tile.TileRailBase;
 import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.Player;
@@ -10,16 +9,21 @@ import cam72cam.mod.text.PlayerMessage;
 import cam72cam.mod.world.World;
 import org.luaj.vm2.LuaValue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class AugmentModule implements LuaModule {
     private final TileRailBase tile;
 
-    private final Set<ScheduleEvent> schedule = new HashSet<>();
+    /**
+     * Pending {@code Utils.wait(...)} callbacks bucketed by absolute tick at which they should fire.
+     * Replaces the previous {@code HashSet#removeIf} that decremented every entry on every world tick.
+     */
+    private final Map<Long, List<Runnable>> schedule = new HashMap<>();
 
     public AugmentModule(TileRailBase tile) {
         this.tile = tile;
@@ -28,15 +32,15 @@ public class AugmentModule implements LuaModule {
             if (world.isClient) {
                 return;
             }
-
-            schedule.removeIf(t -> {
-                t.ticks--;
-                if (t.ticks <= 0) {
-                    t.runnable.run();
-                    return true;
+            if (schedule.isEmpty()) {
+                return;
+            }
+            List<Runnable> due = schedule.remove((long) tile.getTicksExisted());
+            if (due != null) {
+                for (int i = 0; i < due.size(); i++) {
+                    due.get(i).run();
                 }
-                return false;
-            });
+            }
         });
     }
 
@@ -61,6 +65,11 @@ public class AugmentModule implements LuaModule {
     @LuaFunction(module = "Utils")
     private void wait(LuaValue sec, LuaValue func) {
         float seconds = sec.tofloat();
+        // Clamp to >= 1 so wait(0, fn) still fires on a future tick (matches the previous
+        // semantics of 'ticks-- ... if (ticks <= 0)' which always required at least one
+        // World#onTick pass after the wait() call before firing).
+        int delayTicks = Math.max(1, Math.round(seconds * 20));
+        long fireAt = (long) tile.getTicksExisted() + delayTicks;
 
         Runnable runnable = () -> {
             try {
@@ -70,10 +79,7 @@ public class AugmentModule implements LuaModule {
             }
         };
 
-        int ticks = Math.round(seconds * 20);
-
-        ScheduleEvent event = new ScheduleEvent(runnable, ticks, func);
-        schedule.add(event);
+        schedule.computeIfAbsent(fireAt, k -> new ArrayList<>(2)).add(runnable);
     }
 
     @LuaFunction(module = "Utils")
