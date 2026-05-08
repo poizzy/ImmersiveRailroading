@@ -5,6 +5,7 @@ import cam72cam.immersiverailroading.IRItems;
 import cam72cam.immersiverailroading.items.ItemTypewriter;
 import cam72cam.immersiverailroading.library.KeyTypes;
 import cam72cam.immersiverailroading.library.Permissions;
+import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
 import cam72cam.immersiverailroading.script.*;
 import cam72cam.immersiverailroading.script.library.ILuaEvent;
 import cam72cam.immersiverailroading.script.library.LuaSerialization;
@@ -27,11 +28,17 @@ import java.util.stream.Collectors;
 
 public abstract class EntityScriptableRollingStock extends EntityCoupleableRollingStock implements ILuaEvent {
     /**
-     * The context is actually loaded for every stock, not regarding if the stock even has a script. I did this for compatibility with the LuaAugment. <br>
-     * It shouldn't cause any performance issues because it doesn't actually run anything.
+     * Lazily initialised. Stocks without their own script never allocate a context from {@link #onTick()}.
+     * External callers (e.g. the {@code LUA_SCRIPTER} augment via {@link #getGlobals()}) trigger
+     * {@link #ensureContext()} on demand, so a stock only pays the LuaJ-VM cost when something actually
+     * touches its globals.
      * @see cam72cam.immersiverailroading.tile.TileRailBase
      */
     private LuaContext context;
+    /**
+     * Cached result of {@link #hasOwnScript()}. {@code null} = not yet computed.
+     */
+    private Boolean hasOwnScript;
     /**
      * Used by {@link IRModule}
      */
@@ -69,25 +76,28 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
             return;
         }
 
-        if (context == null) {
-            context = LuaContext.create(this);
-
-            registerModules();
-            loadLuaScript();
-
-            context.refreshSerialization(tagFields);
+        // Skip the entire Lua pipeline for stocks without a script of their own.
+        // External callers can still trigger lazy context creation via getGlobals().
+        if (!hasOwnScript()) {
+            return;
         }
 
-        schedule.removeIf(t -> {
-            t.ticks--;
-            if (t.ticks <= 0) {
-                t.runnable.run();
-                return true;
-            }
-            return false;
-        });
+        ensureContext();
 
-        triggerEvent("onTick");
+        if (!schedule.isEmpty()) {
+            schedule.removeIf(t -> {
+                t.ticks--;
+                if (t.ticks <= 0) {
+                    t.runnable.run();
+                    return true;
+                }
+                return false;
+            });
+        }
+
+        if (luaEventCallbacks.containsKey("onTick")) {
+            triggerEvent("onTick");
+        }
     }
 
     @Override
@@ -144,7 +154,7 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         Identifier script = getDefinition().script;
 
         List<String> modules = getDefinition().addScripts;
-        if (modules != null) {
+        if (modules != null && !modules.isEmpty() && script != null) {
             context.loadModules(modules, script);
         }
 
@@ -153,7 +163,38 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
         }
     }
 
+    /**
+     * @return {@code true} if this stock's definition references at least one Lua resource
+     *         (a {@code script} identifier that resolves, or a non-empty {@code add_scripts} list).
+     *         Cached after the first successful read of the definition.
+     */
+    private boolean hasOwnScript() {
+        if (hasOwnScript == null) {
+            EntityRollingStockDefinition def = getDefinition();
+            if (def == null) {
+                // Definition not ready yet; recompute next tick instead of caching false.
+                return false;
+            }
+            Identifier script = def.script;
+            List<String> modules = def.addScripts;
+            hasOwnScript = (script != null && script.canLoad())
+                        || (modules != null && !modules.isEmpty());
+        }
+        return hasOwnScript;
+    }
+
+    private void ensureContext() {
+        if (context != null) {
+            return;
+        }
+        context = LuaContext.create(this);
+        registerModules();
+        loadLuaScript();
+        context.refreshSerialization(tagFields);
+    }
+
     public Globals getGlobals() {
+        ensureContext();
         return context.getGlobals();
     }
 
