@@ -34,6 +34,10 @@ public class EventModule implements LuaModule {
 
     @LuaFunction(module = "Events")
     public void triggerEvent(LuaValue... args) {
+        if (args == null || args.length == 0) {
+            ModCore.warn("[Lua] Events.triggerEvent() called without an event name");
+            return;
+        }
         String funcName = args[0].tojstring();
         if (funcName.equals("onTick") || funcName.equals("onControlGroupChange")) {
             ModCore.error("[Lua] Cannot call \"onTick\" or \"onControlGroupChange\" manually. Please use another name for your event!");
@@ -50,13 +54,26 @@ public class EventModule implements LuaModule {
 
     @LuaFunction(module = "Events")
     public void triggerCouplerEvent(LuaValue... args) {
-        if (stock != null) {
-            String functionName = args[0].tojstring();
-            EntityCoupleableRollingStock.CouplerType coupler = EntityCoupleableRollingStock.CouplerType.valueOf(args[1].tojstring().toUpperCase());
-
-            EntityScriptableRollingStock coupled = (EntityScriptableRollingStock) stock.getCoupled(coupler);
-
-            coupled.triggerEvent(functionName, LuaValue.varargsOf(Arrays.copyOfRange(args, 2, args.length)));
+        if (stock == null) {
+            return;
         }
+        if (args == null || args.length < 2) {
+            ModCore.warn("[Lua] Events.triggerCouplerEvent(name, coupler, ...) needs at least an event name and a coupler side");
+            return;
+        }
+        String functionName = args[0].tojstring();
+        EntityCoupleableRollingStock.CouplerType coupler;
+        try {
+            coupler = EntityCoupleableRollingStock.CouplerType.valueOf(args[1].tojstring().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            ModCore.warn("[Lua] Events.triggerCouplerEvent: unknown coupler '%s'", args[1].tojstring());
+            return;
+        }
+
+        EntityScriptableRollingStock coupled = (EntityScriptableRollingStock) stock.getCoupled(coupler);
+        if (coupled == null) {
+            return;
+        }
+        coupled.triggerEvent(functionName, LuaValue.varargsOf(Arrays.copyOfRange(args, 2, args.length)));
     }
 }
