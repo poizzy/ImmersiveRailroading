@@ -11,37 +11,69 @@ import org.luaj.vm2.LuaValue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
 public class AugmentModule implements LuaModule {
+    /**
+     * Weak set of every live AugmentModule. A single static {@link World#onTick} listener walks this
+     * set instead of every instance registering its own listener — UMC's {@code World#onTick} has no
+     * unregister API, so per-instance registration leaks the module and its tile for the lifetime of
+     * the world. Backed by {@link WeakHashMap} so a module garbage-collects together with its tile
+     * once the {@link cam72cam.immersiverailroading.script.LuaContext} stops referencing it.
+     */
+    private static final Set<AugmentModule> active =
+            Collections.newSetFromMap(new WeakHashMap<>());
+
+    static {
+        World.onTick(world -> {
+            if (world.isClient) {
+                return;
+            }
+            // Snapshot so a callback may safely create or dispose other AugmentModules.
+            AugmentModule[] snapshot;
+            synchronized (active) {
+                if (active.isEmpty()) {
+                    return;
+                }
+                snapshot = active.toArray(new AugmentModule[0]);
+            }
+            for (AugmentModule m : snapshot) {
+                m.pumpSchedule(world);
+            }
+        });
+    }
+
     private final TileRailBase tile;
 
     /**
      * Pending {@code Utils.wait(...)} callbacks bucketed by absolute tick at which they should fire.
-     * Replaces the previous {@code HashSet#removeIf} that decremented every entry on every world tick.
      */
     private final Map<Long, List<Runnable>> schedule = new HashMap<>();
 
     public AugmentModule(TileRailBase tile) {
         this.tile = tile;
+        synchronized (active) {
+            active.add(this);
+        }
+    }
 
-        World.onTick(world -> {
-            if (world.isClient) {
-                return;
-            }
-            if (schedule.isEmpty()) {
-                return;
-            }
-            List<Runnable> due = schedule.remove((long) tile.getTicksExisted());
-            if (due != null) {
-                for (int i = 0; i < due.size(); i++) {
-                    due.get(i).run();
-                }
-            }
-        });
+    private void pumpSchedule(World world) {
+        if (tile.getWorld() != world || schedule.isEmpty()) {
+            return;
+        }
+        List<Runnable> due = schedule.remove((long) tile.getTicksExisted());
+        if (due == null) {
+            return;
+        }
+        for (int i = 0; i < due.size(); i++) {
+            due.get(i).run();
+        }
     }
 
     @LuaFunction(module = "")
