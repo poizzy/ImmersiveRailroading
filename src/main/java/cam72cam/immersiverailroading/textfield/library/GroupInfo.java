@@ -11,7 +11,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public class GroupInfo {
     @TagField
@@ -58,10 +58,8 @@ public class GroupInfo {
         OBJFace face = group.get(0);
 
         List<Pair<Vec3d, Vec2f>> vertices = group.stream()
-                .flatMap(f -> IntStream.range(0, f.vertices.size())
-                        .mapToObj(i -> Pair.of(f.vertices.get(i), f.uv.get(i))))
-                .distinct()
-                .collect(Collectors.toList());
+                .flatMap((OBJFace f) -> Stream.<OBJFace.Vertex>of(f.vertex0, f.vertex1, f.vertex2))
+                .map(v -> Pair.of(v.pos, v.uv)).distinct().collect(Collectors.toList());
 
 
         Vec3d topLeft = vertices.stream()
