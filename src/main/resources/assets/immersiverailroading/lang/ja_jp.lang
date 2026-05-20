@@ -248,8 +248,8 @@ itemGroup.immersiverailroading.passenger=IR 客車
 itemGroup.immersiverailroading.components=IR 部品
 
 death.attack.immersiverailroading:casting=%s は溶けた金属が泳ぐのに適していないことを学んだ
-death.attack.immersiverailroading:hitByTrain=%s は列車から逃げきれなかった
-death.attack.immersiverailroading:hitByTrainInDarkness=%s は向かってくる列車の前照灯が見えなかったようだ
+death.attack.immersiverailroading:hit_by_train=%s は列車から逃げきれなかった
+death.attack.immersiverailroading:hit_by_train_in_darkness=%s は向かってくる列車の前照灯が見えなかったようだ
 
 immersiverailroading:detector_mode.simple=車両を検出
 immersiverailroading:detector_mode.speed=速度を検出

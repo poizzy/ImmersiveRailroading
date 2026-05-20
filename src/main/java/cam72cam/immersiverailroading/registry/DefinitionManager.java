@@ -2,14 +2,15 @@ package cam72cam.immersiverailroading.registry;
 
 import cam72cam.immersiverailroading.Config.ConfigPerformance;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
+import cam72cam.immersiverailroading.util.BiMultiMap;
 import cam72cam.immersiverailroading.util.CAML;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.immersiverailroading.library.Gauge;
 import cam72cam.immersiverailroading.model.TrackModel;
 import cam72cam.immersiverailroading.util.JSON;
+import cam72cam.immersiverailroading.util.MathUtil;
 import cam72cam.mod.gui.Progress;
 import cam72cam.mod.resource.Identifier;
-import com.sun.management.OperatingSystemMXBean;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.IOException;
@@ -24,6 +25,7 @@ import java.util.stream.Stream;
 
 public class DefinitionManager {
     private static Map<String, EntityRollingStockDefinition> definitions;
+    private static BiMultiMap<String, EntityRollingStockDefinition> stockTags;
     private static Map<String, TrackDefinition> tracks;
     private static final Map<String, StockLoader> stockLoaders;
     private static Map<String, UnitDefinition> units;
@@ -127,14 +129,15 @@ public class DefinitionManager {
         }
         ImmersiveRailroading.info("Detected %sMB of memory free", maxMemory/1024/1024);
         try {
-            OperatingSystemMXBean os = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+            com.sun.management.OperatingSystemMXBean os = (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
             maxMemory = Math.min(os.getFreePhysicalMemorySize() + runtime.totalMemory(), maxMemory);
             ImmersiveRailroading.info("Adjusted to %sMB of memory free", maxMemory/1024/1024);
         } catch (UnsatisfiedLinkError | Exception ex) {
             ImmersiveRailroading.catching(ex);
         }
 
-        int loadingThreads = Math.max(1, Math.min(processors, (int) (maxMemory / (ConfigPerformance.megabytesReservedPerStockLoadingThread * 1024L * 1024L))));
+        long bytesPerThread = ConfigPerformance.megabytesReservedPerStockLoadingThread * 1024L * 1024L;
+        int loadingThreads = MathUtil.clamp((int) (maxMemory / bytesPerThread), 1, processors);
         ImmersiveRailroading.info("Using %s threads to load Immersive Railroading (%sMB per thread)", loadingThreads, ConfigPerformance.megabytesReservedPerStockLoadingThread);
         ForkJoinPool stockLoadingPool = new ForkJoinPool(loadingThreads, pool -> {
             final ForkJoinWorkerThread worker = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
@@ -217,7 +220,8 @@ public class DefinitionManager {
 
         Progress.Bar bar = Progress.push("Loading Models", definitionIDMap.size());
 
-        Map<String, Object> loaded = getStockLoadingStream(definitionIDMap.entrySet()).map(tuple -> {
+        stockTags = new BiMultiMap<>();
+        Map<String, EntityRollingStockDefinition> loaded = getStockLoadingStream(definitionIDMap.entrySet()).map(tuple -> {
             String defID = tuple.getKey();
             String defType = tuple.getValue();
 
@@ -240,19 +244,16 @@ public class DefinitionManager {
                     block.getValueMap().put("pack", definitionIDPacks.get(defID));
                 }
 
-                Object definition = stockLoaders.get(defType).apply(defID, block);
+                EntityRollingStockDefinition stockDefinition = stockLoaders.get(defType).apply(defID, block);
 
                 Runtime runtime = Runtime.getRuntime();
                 if (runtime.freeMemory() < runtime.maxMemory() * 0.25) {
                     System.out.println("GC");
                     System.gc();
                 }
+                stockDefinition.tags.forEach(tag -> stockTags.put(tag, stockDefinition));
 
-                if (definition instanceof UnitDefinition) {
-                    return Pair.of(((UnitDefinition) definition).defId, definition);
-                }
-
-                return Pair.of(((EntityRollingStockDefinition) definition).defID, definition);
+                return Pair.of(stockDefinition.defID, stockDefinition);
             } catch (Exception e) {
                 ImmersiveRailroading.error("Error loading model %s of type %s", defID, defType);
                 ImmersiveRailroading.catching(e);
@@ -399,6 +400,18 @@ public class DefinitionManager {
         return definitions.keySet();
     }
 
+    public static Set<EntityRollingStockDefinition> getTaggedStocks(String tag) {
+        return stockTags.getValues(tag);
+    }
+
+    public static Set<String> getStockTags(EntityRollingStockDefinition def) {
+        return stockTags.getKeys(def);
+    }
+
+    public static boolean isTaggedWith(EntityRollingStockDefinition def, String tag) {
+        return stockTags.containsEntry(tag, def);
+    }
+
     public static List<TrackDefinition> getTracks() {
         return new ArrayList<>(tracks.values());
     }
@@ -421,7 +434,7 @@ public class DefinitionManager {
 
     @FunctionalInterface
     private interface StockLoader {
-        Object apply(String defID, DataBlock data) throws Exception;
+        EntityRollingStockDefinition apply(String defID, DataBlock data) throws Exception;
     }
 
 }
