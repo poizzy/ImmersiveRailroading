@@ -63,10 +63,6 @@ public abstract class EntityScriptableRollingStock extends EntityCoupleableRolli
      * and decremented every entry on every tick.
      */
     protected final Map<Long, List<Runnable>> schedule = new HashMap<>();
-    
-    @TagSync
-    @TagField(value = "LUAGUITEXT", mapper = LuaSerialization.LuaTextMapper.class)
-    private Map<String, String> luaGuiText = new HashMap<>();
 
     /**
      * <h2>Overrides</h2>

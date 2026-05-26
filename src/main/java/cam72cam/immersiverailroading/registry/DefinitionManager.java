@@ -221,7 +221,7 @@ public class DefinitionManager {
         Progress.Bar bar = Progress.push("Loading Models", definitionIDMap.size());
 
         stockTags = new BiMultiMap<>();
-        Map<String, EntityRollingStockDefinition> loaded = getStockLoadingStream(definitionIDMap.entrySet()).map(tuple -> {
+        Map<String, JsonDefinition> loaded = getStockLoadingStream(definitionIDMap.entrySet()).map(tuple -> {
             String defID = tuple.getKey();
             String defType = tuple.getValue();
 
@@ -244,7 +244,7 @@ public class DefinitionManager {
                     block.getValueMap().put("pack", definitionIDPacks.get(defID));
                 }
 
-                EntityRollingStockDefinition stockDefinition = stockLoaders.get(defType).apply(defID, block);
+                EntityRollingStockDefinition stockDefinition = (EntityRollingStockDefinition) stockLoaders.get(defType).apply(defID, block);
 
                 Runtime runtime = Runtime.getRuntime();
                 if (runtime.freeMemory() < runtime.maxMemory() * 0.25) {
@@ -434,7 +434,7 @@ public class DefinitionManager {
 
     @FunctionalInterface
     private interface StockLoader {
-        EntityRollingStockDefinition apply(String defID, DataBlock data) throws Exception;
+        JsonDefinition apply(String defID, DataBlock data) throws Exception;
     }
 
 }

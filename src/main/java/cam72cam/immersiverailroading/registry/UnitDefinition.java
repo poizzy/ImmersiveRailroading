@@ -7,7 +7,7 @@ import javax.annotation.Nullable;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class UnitDefinition {
+public class UnitDefinition implements JsonDefinition {
     private final DataBlock block;
     public String defId;
     public String name;
