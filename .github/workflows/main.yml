@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'master'
+      - 'dev'
 
 jobs:
   build:
@@ -51,16 +52,24 @@ jobs:
       env:
         BRANCH: ${{ matrix.branch }}
       run: java -jar UMCSetup.jar ${BRANCH} https
+    - name: Add Shadow Dependency
+      run: |
+        sed -i '/^buildscript {/,/^}/ {
+        /repositories {/a\        gradlePluginPortal()
+        }' build.gradle
+        sed -i '/^buildscript {/,/^}/ {
+        /dependencies {/a\        classpath("com.github.johnrengelman.shadow:com.github.johnrengelman.shadow.gradle.plugin:2.0.4")
+        }' build.gradle
     - name: Gradle compile
       run: ./gradlew classes
     - name: Process images
       run: find src/main/resources/assets/immersiverailroading/ | grep png | xargs -I foo pngquant -s1 -f --ext .png foo
     - name: Gradle build
       run: ./gradlew build
-    - name: Gradle publish
-      env:
-        MAVENCI_PASS: ${{ secrets.MAVENCI_PASS }}
-      run: ./gradlew publish
+#    - name: Gradle publish
+#      env:
+#        MAVENCI_PASS: ${{ secrets.MAVENCI_PASS }}
+#      run: ./gradlew publish
     - uses: actions/upload-artifact@v6
       with:
         name: Immersive Railroading ${{matrix.branch}}

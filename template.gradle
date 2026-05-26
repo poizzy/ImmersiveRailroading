@@ -2,7 +2,13 @@
 
 //PLUGINS//
 apply plugin: 'maven-publish'
+apply plugin: 'com.github.johnrengelman.shadow'
 
+
+configurations {
+    shade
+    implementation.extendsFrom shade
+}
 
 version = '#MINECRAFT#-#LOADER#-#VERSION#'
 if (!"release".equalsIgnoreCase(System.getProperty("target"))) {
@@ -19,7 +25,20 @@ archivesBaseName = "ImmersiveRailroading"
 
 //DEPENDENCIES//
 
+dependencies {
+    shade files('libs/luaj-jse-3.0.2.jar')
+}
+
 apply from: 'ImmersiveRailroadingIntegration/dependencies.gradle'
+
+shadowJar {
+    configurations = [project.configurations.shade]
+    relocate 'org.luaj', "${project.group}.shade.org.luaj"
+}
+
+jar.finalizedBy('shadowJar')
+
+shadowJar.finalizedBy('reobfJar')
 
 //JAR//
 
