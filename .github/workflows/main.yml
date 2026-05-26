@@ -37,6 +37,7 @@ jobs:
               java-version: '17'
             - branch: 1.21.1-neoforge
               java-version: '21'
+      fail-fast: false
     steps:
     - uses: actions/checkout@v5
     - name: Set up JDK
