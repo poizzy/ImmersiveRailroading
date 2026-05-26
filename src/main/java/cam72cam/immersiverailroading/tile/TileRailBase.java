@@ -9,6 +9,7 @@ import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
 import cam72cam.immersiverailroading.entity.physics.SimulationState;
+import cam72cam.immersiverailroading.gui.RailAugmentGUI;
 import cam72cam.immersiverailroading.items.ItemRailAugment;
 import cam72cam.immersiverailroading.items.ItemTrackExchanger;
 import cam72cam.immersiverailroading.library.*;
@@ -90,9 +91,23 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 	@TagField("pushPull")
 	private boolean pushPull = true;
 
+	/*
+	 * Variables for the Lua Augment
+	 */
+	@TagSync
+	@TagField(value = "selectedScript", mapper = SelectedScriptMapper.class)
+	public RailAugmentGUI.ScriptDef selectedScript;
+	private LuaContext context;
+	public final Map<String, List<LuaValue>> luaEventCallbacks = new HashMap<>();
+	@TagSync
+	@TagField(value = "luaTagField", mapper = LuaSerialization.LuaMapper.class)
+	private Map<String, LuaValue> tagFields = new HashMap<>();
+	private boolean setNewRedstone = false;
+
 	public void setBedHeight(float height) {
 		this.bedHeight = height;
 	}
+  
 	public float getBedHeight() {
 		if (this.replaced != null && this.replaced.hasKey("height")) {
 			float replacedHeight = this.replaced.getFloat("height");
@@ -499,7 +514,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 			return null;
 		}
 		if(!canInteractWith(overhead)) {
-			return null;
+			return overhead.as(type);
 		}
 
 		return overhead.as(type);
@@ -1005,6 +1020,15 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 			}
 			return true;
 		}
+		
+
+		// TODO
+        if (this.augment != null
+                && player.hasPermission(Permissions.AUGMENT_TRACK)
+                && !player.getHeldItem(Player.Hand.PRIMARY).is(IRItems.ITEM_ROLLING_STOCK)) {
+            GuiTypes.RAIL_AUGMENT.open(player, this.getPos());
+            return true;
+        }
 		return false;
 	}
 
@@ -1124,4 +1148,108 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
     public void stockOverhead(EntityMoveableRollingStock stock) {
 		this.overhead = stock;
     }
+
+	public void setSelectedScript(RailAugmentGUI.ScriptDef def) {
+		this.selectedScript = def;
+	}
+
+	@Override
+	public Map<String, List<LuaValue>> getLuaEventCallbacks() {
+		return luaEventCallbacks;
+	}
+
+	public static class AugmentPacket extends Packet {
+		@TagField(value = "selectedScript", mapper = SelectedScriptMapper.class)
+		public RailAugmentGUI.ScriptDef selectedScript;
+		@TagField(value = "scriptDef", mapper = DefTagMapper.class)
+		public List<RailAugmentGUI.ScriptDef> scriptDef;
+		@TagField("pos")
+		public Vec3i pos;
+
+		public AugmentPacket() {}
+
+		public AugmentPacket(TileRailBase tile, RailAugmentGUI.ScriptDef selectedScript) {
+			this.selectedScript = selectedScript;
+			this.pos = tile.getPos();
+		}
+
+		@Override
+		protected void handle() {
+			TileRailBase te = getWorld().getBlockEntity(pos, TileRailBase.class);
+			te.setSelectedScript(selectedScript);
+			te.loadScript(selectedScript.script, selectedScript.additional);
+		}
+	}
+
+	public static class DefTagMapper implements TagMapper<List<RailAugmentGUI.ScriptDef>> {
+
+		@Override
+		public TagAccessor<List<RailAugmentGUI.ScriptDef>> apply(Class<List<RailAugmentGUI.ScriptDef>> type, String fieldName, TagField tag) throws SerializationException {
+			return new TagAccessor<>(
+                    (d, o) -> {
+						if (o != null) {
+							d.set(fieldName, new TagCompound()
+									.setList("scriptDefList", o, def -> new TagCompound()
+											.setString("name", def.name)
+											.setString("script", def.script.toString())
+											.setString("desc", def.desc != null ? def.desc : "")
+											.setList("additional", def.additional != null ? def.additional : new ArrayList<>(), a -> new TagCompound()
+													.setString("id", a != null ? a.toString() : ""))));
+						}
+					},
+                    d -> {
+                        TagCompound cmp = d.get(fieldName);
+                        List<RailAugmentGUI.ScriptDef> def = cmp.getList("scriptDefList", t -> new RailAugmentGUI.ScriptDef(
+                                t.getString("name"), new Identifier(t.getString("script"))
+                        )
+                                .setDesc(t.getString("desc"))
+                                .setAdditional(t.getList("additional", id -> id.getString("id"))));
+
+
+                        return def;
+                    }
+            );
+		}
+	}
+
+	public static class SelectedScriptMapper implements TagMapper<RailAugmentGUI.ScriptDef> {
+
+		@Override
+		public TagAccessor<RailAugmentGUI.ScriptDef> apply(Class<RailAugmentGUI.ScriptDef> type, String fieldName, TagField tag) throws SerializationException {
+			return new TagAccessor<RailAugmentGUI.ScriptDef>(
+                    (d, o) -> {
+						if (o != null) {
+							d.set(fieldName, new TagCompound()
+									.setString("name", o.name)
+									.setString("script", o.script.toString())
+									.setString("desc", o.desc != null ? o.desc : "")
+									.setList("additional", o.additional != null ? o.additional : new ArrayList<>(), a -> new TagCompound()
+											.setString("id", a != null ? a.toString() : "")));
+						}
+					},
+                    d -> {
+                        TagCompound cmp = d.get(fieldName);
+                        RailAugmentGUI.ScriptDef def = new RailAugmentGUI.ScriptDef(cmp.getString("name"), new Identifier(cmp.getString("script")))
+                                .setDesc(cmp.getString("desc"))
+                                .setAdditional(cmp.getList("additional", id -> id.getString("id")));
+                        return def;
+                    }
+            );
+		}
+	}
+
+	public static class ListStringMapper implements TagMapper<List<String>> {
+
+		@Override
+		public TagAccessor<List<String>> apply(Class<List<String>> type, String fieldName, TagField tag) throws SerializationException {
+			return new TagAccessor<List<String>>(
+                    (d, o) -> {
+						if (o != null) {
+							d.setList(fieldName, o, str -> new TagCompound().setString("s", str));
+						}
+					},
+                    d -> new ArrayList<>(d.getList(fieldName, str -> str.getString("s")))
+            );
+		}
+	}
 }
