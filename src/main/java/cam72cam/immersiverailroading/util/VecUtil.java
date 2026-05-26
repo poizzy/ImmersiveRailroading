@@ -4,7 +4,6 @@ import cam72cam.mod.ModCore;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.util.Axis;
 import cam72cam.mod.util.FastMath;
-import util.Matrix4;
 
 public class VecUtil {
 	private VecUtil() {
@@ -32,11 +31,16 @@ public class VecUtil {
 		);
 	}
 	public static Vec3d rotatePitch(Vec3d pos, float rotationPitch) {
-		if (Math.abs(rotationPitch) < 0.01) {
+		if (Math.abs(rotationPitch) == 0) {
 			return pos;
 		}
-		// TODO optimize me!
-		return new Matrix4().rotate(Math.toRadians(rotationPitch), 0, 0, 1).apply(pos);
+		//return new Matrix4().rotate(Math.toRadians(rotationPitch), 0, 0, 1).apply(pos);
+		double rad = Math.toRadians(rotationPitch);
+		double cos = Math.cos(rad);
+		double sin = Math.sin(rad);
+		return new Vec3d(pos.x,
+						 pos.y * cos + pos.z * sin,
+						 pos.z * cos - pos.y * sin);
 	}
 
 	public static Vec3d fromWrongYaw(double distance, float yaw)  {

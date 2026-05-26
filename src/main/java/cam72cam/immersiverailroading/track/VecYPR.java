@@ -43,11 +43,11 @@ public class VecYPR extends Vec3d {
     }
 
     public VecYPR(double xIn, double yIn, double zIn, float yaw, float pitch, float length, TrackModelPart... parts) {
-        this(xIn, yIn, zIn, yaw, pitch, length, 0, parts);
+        this(xIn, yIn, zIn, yaw, pitch, 0, length, parts);
     }
 
     //Roll
-    public VecYPR(double xIn, double yIn, double zIn, float yaw, float pitch, float length, float roll, TrackModelPart... parts) {
+    public VecYPR(double xIn, double yIn, double zIn, float yaw, float pitch, float roll, float length, TrackModelPart... parts) {
         super(xIn, yIn, zIn);
         this.yaw = yaw;
         this.parts = Arrays.asList(parts);

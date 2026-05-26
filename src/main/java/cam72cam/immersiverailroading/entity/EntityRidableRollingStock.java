@@ -3,17 +3,22 @@ package cam72cam.immersiverailroading.entity;
 import cam72cam.immersiverailroading.Config;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
+import cam72cam.immersiverailroading.floor.NavMesh;
 import cam72cam.immersiverailroading.library.Permissions;
 import cam72cam.immersiverailroading.model.part.Door;
 import cam72cam.immersiverailroading.model.part.Seat;
 import cam72cam.immersiverailroading.render.ExpireableMap;
+import cam72cam.immersiverailroading.util.MathUtil;
+import cam72cam.immersiverailroading.util.VecUtil;
 import cam72cam.mod.entity.Entity;
 import cam72cam.mod.entity.Player;
+import cam72cam.mod.entity.boundingbox.IBoundingBox;
 import cam72cam.mod.entity.custom.IRidable;
 import cam72cam.mod.entity.sync.TagSync;
 import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.item.ItemStack;
 import cam72cam.mod.math.Vec3d;
+import cam72cam.mod.model.obj.OBJFace;
 import cam72cam.mod.serialization.SerializationException;
 import cam72cam.mod.serialization.TagCompound;
 import cam72cam.mod.serialization.TagField;
@@ -70,29 +75,45 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 
 	@Override
 	public Vec3d getMountOffset(Entity passenger, Vec3d off) {
-		if (passenger.isVillager() && !payingPassengerPositions.containsKey(passenger.getUUID())) {
-			payingPassengerPositions.put(passenger.getUUID(), passenger.getPosition());
-		}
+		NavMesh navMesh = getDefinition().navMesh;
 
-		if (passenger.isVillager() && !seatedPassengers.containsValue(passenger.getUUID())) {
-			for (Seat<?> seat : getDefinition().getModel().getSeats()) {
-				if (!seatedPassengers.containsKey(seat.part.key)) {
-					seatedPassengers.put(seat.part.key, passenger.getUUID());
-					break;
-				}
-			}
-		}
-
+		off = off.scale(gauge.scale());
 		Vec3d seat = getSeatPosition(passenger.getUUID());
 		if (seat != null) {
 			return seat;
 		}
 
-		int wiggle = passenger.isVillager() ? 10 : 0;
-		off = off.add((Math.random()-0.5) * wiggle, 0, (Math.random()-0.5) * wiggle);
-		off = this.getDefinition().correctPassengerBounds(gauge, off, shouldRiderSit(passenger));
+		Vec3d realOffset = off.rotateYaw(-90);
+		IBoundingBox queryBox = IBoundingBox.from(
+				realOffset.subtract(4f, 4f, 4f),
+				realOffset.add(4f, 4f, 4f)
+		);
 
-		return off;
+		List<OBJFace> nearby = new ArrayList<>();
+		navMesh.queryBVH(navMesh.root, queryBox, nearby, this.gauge.scale());
+
+		Vec3d closestPoint = null;
+		double closestDistanceSq = Double.MAX_VALUE;
+
+		for (OBJFace tri : nearby) {
+			Vec3d p0 = tri.vertex0.pos;
+			Vec3d p1 = tri.vertex1.pos;
+			Vec3d p2 = tri.vertex2.pos;
+
+			Vec3d pointOnTri = MathUtil.closestPointOnTriangle(realOffset, p0, p1, p2);
+			double distSq = realOffset.subtract(pointOnTri).lengthSquared();
+
+			if (distSq < closestDistanceSq) {
+				closestDistanceSq = distSq;
+				closestPoint = pointOnTri;
+			}
+		}
+
+		if (closestPoint != null) {
+			return closestPoint.rotateYaw(90);
+		} else {
+			return new Vec3d(0, 0, 0);
+		}
 	}
 
 	@Override
@@ -111,17 +132,48 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 
 	@Override
 	public Vec3d onPassengerUpdate(Entity passenger, Vec3d offset) {
+		Vec3d movement = new Vec3d(0, 0, 0);
 		if (passenger.isPlayer()) {
-			offset = playerMovement(passenger.asPlayer(), offset);
+			movement = playerMovement(passenger.asPlayer(), offset);
+		}
+		Vec3d targetXZ = VecUtil.rotatePitch(movement, -this.getRotationPitch());
+
+		Vec3d rayStart = targetXZ.rotateYaw(-90).add(0, 1, 0);
+		Vec3d rayDir = new Vec3d(0, -1, 0);
+
+		Vec3d localTarget = targetXZ.rotateYaw(-90);
+
+		IBoundingBox rayBox = IBoundingBox.from(
+				localTarget.subtract(0.5f, 0.5f, 0.5f),
+				localTarget.add(0.5f, 0.5f, 0.5f)
+		);
+		List<OBJFace> nearby = new ArrayList<>();
+		NavMesh navMesh = getDefinition().navMesh;
+		navMesh.queryBVH(navMesh.root, rayBox, nearby, this.gauge.scale());
+
+		double closestY = Float.NEGATIVE_INFINITY;
+		boolean hit = false;
+
+		for(OBJFace tri : nearby) {
+			Double t = MathUtil.intersectRayTriangle(rayStart, rayDir, tri);
+			if (t != null && t >= 0) {
+				Vec3d hitPoint = rayStart.add(rayDir.scale(t));
+				if (!hit || hitPoint.y > closestY) {
+					closestY = hitPoint.y;
+					hit = true;
+				}
+			}
+
+		}
+
+		if (hit) {
+			offset = VecUtil.rotatePitch(new Vec3d(targetXZ.x, closestY, targetXZ.z), this.getRotationPitch());
 		}
 
 		Vec3d seat = getSeatPosition(passenger.getUUID());
 		if (seat != null) {
 			offset = seat;
-		} else {
-			offset = this.getDefinition().correctPassengerBounds(gauge, offset, shouldRiderSit(passenger));
 		}
-		offset = offset.add(0, Math.sin(Math.toRadians(this.getRotationPitch())) * offset.z, 0);
 
 		return offset;
 	}
@@ -138,59 +190,136 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 
 	protected Vec3d playerMovement(Player source, Vec3d offset) {
 		Vec3d movement = source.getMovementInput();
-        /*
-        if (sprinting) {
-            movement = movement.scale(3);
-        }
-        */
-		if (movement.length() < 0.1) {
+		if (movement.length() <= 0.1) {
 			return offset;
 		}
 
 		movement = new Vec3d(movement.x, 0, movement.z).rotateYaw(this.getRotationYaw() - source.getRotationYawHead());
+		Vec3d localOffset = offset.rotateYaw(-90).add(movement.rotateYaw(-90));
+
+		IBoundingBox rayBox = IBoundingBox.from(
+				localOffset.subtract(0.2f, 0.2f, 0.2f),
+				localOffset.add(0.2f, 0.2f, 0.2f)
+		);
+		List<OBJFace> nearby = new ArrayList<>();
+		NavMesh navMesh = getDefinition().navMesh;
+		navMesh.queryBVH(navMesh.collisionRoot, rayBox, nearby, this.gauge.scale());
+
+		Vec3d rayStart = localOffset.add(0, 1, 0);
+		Vec3d rayDir = movement.rotateYaw(-90).normalize();
+
+		for (OBJFace tri : nearby) {
+			Double t = MathUtil.intersectRayTriangle(rayStart, rayDir, tri);
+			if (t != null && t >= 0) {
+				return offset;
+			}
+		}
+
+		if (isDoorOpen(offset, movement)) {
+			return offset;
+		}
 
 		offset = offset.add(movement);
 
-		if (this instanceof EntityCoupleableRollingStock) {
-			EntityCoupleableRollingStock couplable = (EntityCoupleableRollingStock) this;
+		if (getWorld().isServer) {
+			for (Door<?> door : getDefinition().getModel().getDoors()) {
+				if (door.isAtOpenDoor(source, this, Door.Types.EXTERNAL)) {
+					Vec3d doorCenter = door.center(this);
+					Vec3d toDoor = doorCenter.subtract(offset).normalize();
+					double dot = toDoor.dotProduct(movement.normalize());
+					if (dot > 0.5) {
+						this.removePassenger(source);
+						break;
+					}
+				}
+			}
+		}
 
-			boolean atFront = this.getDefinition().isAtFront(gauge, offset);
-			boolean atBack = this.getDefinition().isAtRear(gauge, offset);
-			// TODO config for strict doors
+		if (this instanceof EntityCoupleableRollingStock) {
+			EntityCoupleableRollingStock coupleable = (EntityCoupleableRollingStock) this;
+
+			boolean isAtFront = isAtCoupler(offset, movement, EntityCoupleableRollingStock.CouplerType.FRONT);
+			boolean isAtBack =  isAtCoupler(offset, movement, EntityCoupleableRollingStock.CouplerType.BACK);
 			boolean atDoor = isNearestDoorOpen(source);
 
-			atFront &= atDoor;
-			atBack &= atDoor;
+			isAtFront &= atDoor;
+			isAtBack &= atDoor;
 
-			for (CouplerType coupler : CouplerType.values()) {
-				boolean atCoupler = coupler == CouplerType.FRONT ? atFront : atBack;
-				if (atCoupler && couplable.isCoupled(coupler)) {
+			for (EntityCoupleableRollingStock.CouplerType coupler : EntityCoupleableRollingStock.CouplerType.values()) {
+				boolean atCoupler = coupler == EntityCoupleableRollingStock.CouplerType.FRONT ? isAtFront : isAtBack;
+				if (atCoupler && coupleable.isCoupled(coupler)) {
 					EntityCoupleableRollingStock coupled = ((EntityCoupleableRollingStock) this).getCoupled(coupler);
 					if (coupled != null) {
-						if (((EntityRidableRollingStock)coupled).isNearestDoorOpen(source)) {
+						if (coupled.isNearestDoorOpen(source)) {
 							coupled.addPassenger(source);
 						}
 					} else if (this.getTickCount() > 20) {
 						ImmersiveRailroading.info(
 								"Tried to move between cars (%s, %s), but %s was not found",
 								this.getUUID(),
-								couplable.getCoupledUUID(coupler),
-								couplable.getCoupledUUID(coupler)
+								coupleable.getCoupledUUID(coupler),
+								coupleable.getCoupledUUID(coupler)
 						);
 					}
-					return offset;
 				}
 			}
-        }
-
-        if (getDefinition().getModel().getDoors().stream().anyMatch(x -> x.isAtOpenDoor(source, this, Door.Types.EXTERNAL)) &&
-				getWorld().isServer &&
-				!this.getDefinition().correctPassengerBounds(gauge, offset, shouldRiderSit(source)).equals(offset)
-		) {
-        	this.removePassenger(source);
 		}
 
 		return offset;
+	}
+
+	private boolean isDoorOpen(Vec3d start, Vec3d end) {
+		start = VecUtil.rotatePitch(start, -this.getRotationPitch());
+		end = VecUtil.rotatePitch(end, -this.getRotationPitch());
+
+		start = start.rotateYaw(-90);
+		end = start.add(end.rotateYaw(-90));
+
+		List<Door<?>> doors = getDefinition().getModel().getDoors().stream()
+				.filter(d -> d.type == Door.Types.INTERNAL || d.type == Door.Types.CONNECTING)
+				.filter(d -> !d.isOpen(this)).collect(Collectors.toList());
+		boolean intersects = false;
+		for (Door<?> door : doors) {
+			IBoundingBox box = IBoundingBox.from(
+					door.part.min,
+					door.part.max
+			);
+			intersects = box.intersectsSegment(start, end);
+			if (intersects) {
+				break;
+			}
+		}
+		return intersects;
+	}
+
+	private boolean isAtCoupler(Vec3d offset, Vec3d movement, EntityCoupleableRollingStock.CouplerType type) {
+		offset = offset.rotateYaw(-90);
+		double coupler = getDefinition().getCouplerPosition(type, this.gauge);
+		Vec3d couplerPos = new Vec3d(type == EntityCoupleableRollingStock.CouplerType.FRONT ? -coupler : coupler, offset.y, offset.z);
+
+		IBoundingBox queryBox = IBoundingBox.from(
+				couplerPos.subtract(0.2, 0.2, 0.2),
+				couplerPos.add(0.2, 0.2, 0.2)
+		);
+
+		List<OBJFace> nearby = new ArrayList<>();
+		NavMesh navMesh = getDefinition().navMesh;
+		navMesh.queryBVH(navMesh.root, queryBox, nearby, this.gauge.scale());
+
+		for (OBJFace tri : nearby) {
+			Vec3d p0 = tri.vertex0.pos;
+			Vec3d p1 = tri.vertex1.pos;
+			Vec3d p2 = tri.vertex2.pos;
+
+			Vec3d closestPoint = MathUtil.closestPointOnTriangle(offset, p0, p1, p2);
+			double distance = offset.subtract(closestPoint).length();
+			if (distance < 0.5) {
+				Vec3d toCoupler = couplerPos.subtract(offset).normalize();
+				double dot = toCoupler.dotProduct(movement.rotateYaw(-90).normalize());
+				if (dot > 0.5) return true;
+			}
+		}
+		return false;
 	}
 
 	@Override

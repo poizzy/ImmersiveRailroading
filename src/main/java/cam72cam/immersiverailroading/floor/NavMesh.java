@@ -1,12 +1,15 @@
 package cam72cam.immersiverailroading.floor;
 
 import cam72cam.immersiverailroading.model.StockModel;
+import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
 import cam72cam.immersiverailroading.util.VecUtil;
+import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.boundingbox.IBoundingBox;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.math.Vec3i;
 import cam72cam.mod.model.obj.FaceAccessor;
 import cam72cam.mod.model.obj.OBJFace;
+import cam72cam.mod.model.obj.Vec2f;
 import cam72cam.mod.util.Axis;
 
 import java.util.*;
@@ -19,10 +22,21 @@ public class NavMesh {
     private static final int MAX_DEPTH = 20;
     private static final int LEAF_SIZE = 8;
 
-    public NavMesh(StockModel<?, ?> model) {
-        hasNavMesh = model.groups().stream().anyMatch(s -> s.contains("FLOOR"));
-        if (!hasNavMesh) return;
+    public NavMesh(EntityRollingStockDefinition definition) {
+        hasNavMesh = definition.getModel().floor != null;
 
+        if (hasNavMesh) {
+            initNavMesh(definition.getModel());
+        } else {
+            try {
+                initLegacy(definition);
+            } catch (IllegalArgumentException e) {
+                ModCore.catching(e);
+            }
+        }
+    }
+
+    private void initNavMesh(StockModel<?, ?> model) {
         FaceAccessor accessor = model.getFaceAccessor();
 
         List<OBJFace> floor = new ArrayList<>();
@@ -42,6 +56,45 @@ public class NavMesh {
             });
         }
         this.collisionRoot = buildBVH(collision, 0);
+    }
+
+    private void initLegacy(EntityRollingStockDefinition def) throws IllegalArgumentException {
+        Vec3d center = def.passengerCenter;
+        Double length = def.passengerCompartmentLength;
+        Double width = def.passengerCompartmentWidth;
+
+        if (length == null || width == null) {
+            throw new IllegalArgumentException(String.format("Rolling stock %s needs to have either a FLOOR object or have \"length\" and \"width\" defined in the \"passenger\" section of the stocks json", def.name()));
+        }
+
+        if (center == null) {
+            center = Vec3d.ZERO;
+        }
+
+        OBJFace face1 = new OBJFace();
+        OBJFace face2 = new OBJFace();
+
+        Vec2f uv = new Vec2f(0, 0);
+        Vec3d normal = new Vec3d(0, 1, 0);
+
+        Vec3d vertex1 = center.add(-length, 0, width / 2);
+        Vec3d vertex2 = center.add(length, 0, width / 2);
+        Vec3d vertex3 = center.add(length,  0, -width / 2);
+        Vec3d vertex4 = center.add(-length, 0, -width / 2);
+
+        face1.vertex0 = new OBJFace.Vertex(vertex1, uv);
+        face1.vertex1 = new OBJFace.Vertex(vertex2, uv);
+        face1.vertex2 = new OBJFace.Vertex(vertex3, uv);
+
+        face2.vertex0 = new OBJFace.Vertex(vertex1, uv);
+        face2.vertex1 = new OBJFace.Vertex(vertex3, uv);
+        face2.vertex2 = new OBJFace.Vertex(vertex4, uv);
+
+        face1.normal = normal;
+        face2.normal = normal;
+
+        this.root = buildBVH(Arrays.asList(face1, face2), 0);
+        this.collisionRoot = buildBVH(Collections.emptyList(), 0);
     }
 
     public boolean hasNavMesh() {
@@ -126,6 +179,6 @@ public class NavMesh {
     }
 
     private double getCentroid(OBJFace tri, Axis axis) {
-        return (VecUtil.getByAxis(tri.vertices.get(0), axis) + VecUtil.getByAxis(tri.vertices.get(1), axis) + VecUtil.getByAxis(tri.vertices.get(2), axis)) / 3f;
+        return (VecUtil.getByAxis(tri.vertex0.pos, axis) + VecUtil.getByAxis(tri.vertex1.pos, axis) + VecUtil.getByAxis(tri.vertex2.pos, axis)) / 3f;
     }
 }

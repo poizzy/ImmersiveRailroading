@@ -41,7 +41,7 @@ chat.immersiverailroading:coupler.disengaged=车钩 %s 设置为调车模式
 chat.immersiverailroading:coupler.status.coupled=%s 车钩已与 %s（%s，%s，%s）连挂
 chat.immersiverailroading:coupler.status.decoupled.engaged=%s 车钩在正常模式下解挂
 chat.immersiverailroading:coupler.status.decoupled.disengaged=%s 车钩在调车模式下解挂
-chat.immersiverailroading:build.missing=缺失 %s
+chat.immersiverailroading:build.missing=缺失 %s %s
 chat.immersiverailroading:augment.set=Augment过滤器设置为仅与 %s 交互
 chat.immersiverailroading:augment.reset=清空Augment过滤器
 chat.immersiverailroading:misc.wood_planks=木板
@@ -248,8 +248,8 @@ itemGroup.immersiverailroading.passenger=沉浸铁路丨客车
 itemGroup.immersiverailroading.components=沉浸铁路丨组件
 
 death.attack.immersiverailroading:casting=%s 发现熔化的金属并不适合游泳
-death.attack.immersiverailroading:hitByTrain=%s 被火车创飞了
-death.attack.immersiverailroading:hitByTrainInDarkness=%s 没能察觉飞驰过来的火车头灯
+death.attack.immersiverailroading:hit_by_train=%s 被火车创飞了
+death.attack.immersiverailroading:hit_by_train_in_darkness=%s 没能察觉飞驰过来的火车头灯
 
 immersiverailroading:detector_mode.simple=检测货物
 immersiverailroading:detector_mode.speed=检测速度

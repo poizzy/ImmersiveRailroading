@@ -15,7 +15,6 @@ import cam72cam.immersiverailroading.gui.overlay.Readouts;
 import cam72cam.immersiverailroading.library.*;
 import cam72cam.immersiverailroading.model.StockModel;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
-import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.EntityRegistry;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.FaceAccessor;
@@ -61,9 +60,10 @@ public abstract class EntityRollingStockDefinition {
     public Identifier collision_sound;
     public double flange_min_yaw;
     double internal_inv_scale;
-    private String name;
-    private String modelerName;
-    private String packName;
+    public String name;
+    public String modelerName;
+    public String packName;
+    protected Set<String> tags;
     private ValveGearConfig valveGear;
     public float darken;
     public Identifier modelLoc;
@@ -81,8 +81,8 @@ public abstract class EntityRollingStockDefinition {
     private double rearBounds;
     private double heightBounds;
     private double widthBounds;
-    private double passengerCompartmentLength;
-    private double passengerCompartmentWidth;
+    public Double passengerCompartmentLength;
+    public Double passengerCompartmentWidth;
     private double weight;
     private int maxPassengers;
     private int snowLayers;
@@ -328,7 +328,7 @@ public abstract class EntityRollingStockDefinition {
         this.model = createModel();
         this.itemGroups = model.groups.keySet().stream().filter(x -> !ModelComponentType.shouldRender(x)).collect(Collectors.toList());
 
-        this.navMesh = new NavMesh(this.model);
+        this.navMesh = new NavMesh(this);
 
         this.renderComponents = new EnumMap<>(ModelComponentType.class);
         for (ModelComponent component : model.allComponents) {
@@ -416,6 +416,12 @@ public abstract class EntityRollingStockDefinition {
         name = data.getValue("name").asString();
         modelerName = data.getValue("modeler").asString();
         packName = data.getValue("pack").asString();
+        tags = new HashSet<>();
+        List<DataBlock.Value> tagValues = data.getValues("tags");
+        if (tagValues != null) {
+            tagValues.forEach(v -> tags.add(v.asString()));
+        }
+
         darken = data.getValue("darken_model").asFloat();
         internal_model_scale = 1;
         internal_inv_scale = 1;
@@ -465,9 +471,19 @@ public abstract class EntityRollingStockDefinition {
         modelLoc = data.getValue("model").asIdentifier();
 
         DataBlock passenger = data.getBlock("passenger");
-        passengerCenter = new Vec3d(0, passenger.getValue("center_y").asDouble() - 0.35, passenger.getValue("center_x").asDouble()).scale(internal_model_scale);
-        passengerCompartmentLength = passenger.getValue("length").asDouble() * internal_model_scale;
-        passengerCompartmentWidth = passenger.getValue("width").asDouble() * internal_model_scale;
+
+        if (passenger.getValue("center_x") != null && passenger.getValue("center_y") != null) {
+            passengerCenter = new Vec3d(-passenger.getValue("center_x").asDouble(), passenger.getValue("center_y").asDouble() - 0.35, 0).scale(internal_model_scale);
+        }
+
+        if (passenger.getValue("length") != null) {
+            passengerCompartmentLength = passenger.getValue("length").asDouble() * internal_model_scale;
+        }
+
+        if (passenger.getValue("width") != null) {
+            passengerCompartmentWidth = passenger.getValue("width").asDouble() * internal_model_scale;
+        }
+
         maxPassengers = passenger.getValue("slots").asInteger();
         shouldSit = passenger.getValue("should_sit").asBoolean();
 
@@ -608,37 +624,6 @@ public abstract class EntityRollingStockDefinition {
             return null;
         }
         return renderComponents.get(name);
-    }
-
-    public Vec3d correctPassengerBounds(Gauge gauge, Vec3d pos, boolean shouldSit) {
-        double gs = gauge.scale();
-        Vec3d passengerCenter = this.passengerCenter.scale(gs);
-        pos = pos.subtract(passengerCenter);
-        if (pos.z > this.passengerCompartmentLength * gs) {
-            pos = new Vec3d(pos.x, pos.y, this.passengerCompartmentLength * gs);
-        }
-
-        if (pos.z < -this.passengerCompartmentLength * gs) {
-            pos = new Vec3d(pos.x, pos.y, -this.passengerCompartmentLength * gs);
-        }
-
-        if (Math.abs(pos.x) > this.passengerCompartmentWidth / 2 * gs) {
-            pos = new Vec3d(Math.copySign(this.passengerCompartmentWidth / 2 * gs, pos.x), pos.y, pos.z);
-        }
-
-        pos = new Vec3d(pos.x, passengerCenter.y - (shouldSit ? 0.75 : 0), pos.z + passengerCenter.z);
-
-        return pos;
-    }
-
-    public boolean isAtFront(Gauge gauge, Vec3d pos) {
-        pos = pos.subtract(passengerCenter.scale(gauge.scale()));
-        return pos.z >= this.passengerCompartmentLength * gauge.scale();
-    }
-
-    public boolean isAtRear(Gauge gauge, Vec3d pos) {
-        pos = pos.subtract(passengerCenter.scale(gauge.scale()));
-        return pos.z <= -this.passengerCompartmentLength * gauge.scale();
     }
 
     public List<ItemComponentType> getItemComponents() {
@@ -849,6 +834,10 @@ public abstract class EntityRollingStockDefinition {
         tips.add(GuiText.WEIGHT_TOOLTIP.toString(this.getWeight(gauge)));
         tips.add(GuiText.MODELER_TOOLTIP.toString(modelerName));
         tips.add(GuiText.PACK_TOOLTIP.toString(packName));
+        if (!tags.isEmpty()) {
+            String tag = String.join(",", tags);
+            tips.add(GuiText.TAG_TOOLTIP.toString(tag));
+        }
         return tips;
     }
 
