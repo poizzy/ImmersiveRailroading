@@ -3,12 +3,6 @@
 //PLUGINS//
 apply plugin: 'maven-publish'
 
-
-configurations {
-    shade
-    implementation.extendsFrom shade
-}
-
 version = '#MINECRAFT#-#LOADER#-#VERSION#'
 if (!"release".equalsIgnoreCase(System.getProperty("target"))) {
     try {
@@ -32,11 +26,8 @@ dependencies {
 apply from: 'ImmersiveRailroadingIntegration/dependencies.gradle'
 
 shadowJar {
-    configurations = [project.configurations.shade]
     relocate 'org.luaj', "${project.group}.shade.org.luaj"
 }
-
-jar.finalizedBy('shadowJar')
 
 //JAR//
 
