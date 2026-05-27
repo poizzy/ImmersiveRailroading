@@ -38,8 +38,6 @@ shadowJar {
 
 jar.finalizedBy('shadowJar')
 
-shadowJar.finalizedBy('reobfJar')
-
 //JAR//
 
 publishing {
