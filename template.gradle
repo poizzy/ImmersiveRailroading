@@ -2,7 +2,6 @@
 
 //PLUGINS//
 apply plugin: 'maven-publish'
-apply plugin: 'com.github.johnrengelman.shadow'
 
 
 configurations {
@@ -26,7 +25,7 @@ archivesBaseName = "ImmersiveRailroading"
 //DEPENDENCIES//
 
 dependencies {
-    shade files('libs/luaj-jse-3.0.2.jar')
+    umcShade files('libs/luaj-jse-3.0.2.jar')
 }
 
 apply from: 'ImmersiveRailroadingIntegration/dependencies.gradle'

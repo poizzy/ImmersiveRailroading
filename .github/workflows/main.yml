@@ -53,14 +53,6 @@ jobs:
       env:
         BRANCH: ${{ matrix.branch }}
       run: java -jar UMCSetup.jar ${BRANCH} https
-    - name: Add Shadow Dependency
-      run: |
-        sed -i '/^buildscript {/,/^}/ {
-        /repositories {/a\        gradlePluginPortal()
-        }' build.gradle
-        sed -i '/^buildscript {/,/^}/ {
-        /dependencies {/a\        classpath("com.github.johnrengelman.shadow:com.github.johnrengelman.shadow.gradle.plugin:2.0.4")
-        }' build.gradle
     - name: Gradle compile
       run: ./gradlew classes
     - name: Process images
