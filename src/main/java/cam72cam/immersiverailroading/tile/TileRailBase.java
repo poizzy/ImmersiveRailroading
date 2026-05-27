@@ -45,8 +45,6 @@ import cam72cam.mod.world.World;
 import org.apache.commons.lang3.ArrayUtils;
 import org.luaj.vm2.LuaValue;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.util.*;
 import java.util.function.Predicate;
 
@@ -78,6 +76,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 	private boolean willBeReplaced = false;
 	@TagField("replaced")
 	private TagCompound replaced;
+	private boolean skipNextRefresh = false;
 	public ItemStack railBedCache = null;
 	private final FluidTank emptyTank = new FluidTank(null, 0);
 	private final IInventory emptyInventory = new ItemStackHandler(0);
@@ -156,7 +155,6 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 		return scaleModel;
 	}
 
-	@SuppressWarnings("incomplete-switch")
 	public void setAugment(Augment augment) {
 		this.augment = augment;
 		Augment.Properties properties = new Augment.Properties("", "","",
@@ -244,7 +242,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 		return this.augmentFilterID != null;
 	}
 
-	public void setAugmentProperties(@Nonnull Augment.Properties properties) {
+	public void setAugmentProperties(Augment.Properties properties) {
 		this.positive = properties.positiveFilter;
 		this.negative = properties.negativeFilter;
 		this.actuatorFilter = properties.doorActuatorFilter;
@@ -986,7 +984,6 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 		return getAugment() == Augment.DETECTOR || getAugment() == Augment.LUA_SCRIPTER ? this.redstoneLevel : 0;
 	}
 
-	@SuppressWarnings("deprecation")
 	public Vec3i getParentReplaced() {
 		if (this.replaced == null) {
 			return null;
@@ -1150,7 +1147,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 			}
 			return true;
 		}
-		
+
 
 		// TODO
         if (this.augment != null

@@ -18,7 +18,8 @@ if (!"release".equalsIgnoreCase(System.getProperty("target"))) {
     }
 }
 group = "cam72cam.immersiverailroading"
-archivesBaseName = "ImmersiveRailroading"
+String archive_base_name = "ImmersiveRailroading"
+base.archivesName = archive_base_name
 
 //MINECRAFT//
 
@@ -42,7 +43,8 @@ jar.finalizedBy('shadowJar')
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            artifact jar
+            artifact remapJar
+            artifactId archive_base_name
         }
     }
     repositories {
@@ -56,7 +58,7 @@ publishing {
     }
 }
 
-task ('showBuildInfo') {
+tasks.register('showBuildInfo') {
     doLast {
         String minecraftString = "#MINECRAFT#"
         String minecraftLoader = "#LOADER#"
