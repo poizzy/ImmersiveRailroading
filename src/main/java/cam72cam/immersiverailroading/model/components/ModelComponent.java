@@ -6,7 +6,6 @@ import cam72cam.immersiverailroading.library.ModelComponentType.ModelPosition;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.OBJGroup;
 import cam72cam.mod.model.obj.OBJModel;
-import scala.Int;
 
 import java.util.*;
 import java.util.regex.Matcher;
