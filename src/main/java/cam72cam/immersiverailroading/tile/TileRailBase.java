@@ -208,7 +208,7 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 		context.registerLibrary(new EventModule(this));
 	}
 
-	private void loadScript(Identifier script, @Nullable List<String> modules) {
+	private void loadScript(Identifier script, List<String> modules) {
 		if (context == null) {
 			initLuaAugment();
 		}
