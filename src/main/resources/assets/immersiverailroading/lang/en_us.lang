@@ -94,7 +94,7 @@ gui.immersiverailroading:selector.paintbrush_apply_to_train=Apply to whole train
 # Migrated from old detector translations which already contain "Detecting", don't need for this
 gui.immersiverailroading:selector.augment.detect=Current:
 gui.immersiverailroading:selector.augment.redstone=Redstone Mode:
-gui.immersiverailroading:selector.augment.pushpull=Pushpull
+gui.immersiverailroading:selector.augment.pushpull=Push/Pull
 gui.immersiverailroading:selector.augment.coupler=Coupler Mode:
 gui.immersiverailroading:selector.augment.control=Locomotive Control Mode:
 
@@ -311,7 +311,7 @@ immersiverailroading:entity.locomotives.a1_peppercorn=A1 Peppercorn
 immersiverailroading:entity.locomotives.a5_switcher=A5 Switcher
 immersiverailroading:entity.locomotives.alco_rs1=RS-1
 immersiverailroading:entity.locomotives.big_boy=Big Boy (4000 class)
-immersiverailroading:entity.locomotives.br01=br01
+immersiverailroading:entity.locomotives.br01=DRG BR 01
 immersiverailroading:entity.locomotives.class_38=Class 38
 immersiverailroading:entity.locomotives.cooke_mogul=DSP&P Mogul
 immersiverailroading:entity.locomotives.e6_atlantic=E6 Atlantic
@@ -330,7 +330,7 @@ immersiverailroading:entity.locomotives.skookum=Skookum 2-4-4-2
 immersiverailroading:entity.tender.a1_peppercorn_tender=A1 Peppercorn Tender
 immersiverailroading:entity.tender.a5_tender=A5 Slope Tender
 immersiverailroading:entity.tender.big_boy_tender=Big Boy (4000 class) Tender
-immersiverailroading:entity.tender.br01_tender=drg class 01 tender
+immersiverailroading:entity.tender.br01_tender=DRG BR 01 Tender
 immersiverailroading:entity.tender.class_38_tender=Class 38 Tender
 immersiverailroading:entity.tender.cooke_tender=Cooke Tender
 immersiverailroading:entity.tender.e6_tender=E6 Atlantic Tender
