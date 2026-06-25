@@ -176,6 +176,7 @@ track.immersiverailroading:smoothing.far=Fern
 track.immersiverailroading:smoothing.neither=Nichts
 
 track.immersiverailroading:direction.none=Flexibel
+# Intended
 track.immersiverailroading:direction.left=Sperre rechts
 track.immersiverailroading:direction.right=Sperre links
 
@@ -247,12 +248,12 @@ multiblock.immersiverailroading:plate_machine=Plattenwalze
 multiblock.immersiverailroading:rail_machine=Schienenwalze
 multiblock.immersiverailroading:steam_hammer=Dampfhammer
 
-immersiverailroading:crafting_type.casting=Gießen
-immersiverailroading:crafting_type.casting_hammer=Gießen, Dampfhammer
-immersiverailroading:crafting_type.plate_small=Plattenwalze
-immersiverailroading:crafting_type.plate_medium=Plattenwalze
-immersiverailroading:crafting_type.plate_large=Plattenwalze
-immersiverailroading:crafting_type.plate_boiler=Plattenwalze, Kesselwalze
+immersiverailroading:crafting_type.casting=Gießen im Gußbecken
+immersiverailroading:crafting_type.casting_hammer=Gießen im Gußbecken, Schmieden unter dem Dampfhammer
+immersiverailroading:crafting_type.plate_small=Walzen einer kleine Platte in der Plattenwalze
+immersiverailroading:crafting_type.plate_medium=Walzen einer mittlere Platte in der Plattenwalze
+immersiverailroading:crafting_type.plate_large=Walzen einer große Platte in der Plattenwalze
+immersiverailroading:crafting_type.plate_boiler=Walzen einer Kesselplatte in der Plattenwalze, danach Bearbeiten in der Kessel Maschine
 
 itemGroup.immersiverailroading.main=Immersive Railroading
 itemGroup.immersiverailroading.locomotive=Immersive Railroading Lokomotiven

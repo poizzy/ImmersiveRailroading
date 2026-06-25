@@ -176,8 +176,9 @@ track.immersiverailroading:smoothing.far=遠い
 track.immersiverailroading:smoothing.neither=どちらでもない
 
 track.immersiverailroading:direction.none=両方向
-track.immersiverailroading:direction.left=左側に固定
-track.immersiverailroading:direction.right=右側に固定
+# Intended
+track.immersiverailroading:direction.left=右側に固定
+track.immersiverailroading:direction.right=左側に固定
 
 part.immersiverailroading:component.frame=台枠
 part.immersiverailroading:component.front_frame=前側台枠
@@ -247,12 +248,12 @@ multiblock.immersiverailroading:plate_machine=プレート鍛造機
 multiblock.immersiverailroading:rail_machine=レール鍛造機
 multiblock.immersiverailroading:steam_hammer=蒸気ハンマー
 
-immersiverailroading:crafting_type.casting=鋳造機
-immersiverailroading:crafting_type.casting_hammer=鋳造、鋳造ハンマー
-immersiverailroading:crafting_type.plate_small=プレートローラー 小
-immersiverailroading:crafting_type.plate_medium=プレートローラー 中
-immersiverailroading:crafting_type.plate_large=プレートローラー 大
-immersiverailroading:crafting_type.plate_boiler=プレートローラー、ボイラーローラー
+immersiverailroading:crafting_type.casting=鋳造機で鋳造
+immersiverailroading:crafting_type.casting_hammer=鋳造機で鋳造し、蒸気ハンマーで鍛造
+immersiverailroading:crafting_type.plate_small=プレート鍛造機で小さいプレートとして製造
+immersiverailroading:crafting_type.plate_medium=プレート鍛造機で中くらいのプレートとして製造
+immersiverailroading:crafting_type.plate_large=プレート鍛造機で大きいプレートとして製造
+immersiverailroading:crafting_type.plate_boiler=プレート鍛造機でボイラープレートとして製造し、ボイラーマシーンで処理
 
 itemGroup.immersiverailroading.main=Immersive Railroading
 itemGroup.immersiverailroading.locomotive=IR 機関車
