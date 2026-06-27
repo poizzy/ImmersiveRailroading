@@ -239,7 +239,7 @@ part.immersiverailroading:controls.train_brake=列车制动阀
 part.immersiverailroading:controls.independent_brake=独立制动阀
 part.immersiverailroading:controls.throttle=节流阀
 part.immersiverailroading:controls.reverser=换向器
-part.immersiverailroading:controls.throttle_brake=动力制动阀
+part.immersiverailroading:controls.throttle_brake=主控把手
 part.immersiverailroading:controls.engine_start=启动发动机
 
 multiblock.immersiverailroading:boiler_machine=锅炉卷板机
