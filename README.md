@@ -20,7 +20,7 @@
      <img src="https://modrinth.roughness.technology/full_PVCiYbMM_downloads.svg">
   </a>
   <a href="">
-    <img src=" https://modrinth.roughness.technology/versions/For%20MC_PVCiYbMM_all.svg">
+    <img src="https://modrinth.roughness.technology/versions/For%20MC_PVCiYbMM_all.svg">
   </a>
   <a href="">
     <img src="https://github.com/TeamOpenIndustry/ImmersiveRailroading/workflows/Immersive%20Railroading%20Build%20Pipeline/badge.svg">
