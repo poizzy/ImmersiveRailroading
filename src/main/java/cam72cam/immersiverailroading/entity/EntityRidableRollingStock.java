@@ -151,9 +151,7 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 
         movement = new Vec3d(movement.x, 0, movement.z).rotateYaw(this.getRotationYaw() - source.getRotationYawHead());
 
-		if (!getDefinition().hitsNavCollisionMesh(this.gauge, offset, movement)) {
-			offset = offset.add(movement);
-		}
+		offset = offset.add(getDefinition().correctMovement(this.gauge, offset, movement));
 
         if (this instanceof EntityCoupleableRollingStock) {
 			EntityCoupleableRollingStock couplable = (EntityCoupleableRollingStock) this;

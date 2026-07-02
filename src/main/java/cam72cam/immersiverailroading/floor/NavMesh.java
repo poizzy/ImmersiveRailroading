@@ -3,7 +3,6 @@ package cam72cam.immersiverailroading.floor;
 import cam72cam.immersiverailroading.model.StockModel;
 import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
 import cam72cam.immersiverailroading.util.VecUtil;
-import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.boundingbox.IBoundingBox;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.math.Vec3i;
@@ -17,55 +16,42 @@ import java.util.*;
 public class NavMesh {
     public final BVHNode root;
     public final BVHNode collisionRoot;
+    // TODO: check RAM usage
+    private final List<Edge> floorBoundaryEdges;
     // Theoretically this could be much lower. IR floor meshes probably won't use the whole depth, but who knows
     private static final int MAX_DEPTH = 20;
     private static final int LEAF_SIZE = 8;
 
     public NavMesh(EntityRollingStockDefinition definition) {
         StockModel<?, ?> model = definition.getModel();
+        List<OBJFace> floorFaces;
         if (model.floor != null) {
-            root = initFloorMesh(model);
-            // Correct bounds to match actual bb
+            floorFaces = collectFloorFaces(model);
+            root = buildBVH(new ArrayList<>(floorFaces), 0);
             Vec3d bounds = model.floor.max.subtract(model.floor.min);
             definition.passengerCompartmentLength = bounds.x/2;
             definition.passengerCompartmentWidth = bounds.z/2;
         } else {
-            root = initFloorLegacy(definition);
+            floorFaces = legacyFloorFaces(definition);
+            root = buildBVH(new ArrayList<>(floorFaces), 0);
         }
+
+        floorBoundaryEdges = computeBoundaryEdges(floorFaces);
 
         collisionRoot = initCollisionMesh(model);
     }
 
-    private BVHNode initFloorMesh(StockModel<?, ?> model) {
+    private List<OBJFace> collectFloorFaces(StockModel<?, ?> model) {
         FaceAccessor accessor = model.getFaceAccessor();
-
         List<OBJFace> floor = new ArrayList<>();
-        if (model.floor != null) {
-            model.floor.modelIDs.forEach(group -> {
-                FaceAccessor sub = accessor.getSubByGroup(group);
-                sub.forEach(a -> floor.add(a.asOBJFace()));
-            });
-        }
-        return buildBVH(floor, 0);
-    }
-    private BVHNode initCollisionMesh(StockModel<?, ?> model) {
-        FaceAccessor accessor = model.getFaceAccessor();
-
-        List<OBJFace> collision = new ArrayList<>();
-        if (model.collision != null) {
-            model.collision.modelIDs.forEach(group -> {
-                FaceAccessor sub = accessor.getSubByGroup(group);
-                sub.forEach(a -> collision.add(a.asOBJFace()));
-            });
-        }
-
-        if (collision.isEmpty()) {
-            return null;
-        }
-        return buildBVH(collision, 0);
+        model.floor.modelIDs.forEach(group -> {
+            FaceAccessor sub = accessor.getSubByGroup(group);
+            sub.forEach(a -> floor.add(a.asOBJFace()));
+        });
+        return floor;
     }
 
-    private BVHNode initFloorLegacy(EntityRollingStockDefinition def) {
+    private List<OBJFace> legacyFloorFaces(EntityRollingStockDefinition def) {
         Vec3d center = def.passengerCenter;
         Double length = def.passengerCompartmentLength;
         Double width = def.passengerCompartmentWidth;
@@ -73,7 +59,6 @@ public class NavMesh {
         if (length == null || width == null) {
             throw new RuntimeException(String.format("Rolling stock %s needs to have either a FLOOR object or have \"length\" and \"width\" defined in the \"passenger\" section of the stocks json", def.name()));
         }
-
         if (center == null) {
             center = Vec3d.ZERO;
         }
@@ -100,7 +85,123 @@ public class NavMesh {
         face1.normal = normal;
         face2.normal = normal;
 
-        return buildBVH(Arrays.asList(face1, face2), 0);
+        return Arrays.asList(face1, face2);
+    }
+
+    public static class Edge {
+        public final Vec3d start;
+        public final Vec3d end;
+        Edge(Vec3d start, Vec3d end) {
+            this.start = start;
+            this.end = end;
+        }
+    }
+
+    private List<Edge> computeBoundaryEdges(List<OBJFace> triangles) {
+        Map<String, Edge> edgeByKey = new HashMap<>();
+        Map<String, Integer> edgeCount = new HashMap<>();
+
+        for (OBJFace tri : triangles) {
+            addEdge(tri.vertex0.pos, tri.vertex1.pos, edgeByKey, edgeCount);
+            addEdge(tri.vertex1.pos, tri.vertex2.pos, edgeByKey, edgeCount);
+            addEdge(tri.vertex2.pos, tri.vertex0.pos, edgeByKey, edgeCount);
+        }
+
+        List<Edge> boundary = new ArrayList<>();
+        for (Map.Entry<String, Integer> e : edgeCount.entrySet()) {
+            if (e.getValue() == 1) {
+                boundary.add(edgeByKey.get(e.getKey()));
+            }
+        }
+        return boundary;
+    }
+
+    private void addEdge(Vec3d a, Vec3d b, Map<String, Edge> edgeByKey, Map<String, Integer> edgeCount) {
+        String key = edgeKey(a, b);
+        edgeByKey.putIfAbsent(key, new Edge(a, b));
+        edgeCount.merge(key, 1, Integer::sum);
+    }
+
+    private static String edgeKey(Vec3d a, Vec3d b) {
+        String ka = pointKey(a);
+        String kb = pointKey(b);
+        return ka.compareTo(kb) <= 0 ? ka + "|" + kb : kb + "|" + ka;
+    }
+
+    private static String pointKey(Vec3d v) {
+        return String.format(Locale.ROOT, "%.4f,%.4f,%.4f", v.x, v.y, v.z);
+    }
+
+    public Edge closestBoundaryEdge(Vec3d point) {
+        Edge closest = null;
+        double closestDistSq = Double.MAX_VALUE;
+        for (Edge edge : floorBoundaryEdges) {
+            Vec3d onSeg = closestPointOnSegment(point, edge.start, edge.end);
+            double dx = point.x - onSeg.x, dy = point.y - onSeg.y, dz = point.z - onSeg.z;
+            double distSq = dx*dx + dy*dy + dz*dz;
+            if (distSq < closestDistSq) {
+                closestDistSq = distSq;
+                closest = edge;
+            }
+        }
+        return closest;
+    }
+
+    private static Vec3d closestPointOnSegment(Vec3d p, Vec3d a, Vec3d b) {
+        double abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
+        double apx = p.x - a.x, apy = p.y - a.y, apz = p.z - a.z;
+        double abLenSq = abx*abx + aby*aby + abz*abz;
+        double t = abLenSq < 1e-9 ? 0 : (apx*abx + apy*aby + apz*abz) / abLenSq;
+        t = Math.max(0, Math.min(1, t));
+        return new Vec3d(a.x + abx * t, a.y + aby * t, a.z + abz * t);
+    }
+
+
+    public boolean isPointOnFloor(Vec3d point, double scale) {
+        IBoundingBox box = IBoundingBox.from(
+                point.subtract(0.05, 0.5, 0.05),
+                point.add(0.05, 0.5, 0.05)
+        );
+        List<OBJFace> nearby = new ArrayList<>();
+        queryBVH(root, box, nearby, scale);
+        for (OBJFace tri : nearby) {
+            if (pointInTriangleXZ(point, tri)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean pointInTriangleXZ(Vec3d p, OBJFace tri) {
+        double d1 = signXZ(p, tri.vertex0.pos, tri.vertex1.pos);
+        double d2 = signXZ(p, tri.vertex1.pos, tri.vertex2.pos);
+        double d3 = signXZ(p, tri.vertex2.pos, tri.vertex0.pos);
+
+        boolean hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+        boolean hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+
+        return !(hasNeg && hasPos);
+    }
+
+    private static double signXZ(Vec3d p, Vec3d a, Vec3d b) {
+        return (p.x - b.x) * (a.z - b.z) - (a.x - b.x) * (p.z - b.z);
+    }
+
+    private BVHNode initCollisionMesh(StockModel<?, ?> model) {
+        FaceAccessor accessor = model.getFaceAccessor();
+
+        List<OBJFace> collision = new ArrayList<>();
+        if (model.collision != null) {
+            model.collision.modelIDs.forEach(group -> {
+                FaceAccessor sub = accessor.getSubByGroup(group);
+                sub.forEach(a -> collision.add(a.asOBJFace()));
+            });
+        }
+
+        if (collision.isEmpty()) {
+            return null;
+        }
+        return buildBVH(collision, 0);
     }
 
     public static class BVHNode {

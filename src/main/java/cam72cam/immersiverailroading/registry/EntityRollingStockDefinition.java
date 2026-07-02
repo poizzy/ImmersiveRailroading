@@ -624,10 +624,41 @@ public abstract class EntityRollingStockDefinition {
         return false;
     }
 
+    // TODO Rename
+    public Vec3d correctMovement(Gauge gauge, Vec3d passengerOffset, Vec3d movement) {
+        if (movement.length() == 0) {
+            return movement;
+        }
+
+        // Flip Cords
+        Vec3d flippedOffset = passengerOffset.rotateYaw(-90);
+        Vec3d flippedMovement = movement.rotateYaw(-90);
+        Vec3d target = flippedOffset.add(flippedMovement);
+
+        if (navMesh.isPointOnFloor(target, gauge.scale())) {
+            return movement;
+        }
+
+        NavMesh.Edge edge = navMesh.closestBoundaryEdge(flippedOffset);
+        if (edge == null) {
+            return movement;
+        }
+
+        Vec3d tangent = edge.end.subtract(edge.start);
+        if (tangent.length() < 1e-6) {
+            return Vec3d.ZERO;
+        }
+        tangent = tangent.normalize().rotateYaw(90);
+
+        double proj = movement.x * tangent.x + movement.y * tangent.y + movement.z * tangent.z;
+        return tangent.scale(proj);
+    }
+
     public Vec3d correctPassengerBounds(Gauge gauge, Vec3d passengerOffset, boolean shouldSit) {
         // Flip coords
         passengerOffset = passengerOffset.rotateYaw(-90);
 
+        // TODO: check for loop
         for (float searchRange : new float[]{0.5f, 5f, 10f}) {
             IBoundingBox rayBox = IBoundingBox.from(
                     passengerOffset.subtract(searchRange, searchRange, searchRange),
