@@ -15,8 +15,7 @@ import java.util.*;
 
 public class NavMesh {
     public final BVHNode root;
-    public final BVHNode collisionRoot;
-    // TODO: check RAM usage
+    // public final BVHNode collisionRoot;
     private final List<Edge> floorBoundaryEdges;
     // Theoretically this could be much lower. IR floor meshes probably won't use the whole depth, but who knows
     private static final int MAX_DEPTH = 20;
@@ -38,7 +37,7 @@ public class NavMesh {
 
         floorBoundaryEdges = computeBoundaryEdges(floorFaces);
 
-        collisionRoot = initCollisionMesh(model);
+        // collisionRoot = initCollisionMesh(model);
     }
 
     private List<OBJFace> collectFloorFaces(StockModel<?, ?> model) {

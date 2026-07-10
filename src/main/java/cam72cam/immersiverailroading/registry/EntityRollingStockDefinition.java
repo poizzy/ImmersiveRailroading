@@ -594,35 +594,37 @@ public abstract class EntityRollingStockDefinition {
         return renderComponents.get(name);
     }
 
-    public boolean hitsNavCollisionMesh(Gauge gauge, Vec3d passengerOffset, Vec3d movement) {
-        if (navMesh.collisionRoot == null) {
-            return false;
-        }
-        // Flip coords
-        passengerOffset = passengerOffset.rotateYaw(-90);
-        movement = movement.rotateYaw(-90);
+    // Don't know if this will ever be used
 
-        passengerOffset = passengerOffset.add(movement);
-
-        IBoundingBox rayBox = IBoundingBox.from(
-                passengerOffset.subtract(0.25f, 0.5f, 0.25f),
-                passengerOffset.add(0.25f, 0.5f, 0.25f)
-        );
-        List<OBJFace> nearby = new ArrayList<>();
-        navMesh.queryBVH(navMesh.collisionRoot, rayBox, nearby, gauge.scale());
-
-        Vec3d rayStart = passengerOffset.add(0, 1, 0);
-        Vec3d rayDir = movement.normalize();
-
-        for (OBJFace tri : nearby) {
-            Double t = MathUtil.intersectRayTriangle(rayStart, rayDir, tri);
-            if (t != null) {
-               return true;
-            }
-        }
-
-        return false;
-    }
+//    public boolean hitsNavCollisionMesh(Gauge gauge, Vec3d passengerOffset, Vec3d movement) {
+//        if (navMesh.collisionRoot == null) {
+//            return false;
+//        }
+//        // Flip coords
+//        passengerOffset = passengerOffset.rotateYaw(-90);
+//        movement = movement.rotateYaw(-90);
+//
+//        passengerOffset = passengerOffset.add(movement);
+//
+//        IBoundingBox rayBox = IBoundingBox.from(
+//                passengerOffset.subtract(0.25f, 0.5f, 0.25f),
+//                passengerOffset.add(0.25f, 0.5f, 0.25f)
+//        );
+//        List<OBJFace> nearby = new ArrayList<>();
+//        navMesh.queryBVH(navMesh.collisionRoot, rayBox, nearby, gauge.scale());
+//
+//        Vec3d rayStart = passengerOffset.add(0, 1, 0);
+//        Vec3d rayDir = movement.normalize();
+//
+//        for (OBJFace tri : nearby) {
+//            Double t = MathUtil.intersectRayTriangle(rayStart, rayDir, tri);
+//            if (t != null) {
+//               return true;
+//            }
+//        }
+//
+//        return false;
+//    }
 
     // TODO Rename
     public Vec3d correctMovement(Gauge gauge, Vec3d passengerOffset, Vec3d movement) {
