@@ -6,6 +6,7 @@ import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
 import cam72cam.immersiverailroading.floor.NavMesh;
+import cam72cam.immersiverailroading.model.part.Door;
 import cam72cam.immersiverailroading.util.*;
 import cam72cam.immersiverailroading.gui.overlay.GuiBuilder;
 import cam72cam.immersiverailroading.gui.overlay.Readouts;
@@ -13,6 +14,7 @@ import cam72cam.immersiverailroading.library.*;
 import cam72cam.immersiverailroading.model.StockModel;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
 import cam72cam.mod.entity.EntityRegistry;
+import cam72cam.mod.entity.Player;
 import cam72cam.mod.entity.boundingbox.IBoundingBox;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.FaceAccessor;
@@ -627,7 +629,7 @@ public abstract class EntityRollingStockDefinition {
 //    }
 
     // TODO Rename
-    public Vec3d correctMovement(Gauge gauge, Vec3d passengerOffset, Vec3d movement) {
+    public Vec3d correctMovement(EntityRollingStock stock, Gauge gauge, Vec3d passengerOffset, Vec3d movement) {
         if (movement.length() == 0) {
             return movement;
         }
@@ -636,6 +638,14 @@ public abstract class EntityRollingStockDefinition {
         Vec3d flippedOffset = passengerOffset.rotateYaw(-90);
         Vec3d flippedMovement = movement.rotateYaw(-90);
         Vec3d target = flippedOffset.add(flippedMovement);
+
+        // Slide along closed doors
+        Vec3d doorTangent;
+        if ((doorTangent = getDoorTangent(stock, flippedOffset, target)) != null) {
+            doorTangent.rotateYaw(90);
+            double proj = movement.dotProduct(doorTangent);
+            return doorTangent.scale(proj);
+        }
 
         if (navMesh.isPointOnFloor(target, gauge.scale())) {
             return movement;
@@ -654,6 +664,39 @@ public abstract class EntityRollingStockDefinition {
 
         double proj = movement.x * tangent.x + movement.y * tangent.y + movement.z * tangent.z;
         return tangent.scale(proj);
+    }
+
+    private Vec3d getDoorTangent(EntityRollingStock stock, Vec3d start, Vec3d end) {
+        // Maybe filter by nearest door?
+        List<Door<?>> doors = getModel().getDoors().stream()
+                .filter(d -> d.type == Door.Types.CONNECTING || d.type == Door.Types.INTERNAL)
+                .filter(d -> !d.isOpen(stock)).collect(Collectors.toUnmodifiableList());
+
+        boolean intersects = true;
+        Door<?> intersectingDoor = null;
+
+        for (Door<?> door : doors) {
+            IBoundingBox box = IBoundingBox.from(
+                    door.part.max,
+                    door.part.min
+            );
+            intersects = box.intersectsSegment(start, end);
+            if (intersects) {
+                intersectingDoor = door;
+                break;
+            }
+        }
+
+        if (intersects) {
+            Vec3d p1 = intersectingDoor.part.min;
+            Vec3d p2 = intersectingDoor.part.max;
+
+            p2 = new Vec3d(p2.x, p1.y, p2.z);
+
+            return p2.subtract(p1).normalize();
+        }
+
+        return null;
     }
 
     public Vec3d correctPassengerBounds(Gauge gauge, Vec3d passengerOffset, boolean shouldSit) {
