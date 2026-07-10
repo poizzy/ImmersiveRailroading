@@ -10,6 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         branch: [1.7.10-forge,
                  1.10.2-forge,
