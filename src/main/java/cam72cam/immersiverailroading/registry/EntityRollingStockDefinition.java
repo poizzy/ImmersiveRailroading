@@ -642,7 +642,7 @@ public abstract class EntityRollingStockDefinition {
         // Slide along closed doors
         Vec3d doorTangent;
         if ((doorTangent = getDoorTangent(stock, flippedOffset, target)) != null) {
-            doorTangent.rotateYaw(90);
+            doorTangent = doorTangent.rotateYaw(90);
             double proj = movement.dotProduct(doorTangent);
             return doorTangent.scale(proj);
         }
@@ -672,15 +672,15 @@ public abstract class EntityRollingStockDefinition {
                 .filter(d -> d.type == Door.Types.CONNECTING || d.type == Door.Types.INTERNAL)
                 .filter(d -> !d.isOpen(stock)).collect(Collectors.toUnmodifiableList());
 
-        boolean intersects = true;
+        boolean intersects = false;
         Door<?> intersectingDoor = null;
 
         for (Door<?> door : doors) {
             IBoundingBox box = IBoundingBox.from(
-                    door.part.max,
-                    door.part.min
+                    door.part.min,
+                    door.part.max
             );
-            intersects = box.intersectsSegment(start, end);
+            intersects = box.intersectsSegment(start.add(0, 1, 0), end.add(0, 1, 0));
             if (intersects) {
                 intersectingDoor = door;
                 break;
