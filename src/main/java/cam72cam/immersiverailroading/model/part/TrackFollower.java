@@ -96,7 +96,7 @@ public class TrackFollower {
                 yawReadout = toPointYaw + atPointYaw;
 
                 rollReadout = (float) (toMinPoint < 0 ? pointPos.getRoll() : -pointPos.getRoll()) - stock.getRotationRoll();// TODO: pointPosNext might be more accurate, but need to fix sign issue
-                if(toMinPoint < 0) {
+                if(betweenPoints < 0) {
                     rollReadout = -rollReadout;
                 }
 
