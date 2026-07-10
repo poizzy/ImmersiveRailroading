@@ -678,7 +678,7 @@ public abstract class EntityRollingStockDefinition {
                 Vec3d p2 = face.vertex2.pos;
 
                 Vec3d pointOnTri = MathUtil.closestPointOnTriangle(passengerOffset, p0, p1, p2);
-                double distSq = passengerOffset.subtract(pointOnTri).lengthSquared();
+                double distSq = passengerOffset.add(0, pointOnTri.y, 0).subtract(pointOnTri).lengthSquared();
 
                 if (closestPoint == null || distSq < closestDistanceSq) {
                     closestDistanceSq = distSq;
