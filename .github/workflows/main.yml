@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'master'
+      - 'testbuild'
 
 jobs:
   build:
@@ -44,10 +45,6 @@ jobs:
       run: find src/main/resources/assets/immersiverailroading/ | grep png | xargs -I foo pngquant -s1 -f --ext .png foo
     - name: Gradle build
       run: ./gradlew build
-    - name: Gradle publish
-      env:
-        MAVENCI_PASS: ${{ secrets.MAVENCI_PASS }}
-      run: ./gradlew publish
     - uses: actions/upload-artifact@v6
       with:
         name: Immersive Railroading ${{matrix.branch}}
