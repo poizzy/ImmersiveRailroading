@@ -704,7 +704,8 @@ public abstract class EntityRollingStockDefinition {
         passengerOffset = passengerOffset.rotateYaw(-90);
 
         // TODO: check for loop
-        for (float searchRange : new float[]{0.5f, 5f, 10f}) {
+        // Added 40m search range just in case
+        for (float searchRange : new float[]{0.5f, 5f, 10f, 40f}) {
             IBoundingBox rayBox = IBoundingBox.from(
                     passengerOffset.subtract(searchRange, searchRange, searchRange),
                     passengerOffset.add(searchRange, searchRange, searchRange)
