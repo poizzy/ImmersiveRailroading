@@ -121,7 +121,7 @@ public abstract class EntityRidableRollingStock extends EntityBuildableRollingSt
 		if (seat != null) {
 			offset = seat;
 		} else {
-			offset = this.getDefinition().correctPassengerBounds(gauge, offset, shouldRiderSit(passenger));
+			offset = this.getDefinition().correctPassengerBounds(gauge, offset.subtract(0, Math.sin(Math.toRadians(this.getRotationPitch())) * offset.z, 0), shouldRiderSit(passenger));
 		}
 		offset = offset.add(0, Math.sin(Math.toRadians(this.getRotationPitch())) * offset.z, 0);
 
