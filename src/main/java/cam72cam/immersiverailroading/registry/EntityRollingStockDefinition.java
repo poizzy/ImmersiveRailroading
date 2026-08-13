@@ -5,6 +5,8 @@ import cam72cam.immersiverailroading.ConfigSound;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
+import cam72cam.immersiverailroading.util.floor.NavMesh;
+import cam72cam.immersiverailroading.model.part.Door;
 import cam72cam.immersiverailroading.floor.NavMesh;
 import cam72cam.immersiverailroading.font.FontLoader;
 import cam72cam.immersiverailroading.textfield.TextFieldConfig;
@@ -17,8 +19,10 @@ import cam72cam.immersiverailroading.model.StockModel;
 import cam72cam.immersiverailroading.model.components.ModelComponent;
 import cam72cam.mod.ModCore;
 import cam72cam.mod.entity.EntityRegistry;
+import cam72cam.mod.entity.boundingbox.IBoundingBox;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.obj.FaceAccessor;
+import cam72cam.mod.model.obj.OBJFace;
 import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.*;
 import cam72cam.mod.serialization.ResourceCache.GenericByteBuffer;
@@ -31,6 +35,7 @@ import cam72cam.mod.world.World;
 
 import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
+
 import java.io.*;
 import java.util.*;
 import java.util.function.Function;
@@ -82,6 +87,7 @@ public abstract class EntityRollingStockDefinition implements JsonDefinition {
     private double rearBounds;
     private double heightBounds;
     private double widthBounds;
+    public Vec3d passengerCenter;
     public Double passengerCompartmentLength;
     public Double passengerCompartmentWidth;
     private double weight;
@@ -95,8 +101,8 @@ public abstract class EntityRollingStockDefinition implements JsonDefinition {
     private final Function<EntityBuildableRollingStock, float[][]> heightmap;
     private final Map<String, LightDefinition> lights = new HashMap<>();
     protected final Map<String, ControlSoundsDefinition> controlSounds = new HashMap<>();
-    public Identifier smokeParticleTexture;
-    public Identifier steamParticleTexture;
+    private List<Identifier> smokeParticleTextures;
+    private List<Identifier> steamParticleTextures;
     private boolean isLinearBrakeControl;
     private GuiBuilder overlay;
     private List<String> extraTooltipInfo;
@@ -473,18 +479,9 @@ public abstract class EntityRollingStockDefinition implements JsonDefinition {
 
         DataBlock passenger = data.getBlock("passenger");
 
-        if (passenger.getValue("center_x") != null && passenger.getValue("center_y") != null) {
-            passengerCenter = new Vec3d(-passenger.getValue("center_x").asDouble(), passenger.getValue("center_y").asDouble() - 0.35, 0).scale(internal_model_scale);
-        }
-
-        if (passenger.getValue("length") != null) {
-            passengerCompartmentLength = passenger.getValue("length").asDouble() * internal_model_scale;
-        }
-
-        if (passenger.getValue("width") != null) {
-            passengerCompartmentWidth = passenger.getValue("width").asDouble() * internal_model_scale;
-        }
-
+        passengerCenter = new Vec3d(-passenger.getValue("center_x").asDouble(), passenger.getValue("center_y").asDouble() - 0.35, 0).scale(internal_model_scale);
+        passengerCompartmentLength = passenger.getValue("length").asDouble() * internal_model_scale;
+        passengerCompartmentWidth = passenger.getValue("width").asDouble() * internal_model_scale;
         maxPassengers = passenger.getValue("slots").asInteger();
         shouldSit = passenger.getValue("should_sit").asBoolean();
 
@@ -582,16 +579,35 @@ public abstract class EntityRollingStockDefinition implements JsonDefinition {
             extra_tooltip_info.forEach(value -> extraTooltipInfo.add(value.asString()));
         }
 
-        smokeParticleTexture = steamParticleTexture = DEFAULT_PARTICLE_TEXTURE;
+        smokeParticleTextures = steamParticleTextures = List.of(DEFAULT_PARTICLE_TEXTURE);
         DataBlock particles = data.getBlock("particles");
         if (particles != null) {
             DataBlock smoke = particles.getBlock("smoke");
             if (smoke != null) {
-                smokeParticleTexture = new Identifier(smoke.getValue("texture").asString());
+                List<DataBlock.Value> smokeTextures = smoke.getValues("textures");
+                if (smokeTextures != null) {
+                    smokeParticleTextures = smokeTextures.stream().map(val -> new Identifier(val.asString())).toList();
+                    if (smokeParticleTextures.isEmpty()) {
+                        throw new RuntimeException("Please add at least 1 particle texture in smoke textures!");
+                    }
+                } else {
+                    //Legacy
+                    smokeParticleTextures = List.of(new Identifier(smoke.getValue("texture").asString()));
+                }
             }
+
             DataBlock steam = particles.getBlock("steam");
             if (steam != null) {
-                steamParticleTexture = new Identifier(steam.getValue("texture").asString());
+                List<DataBlock.Value> steamTextures = steam.getValues("textures");
+                if (steamTextures != null) {
+                    steamParticleTextures = steamTextures.stream().map(val -> new Identifier(val.asString())).toList();
+                    if (steamParticleTextures.isEmpty()) {
+                        throw new RuntimeException("Please add at least 1 particle texture in steam textures!");
+                    }
+                } else {
+                    //Legacy
+                    steamParticleTextures = List.of(new Identifier(steam.getValue("texture").asString()));
+                }
             }
         }
 
@@ -625,6 +641,139 @@ public abstract class EntityRollingStockDefinition implements JsonDefinition {
             return null;
         }
         return renderComponents.get(name);
+    }
+
+    public Vec3d calculateCorrectedMovement(EntityRollingStock stock, Gauge gauge, Vec3d passengerOffset, Vec3d movement) {
+        if (movement.length() == 0) {
+            return movement;
+        }
+
+        double scale = gauge.scale();
+        // Flip Cords from game (-Z forward) to model (-X forward)
+        Vec3d flippedOffset = passengerOffset.rotateYaw(-90);
+        Vec3d flippedMovement = movement.rotateYaw(-90);
+        Vec3d flippedTarget = flippedOffset.add(flippedMovement);
+
+        // Try to slide along closed doors
+        Vec3d doorTangent;
+        if ((doorTangent = getCollidingDoorTangent(stock, gauge, flippedOffset, flippedTarget)) != null) {
+            doorTangent = doorTangent.rotateYaw(90);
+            double proj = movement.dotProduct(doorTangent);
+            return doorTangent.scale(proj);
+        }
+
+        if (navMesh.isPointOnFloor(flippedTarget, scale)) {
+            return movement;
+        }
+
+        //Try to slide along the edge (if present)
+        Vec3d clamped = navMesh.closestBoundaryPoint(flippedTarget, scale);
+        if (clamped == null) {
+            return movement;
+        }
+        //Flip back
+        return clamped.subtract(flippedOffset).rotateYaw(90);
+    }
+
+    //Trying to query closed doors we're colliding and get their tangent to restrict moving
+    private Vec3d getCollidingDoorTangent(EntityRollingStock stock, Gauge gauge, Vec3d start, Vec3d end) {
+        // Maybe filter by nearest door?
+        List<Door<?>> doors = getModel().getDoors().stream()
+                .filter(d -> d.type == Door.Types.CONNECTING || d.type == Door.Types.INTERNAL)
+                .filter(d -> !d.isOpen(stock)).collect(Collectors.toUnmodifiableList());
+
+        boolean intersects = false;
+        Door<?> intersectingDoor = null;
+
+        for (Door<?> door : doors) {
+            IBoundingBox box = IBoundingBox.from(
+                    door.part.min.scale(gauge.scale()),
+                    door.part.max.scale(gauge.scale())
+            );
+            intersects = box.intersectsSegment(start.add(0, 1, 0), end.add(0, 1, 0));
+            if (intersects) {
+                intersectingDoor = door;
+                break;
+            }
+        }
+
+        if (intersects) {
+            Vec3d p1 = intersectingDoor.part.min.scale(gauge.scale());
+            Vec3d p2 = intersectingDoor.part.max.scale(gauge.scale());
+
+            p2 = new Vec3d(p2.x, p1.y, p2.z);
+
+            return p2.subtract(p1).normalize();
+        }
+
+        return null;
+    }
+
+    public Vec3d correctPassengerBounds(Gauge gauge, Vec3d passengerOffset, boolean shouldSit, boolean isNewlyMounted) {
+        // Flip coords
+        passengerOffset = passengerOffset.rotateYaw(-90);
+
+        float searchRange = isNewlyMounted ? Float.POSITIVE_INFINITY : NavMesh.RANGE * (float) gauge.scale();
+        IBoundingBox rayBox = IBoundingBox.from(
+                passengerOffset.subtract(searchRange, searchRange, searchRange),
+                passengerOffset.add(searchRange, searchRange, searchRange)
+        );
+        List<OBJFace> nearby = new ArrayList<>();
+        navMesh.queryBVH(navMesh.root, rayBox, nearby, gauge.scale());
+        if (nearby.isEmpty()) {
+            return passengerOffset.rotateYaw(90);
+        }
+
+        // If a player is already in bounds, we want to find the highest result, otherwise the nearest result
+        Vec3d highest = null;
+        double highestY = Double.NEGATIVE_INFINITY;
+        Vec3d nearest = null;
+        double nearestDistSq = Double.MAX_VALUE;
+
+        for (OBJFace face : nearby) {
+            Vec3d p0 = face.vertex0.pos;
+            Vec3d p1 = face.vertex1.pos;
+            Vec3d p2 = face.vertex2.pos;
+
+            Vec3d pointOnTri = MathUtil.closestPointOnTriangle(passengerOffset, p0, p1, p2);
+
+            // For newly mounted players we always want the nearest result
+            if (!isNewlyMounted && MathUtil.pointInTriangleXZ(passengerOffset, p0, p1, p2)) {
+                Double h = MathUtil.heightAtXZ(passengerOffset, p0, p1, p2);
+                if (h != null) {
+                    if (h > highestY && h - passengerOffset.y <= searchRange) {
+                        highestY = h;
+                        highest = new Vec3d(passengerOffset.x, h, passengerOffset.z);
+                    }
+                    continue;
+                }
+                // (Near-)Vertical face that still has an XZ footprint: fall through to nearest
+            }
+
+            //Not directly within horizontal bounds, keep the nearest fallback
+            //Use normal Y for mounting, and 0 for internal moving (mostly going across stairs)
+            double distSq = passengerOffset
+                    .distanceToSquared(new Vec3d(pointOnTri.x, isNewlyMounted ? pointOnTri.y : 0, pointOnTri.z));
+            if (distSq < nearestDistSq) {
+                nearestDistSq = distSq;
+                nearest = pointOnTri;
+            }
+        }
+
+        Vec3d closestPoint = highest != null ? highest : nearest;
+        if (closestPoint == null) {
+            closestPoint = passengerOffset;
+        }
+        // Flip coords back
+        return closestPoint.rotateYaw(90);
+    }
+
+    public boolean isAtFront(Gauge gauge, Vec3d pos) {
+        return pos.z >= (this.passengerCompartmentLength - this.passengerCenter.x) * gauge.scale();
+    }
+
+    public boolean isAtRear(Gauge gauge, Vec3d pos) {
+        return pos.z <= (-this.passengerCompartmentLength - this.passengerCenter.x) * gauge.scale();
     }
 
     public List<ItemComponentType> getItemComponents() {
@@ -994,6 +1143,24 @@ public abstract class EntityRollingStockDefinition implements JsonDefinition {
 
     public List<String> getExtraTooltipInfo() {
         return extraTooltipInfo;
+    }
+
+    public Identifier getSmokeParticle() {
+        if (smokeParticleTextures.size() == 1) {
+            //Fast fallback
+            return smokeParticleTextures.getFirst();
+        }
+        int i = ImmersiveRailroading.RANDOM.nextInt(smokeParticleTextures.size());
+        return smokeParticleTextures.get(i);
+    }
+
+    public Identifier getSteamParticle() {
+        if (steamParticleTextures.size() == 1) {
+            //Fast fallback
+            return steamParticleTextures.getFirst();
+        }
+        int i = ImmersiveRailroading.RANDOM.nextInt(steamParticleTextures.size());
+        return steamParticleTextures.get(i);
     }
 
     public double getSwayMultiplier() {

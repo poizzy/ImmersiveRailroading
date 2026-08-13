@@ -44,6 +44,7 @@ import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.sound.Audio;
 import cam72cam.mod.text.Command;
 
+import java.util.Random;
 import java.util.function.Function;
 
 import static cam72cam.immersiverailroading.gui.helpers.MouseHelper.mouseClicked;
@@ -52,6 +53,7 @@ import static cam72cam.immersiverailroading.gui.helpers.MouseHelper.updateMouseP
 public class ImmersiveRailroading extends ModCore.Mod {
     public static final String MODID = "immersiverailroading";
 
+	public static final Random RANDOM = new Random();
 	public static final int ENTITY_SYNC_DISTANCE = 512;
 	private static ImmersiveRailroading instance;
 

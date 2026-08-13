@@ -13,6 +13,26 @@ public class VecUtil {
 	public static Vec3d fromYaw(double distance, float yaw) {
 		return new Vec3d(Math.sin(Math.toRadians(yaw)) * distance, 0, Math.cos(Math.toRadians(yaw)) * distance);
 	}
+	public static Vec3d fromYawRoll(double distance, float yaw, float roll) {
+		double x = Math.sin(Math.toRadians(yaw)) * distance;
+		double z = Math.cos(Math.toRadians(yaw)) * distance;
+		double y = 0;
+
+		if (roll != 0) {
+			double rollRad = Math.toRadians(roll);
+			double cosRoll = Math.cos(rollRad);
+			double sinRoll = Math.sin(rollRad);
+
+			double horizontalLen = Math.sqrt(x * x + z * z);
+
+            y = horizontalLen * sinRoll;
+
+			x *= cosRoll;
+			z *= cosRoll;
+		}
+
+		return new Vec3d(x, y, z);
+	}
 	public static float toYaw(Vec3d delta) {
 		float yaw = (float) Math.toDegrees(FastMath.atan2(delta.x, delta.z));
 		return (yaw + 360f) % 360f;
@@ -51,6 +71,9 @@ public class VecUtil {
 		float yaw = (float) Math.toDegrees(FastMath.atan2(-delta.x, delta.z));
 		return (yaw + 360f) % 360f;
 	}
+	public static float toWrongYaw(float yaw) {
+		return (-yaw + 360f) % 360f;
+	}
 	public static float toPitch(Vec3d delta) {
 		float yaw = (float) Math.toDegrees(FastMath.atan2(Math.sqrt(delta.z * delta.z + delta.x * delta.x), delta.y));
 		return (yaw + 360f) % 360f;
@@ -67,6 +90,16 @@ public class VecUtil {
 	public static Vec3d between(Vec3d front, Vec3d rear) {
 		return new Vec3d((front.x + rear.x) / 2, (front.y + rear.y) / 2, (front.z + rear.z) / 2);
 	}
+	public static float delta(float yaw1, float yaw2) {
+		float diff = Math.abs(yaw1 - yaw2) % 360;
+		return diff > 180 ? 360 - diff : diff;
+	}
+
+	public static double flatDistance(Vec3d p1, Vec3d p2) {
+		double x = p1.x - p2.x;
+		double z = p1.z - p2.z;
+		return Math.sqrt(x * x + z * z);
+	}
 
 	public static double getByAxis(Vec3d vec, Axis axis) {
 		switch (axis) {
@@ -76,15 +109,4 @@ public class VecUtil {
 			default: throw new IllegalArgumentException("Invalid axis, did you provide a null?");
 		}
 	}
-
-    public static double dotProduct(Vec3d a, Vec3d b) {
-        return a.x * b.x + a.y * b.y + a.z * b.z;
-    }
-
-    public static Vec3d crossProduct(Vec3d a, Vec3d b) {
-        double cx = a.y * b.z - a.z * b.y;
-        double cy = a.z * b.x - a.x * b.z;
-        double cz = a.x * b.y - a.y * b.x;
-        return new Vec3d(cx, cy, cz);
-    }
 }

@@ -72,7 +72,7 @@ public class TileRailPreview extends BlockEntityTickable {
 		this.customInfo = info;
 		if (customInfo != null) {
 			RailSettings settings = RailSettings.from(item);
-			if(settings.type ==TrackItems.TURN
+			if(settings.type == TrackItems.TURN || settings.type == TrackItems.TURN_V2
 				|| settings.type == TrackItems.STRAIGHT
 				|| settings.type == TrackItems.SLOPE){
 				Vec3d placeOffset = new Vec3d(
@@ -80,7 +80,7 @@ public class TileRailPreview extends BlockEntityTickable {
 						0,
 						customInfo.placementPosition.z - placementInfo.placementPosition.z
 				);
-				float yaw = settings.type == TrackItems.TURN
+				float yaw = settings.type == TrackItems.TURN || settings.type == TrackItems.TURN_V2
 							? placementInfo.yaw + ((settings.direction == TrackDirection.LEFT ? -1 : 1) * (Math.abs(settings.degrees) / 2)) //Calculate arc direction for turn
 							: placementInfo.yaw; //Simply use its yaw
 				Vec3d unit = new Vec3d(0, 0, 1).rotateYaw(yaw);
@@ -89,6 +89,7 @@ public class TileRailPreview extends BlockEntityTickable {
 
 				switch (settings.type) {
 					case TURN:
+					case TURN_V2:
 						//Transform it back to radius
 						double sin = Math.sin(Math.toRadians(settings.degrees / 2));
 						length = sin != 0d
@@ -118,7 +119,7 @@ public class TileRailPreview extends BlockEntityTickable {
 	public boolean onClick(Player player, Player.Hand hand, Facing facing, Vec3d hit) {
 		if (player.isCrouching()) {
 			if (getWorld().isServer) {
-				this.setPlacementInfo(new PlacementInfo(this.getItem(), player.getRotationYawHead(), hit));
+				this.setPlacementInfo(new PlacementInfo(this.getItem(), player.getRotationYawHead(), hit, true, false));
 			}
 			return false;
 		} else if (getWorld().isClient && !player.getHeldItem(hand).is(IRItems.ITEM_GOLDEN_SPIKE)) {
@@ -147,9 +148,9 @@ public class TileRailPreview extends BlockEntityTickable {
 		return IBoundingBox.INFINITE;
 	}
 
-	public RailInfo getRailRenderInfo() {
+	public RailInfo getRailRenderInfo() {// Not only for render, but also for build!
 		if (getWorld() != null && item != null && (info == null || info.settings == null)) {
-			info = new RailInfo(item, placementInfo, customInfo);
+			offsetPosition();
 		}
 		return info;
 	}
@@ -157,10 +158,17 @@ public class TileRailPreview extends BlockEntityTickable {
 	@Override
 	public void markDirty() {
 		super.markDirty();
-        info = new RailInfo(item, placementInfo, customInfo);
+		offsetPosition();
         if (isMulti() && getWorld().isServer) {
 			new PreviewRenderPacket(this).sendToAll();
 		}
+	}
+
+	private void offsetPosition() {
+		PlacementInfo placementInfoOffset = placementInfo.offset(RailSettings.from(item).nearPointData.offset());
+		PlacementInfo customInfoOffset = customInfo == null ? null : customInfo.offset(RailSettings.from(item).farPointData.offset());
+
+		info = new RailInfo(item, placementInfoOffset, customInfoOffset);
 	}
 
 	public boolean isMulti() {
