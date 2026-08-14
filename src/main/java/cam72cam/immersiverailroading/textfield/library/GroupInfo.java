@@ -96,8 +96,8 @@ public class GroupInfo {
 
         info.normal = face.normal;
 
-        Vec3d windingNormal = VecUtil.crossProduct(info.tangent, info.bitangent).normalize();
-        if (VecUtil.dotProduct(windingNormal, info.normal) < 0) {
+        Vec3d windingNormal = info.tangent.crossProduct(info.bitangent).normalize();
+        if (windingNormal.dotProduct(info.normal) < 0) {
             info.flippedNormal = true;
         } else {
             info.tangent = info.tangent.scale(-1);

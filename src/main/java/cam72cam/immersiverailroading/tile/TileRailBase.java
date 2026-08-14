@@ -668,7 +668,6 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 		}
 		
 		ticksExisted += 1;
-		Vec3i pos = getPos();
 
 		if (ConfigDebug.snowAccumulateRate > 0 && ((int) (Math.random() * ConfigDebug.snowAccumulateRate * 10) == 0)) {
 			if (getWorld().isSnowing(getPos()) && getWorld().canSeeSky(getPos().up())) {

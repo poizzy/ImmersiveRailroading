@@ -7,7 +7,6 @@ import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
 import cam72cam.immersiverailroading.util.floor.NavMesh;
 import cam72cam.immersiverailroading.model.part.Door;
-import cam72cam.immersiverailroading.floor.NavMesh;
 import cam72cam.immersiverailroading.font.FontLoader;
 import cam72cam.immersiverailroading.textfield.TextFieldConfig;
 import cam72cam.immersiverailroading.textfield.library.RGBA;
@@ -75,7 +74,6 @@ public abstract class EntityRollingStockDefinition implements JsonDefinition {
     public Identifier modelLoc;
     protected StockModel<?, ?> model;
     public Identifier script;
-    public Vec3d passengerCenter;
     private float bogeyFront;
     private float bogeyRear;
     private float couplerOffsetFront;
