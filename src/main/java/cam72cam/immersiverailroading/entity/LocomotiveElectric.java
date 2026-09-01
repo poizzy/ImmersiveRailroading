@@ -28,6 +28,8 @@ public class LocomotiveElectric extends Locomotive {
     @TagField
     public boolean pantographState = false;
 
+    public LocomotiveElectric() {}
+
     public boolean isRunning() {
         return mainSwitch && electricalConnection;
     }
@@ -111,6 +113,16 @@ public class LocomotiveElectric extends Locomotive {
     }
 
     @Override
+    public void setReverser(float newReverser) {
+        super.setReverser(Math.round(newReverser));
+    }
+
+    @Override
+    protected float getReverserDelta() {
+        return 0.51f;
+    }
+
+    @Override
     public double getAppliedTractiveEffort(Speed speed) {
         if (isRunning()) {
             double maxPower_W = getDefinition().getWatt(gauge);
@@ -141,7 +153,7 @@ public class LocomotiveElectric extends Locomotive {
 
     @Override
     public FluidQuantity getTankCapacity() {
-        return null;
+        return FluidQuantity.ZERO;
     }
 
     @Override
