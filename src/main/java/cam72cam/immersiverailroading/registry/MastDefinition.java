@@ -6,13 +6,13 @@ import cam72cam.mod.model.common.ModelLoader;
 import cam72cam.mod.model.common.mesh.Model;
 import cam72cam.mod.resource.Identifier;
 
-import java.util.List;
+import java.util.*;
 
 public class MastDefinition {
     public final String defID;
     public final String name;
     public final Model model;
-    public final Vec3d connectionPos;
+    public final Map<String, Vec3d> connectorPos = new HashMap<>();
 
     public MastDefinition(String mastID, DataBlock data) throws Exception {
         this.defID = mastID;
@@ -21,6 +21,8 @@ public class MastDefinition {
         this.model = ModelLoader.load(modelIdent);
 
         List<String> connector = model.groups().stream().filter(m -> m.contains("CONNECTOR")).toList();
-        this.connectionPos = model.centerOfGroups(connector);
+        for (String con : connector) {
+            connectorPos.put(con, model.centerOfGroups(Collections.singletonList(con)));
+        }
     }
 }

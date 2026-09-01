@@ -12,8 +12,8 @@ import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.math.Vec3i;
 import cam72cam.mod.serialization.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class TileMast extends BlockEntity {
     @TagSync
@@ -25,8 +25,8 @@ public class TileMast extends BlockEntity {
     @TagField
     private int angle = 0;
 
-    public void addWire(Vec3i firstMast, String defId) {
-        wires.add(new OverheadWire(getWorld().getBlockEntity(firstMast, TileMast.class), this, defId));
+    public void addWire(Vec3i firstMast, String defId, String firstConnector, String secondConnector) {
+        wires.add(new OverheadWire(getWorld().getBlockEntity(firstMast, TileMast.class), this, defId, firstConnector, secondConnector));
         this.markDirty();
     }
 
@@ -39,8 +39,8 @@ public class TileMast extends BlockEntity {
         return DefinitionManager.getMast(definitionID);
     }
 
-    public Vec3d getConnectionPoint() {
-        Vec3d rotated = getDefinition().connectionPos.rotateYaw(angle).add(0.5, 0, 0.5);
+    public Vec3d getConnectionPoint(String name) {
+        Vec3d rotated = getDefinition().connectorPos.get(name).rotateYaw(angle).add(0.5, 0, 0.5);
         return new Vec3d(this.getPos()).add(rotated);
     }
 
