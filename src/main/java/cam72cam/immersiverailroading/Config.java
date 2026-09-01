@@ -111,6 +111,10 @@ public class Config {
 		@Comment("All gauges require fuel")
 		public static boolean FuelRequired = true;
 
+		// TODO set false
+		@Comment("Electric Rails require source (Forge Energy)")
+		public static boolean ElectricalSourceRequired = false;
+
 		@Comment("Slope Multiplier: Higher numbers increase slowdown, lower numbers decrease slowdown")
 		@Range(min = 0, max = 2)
 		public static double slopeMultiplier = 1.0;

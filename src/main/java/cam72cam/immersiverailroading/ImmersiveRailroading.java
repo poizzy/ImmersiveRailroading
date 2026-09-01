@@ -20,10 +20,7 @@ import cam72cam.immersiverailroading.render.multiblock.MBBlueprintRender;
 import cam72cam.immersiverailroading.render.multiblock.TileMultiblockRender;
 import cam72cam.immersiverailroading.render.rail.RailPreviewRender;
 import cam72cam.immersiverailroading.thirdparty.CompatLoader;
-import cam72cam.immersiverailroading.tile.TileMultiblock;
-import cam72cam.immersiverailroading.tile.TileRail;
-import cam72cam.immersiverailroading.tile.TileRailGag;
-import cam72cam.immersiverailroading.tile.TileRailPreview;
+import cam72cam.immersiverailroading.tile.*;
 import cam72cam.immersiverailroading.util.IRFuzzy;
 import cam72cam.mod.MinecraftClient;
 import cam72cam.mod.ModCore;
@@ -197,6 +194,8 @@ public class ImmersiveRailroading extends ModCore.Mod {
 				Keyboard.registerKey("ir_keys.start_stop_engine", KeyCode.ADD, "key.categories." + ImmersiveRailroading.MODID, onKeyPress.apply(KeyTypes.START_STOP_ENGINE));
 				Keyboard.registerKey("ir_keys.bell", KeyCode.SUBTRACT, "key.categories." + ImmersiveRailroading.MODID, onKeyPress.apply(KeyTypes.BELL));
 				Keyboard.registerKey("ir_keys.config", KeyCode.DIVIDE, "key.categories." + ImmersiveRailroading.MODID, () -> GuiTypes.CONFIG.open(MinecraftClient.getPlayer()));
+				Keyboard.registerKey("ir_keys.pantograph_1", KeyCode.NUMPAD0, "key.categories." + ImmersiveRailroading.MODID, onKeyPress.apply(KeyTypes.PANTOGRAPH_1));
+				Keyboard.registerKey("ir_keys.pantograph_2", KeyCode.COMMA, "key.categories." + ImmersiveRailroading.MODID, onKeyPress.apply(KeyTypes.PANTOGRAPH_2));
 
 				Audio.setSoundChannels(ConfigSound.customAudioChannels);
 				break;

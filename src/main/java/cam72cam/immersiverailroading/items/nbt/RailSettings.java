@@ -34,6 +34,7 @@ public class RailSettings {
     public final String track;
     public final int transfertableEntryCount;
     public final int transfertableEntrySpacing;
+    public final boolean isElectric;
 
     public RailSettings(
             Gauge gauge,
@@ -51,7 +52,7 @@ public class RailSettings {
             ItemStack railBed, ItemStack railBedFill,
             boolean isPreview,
             boolean isGradeCrossing,
-            int count, int spacing
+            int count, int spacing, boolean isElectric
     ) {
         this.gauge = gauge;
         this.track = track;
@@ -73,6 +74,7 @@ public class RailSettings {
         this.curvosity = curvosity;
         this.transfertableEntryCount = count;
         this.transfertableEntrySpacing = spacing;
+        this.isElectric = isElectric;
     }
 
     public void write(ItemStack stack) {
@@ -109,7 +111,7 @@ public class RailSettings {
             return new TagAccessor<Float>(
                     (d, o) -> d.setFloat(fieldName, o),
                     d -> d.hasKey(fieldName) ? d.getFloat(fieldName) :
-                            d.hasKey("quarters") ? d.getInteger("quarters") /4F * 90 : 90
+                            d.hasKey("quarters") ? d.getInteger("quarters") / 4F * 90 : 90
             ) {
                 @Override
                 public boolean applyIfMissing() {
@@ -184,6 +186,9 @@ public class RailSettings {
         @TagField("transfertableEntrySpacing")
         public int transfertableEntrySpacing;
 
+        @TagField("isElectrical")
+        public boolean isElectric;
+
         private Mutable(RailSettings settings) {
             this.gauge = settings.gauge;
             this.track = settings.track;
@@ -211,6 +216,7 @@ public class RailSettings {
 
             this.transfertableEntryCount = settings.transfertableEntryCount;
             this.transfertableEntrySpacing = settings.transfertableEntrySpacing;
+            this.isElectric = settings.isElectric;
         }
 
         private Mutable(TagCompound data) throws SerializationException {
@@ -241,6 +247,8 @@ public class RailSettings {
             transfertableEntryCount = 1;
             transfertableEntrySpacing = 1;
 
+            isElectric = false;
+
             TagSerializer.deserialize(data, this);
         }
 
@@ -265,7 +273,8 @@ public class RailSettings {
                     isPreview,
                     isGradeCrossing,
                     transfertableEntryCount,
-                    transfertableEntrySpacing
+                    transfertableEntrySpacing,
+                    isElectric
             );
         }
 
@@ -279,7 +288,7 @@ public class RailSettings {
     }
 
     private static float getValidSize(float nearRadius, float farRadius, float length, TrackItems type) {
-        if(!type.isTransitionCurve()) return length;
+        if (!type.isTransitionCurve()) return length;
         float res;
         if (Math.abs(nearRadius) < 1e-6) {
             res = (int) Math.ceil(farRadius);

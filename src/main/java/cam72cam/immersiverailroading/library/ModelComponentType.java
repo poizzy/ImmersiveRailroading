@@ -119,6 +119,8 @@ public enum ModelComponentType {
 	BRAKE_PRESSURE_X("BRAKE_PRESSURE_#ID#"),
 	COUPLED_X("COUPLED_#ID#"),
 
+	PANTOGRAPH_X("PANTOGRAPH_#ID#"),
+
 	// Floor
 	FLOOR("FLOOR"),
 	//TODO Find a proper way to implement this

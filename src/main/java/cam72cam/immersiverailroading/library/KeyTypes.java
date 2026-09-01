@@ -18,5 +18,7 @@ public enum KeyTypes {
 	DEAD_MANS_SWITCH,
 	START_STOP_ENGINE,
 	BELL,
+	PANTOGRAPH_1,
+	PANTOGRAPH_2
 	;
 }
