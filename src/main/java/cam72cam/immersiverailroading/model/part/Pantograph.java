@@ -1,5 +1,6 @@
 package cam72cam.immersiverailroading.model.part;
 
+import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.EntityMoveableRollingStock;
 import cam72cam.immersiverailroading.entity.EntityRollingStock;
 import cam72cam.immersiverailroading.entity.LocomotiveElectric;
@@ -34,6 +35,7 @@ public class Pantograph<T extends EntityMoveableRollingStock> extends Interactab
 
     public void operate(EntityRollingStock stock, boolean raise) {
         stock.setControlPosition(name, raise ? 1 : 0);
+        ImmersiveRailroading.info("Using pantograph %s. New state: %s", name, raise);
     }
 
     public Pantograph(ModelComponent part, ModelState state, double internal_model_scale, Map<String, DataBlock> config) {

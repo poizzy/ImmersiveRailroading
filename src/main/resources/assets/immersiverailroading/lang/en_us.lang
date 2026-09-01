@@ -126,6 +126,7 @@ gui.immersiverailroading:selector.paintbrush_random=Apply random variant
 gui.immersiverailroading:selector.paintbrush_apply_to_stock=Apply to single stock
 gui.immersiverailroading:selector.paintbrush_apply_to_train=Apply to whole train
 gui.immersiverailroading:selector.track_pivot_type=Pivot Type: %s
+gui.immersiverailroading:selector.track_powered=Powered Track
 # Migrated from old detector translations which already contain "Detecting", don't need for this
 gui.immersiverailroading:selector.augment.detect=Current:
 gui.immersiverailroading:selector.augment.redstone=Redstone Mode:

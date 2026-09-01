@@ -360,6 +360,9 @@ public class TrackGui implements IScreen {
 		curvositySlider.onSlider();
 		ytop += height;
 
+		electricalRail = new CheckBox(screen, xtop + 2, ytop + 2, GuiText.SELECTOR_TRACK_POWERED.toString(), settings.isElectric, (_, box) -> settings.isElectric = box.isChecked());
+		electricalRail.setVisible(true);
+
 		directionButton.setVisible(settings.type.hasDirection());
 
 		degreesSlider.setVisible(settings.type.hasQuarters() && !unlockGuiTurnDegree);
@@ -463,8 +466,6 @@ public class TrackGui implements IScreen {
 			}
 		};
 		ytop += height;
-
-		electricalRail = new CheckBox(screen, xtop + 2, ytop + 2, GuiText.SELECTOR_TRACK_POWERED.toString(), settings.isElectric, (_, box) -> settings.isElectric = box.isChecked());
 
 		trackEndPointGuiButton = new Button(screen, GUIHelpers.getScreenWidth() / 2 - width / 2, -GUIHelpers.getScreenHeight() / 4, width / 2, height, GuiText.TRACK_MAIN_TO_END_POINT.toString()) {
 			@Override
