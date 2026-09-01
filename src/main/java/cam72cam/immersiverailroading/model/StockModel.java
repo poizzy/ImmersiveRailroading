@@ -52,6 +52,8 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
     protected final List<Control<ENTITY>> controls;
     protected final List<Readout<ENTITY>> gauges;
     protected final List<Seat<ENTITY>> seats;
+    // Parse it here because of Multiple Units which can have the pantograph at any wagon
+    public final List<Pantograph<ENTITY>> pantographs;
 
     protected List<LightFlare<ENTITY>> headlights;
 
@@ -88,6 +90,7 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
         this.controls = new ArrayList<>();
         this.gauges = new ArrayList<>();
         this.headlights = new ArrayList<>();
+        this.pantographs = new ArrayList<>();
 
         ModelState.LightState base = new ModelState.LightState(null, null, null, hasInterior);
 
@@ -209,6 +212,12 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
         this.headlights.addAll(LightFlare.get(def, provider, rocking, type));
     }
 
+    protected void addPantographs(ComponentProvider provider, ModelComponentType type) {
+        this.pantographs.addAll(Pantograph.get(provider, frontRocking, type, ModelPosition.BOGEY_FRONT));
+        this.pantographs.addAll(Pantograph.get(provider, rearRocking, type, ModelPosition.BOGEY_REAR));
+        this.pantographs.addAll(Pantograph.get(provider, rocking, type));
+    }
+
     protected void parseControllable(ComponentProvider provider, DEFINITION def) {
         gauges.addAll(Readout.getReadouts(provider, frontRocking, ModelComponentType.COUPLED_X, ModelPosition.BOGEY_FRONT, Readouts.COUPLED_FRONT));
         gauges.addAll(Readout.getReadouts(provider, rearRocking, ModelComponentType.COUPLED_X, ModelPosition.BOGEY_REAR, Readouts.COUPLED_REAR));
@@ -232,6 +241,8 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
         seats.addAll(Seat.get(provider, rocking));
 
         addHeadlight(def, provider, ModelComponentType.HEADLIGHT_X);
+
+        addPantographs(provider, ModelComponentType.PANTOGRAPH_X);
     }
 
     protected void parseComponents(ComponentProvider provider, DEFINITION def) {

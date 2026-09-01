@@ -97,6 +97,8 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 	@TagField("powered")
 	@TagSync
 	private boolean isPowered = true;
+	// This will play a crucial part in the future, for now it's just a placeholder
+	private boolean electricRailPowered = false;
 
 	public void setBedHeight(float height) {
 		this.bedHeight = height;
@@ -277,6 +279,17 @@ public class TileRailBase extends BlockEntityTrackTickable implements IRedstoneP
 	
 	public boolean isFlexible() {
 		return this.flexible || !(this instanceof TileRail);
+	}
+
+	public boolean hasElectricalPower() {
+		TileRail parent = getParentTile();
+		if (parent == null) {
+			return false;
+		}
+
+		boolean isElectric = parent.info.settings.isElectric;
+
+		return ConfigBalance.ElectricalSourceRequired ? isElectric && electricRailPowered : isElectric;
 	}
 	
 	public ItemStack getRenderRailBed() {

@@ -35,15 +35,15 @@ public class DefinitionManager {
         stockLoaders = new LinkedHashMap<>();
         stockLoaders.put("locomotives", (String defID, DataBlock data) -> {
             String era = data.getValue("era").asString();
-            switch (era) {
-                case "steam":
-                    return new LocomotiveSteamDefinition(defID, data);
-                case "diesel":
-                    return new LocomotiveDieselDefinition(defID, data);
-                default:
+            return switch (era) {
+                case "steam" -> new LocomotiveSteamDefinition(defID, data);
+                case "diesel" -> new LocomotiveDieselDefinition(defID, data);
+                case "electric" -> new LocomotiveElectricDefinition(defID, data);
+                default -> {
                     ImmersiveRailroading.warn("Invalid era %s in %s", era, defID);
-                    return null;
-            }
+                    yield null;
+                }
+            };
         });
 
         stockLoaders.put("tender", TenderDefinition::new);
@@ -523,6 +523,26 @@ public class DefinitionManager {
             def = tracks.values().stream().findFirst().get();
         }
         return def;
+    }
+
+    public static WireDefinition getWire(String id) {
+        return wires.get(id);
+    }
+
+    public static Collection<WireDefinition> getWires() {
+        return wires.values();
+    }
+
+    public static MastDefinition getMast(String id) {
+        MastDefinition def = masts.get(id);
+        if (def == null) {
+            def = masts.values().stream().findFirst().get();
+        }
+        return def;
+    }
+
+    public static Collection<MastDefinition> getMasts() {
+        return masts.values();
     }
 
     @FunctionalInterface

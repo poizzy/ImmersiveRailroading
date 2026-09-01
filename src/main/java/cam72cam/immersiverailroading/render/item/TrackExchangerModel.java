@@ -56,7 +56,7 @@ public class TrackExchangerModel implements ItemRender.IItemModel {
 						data.railBed, ItemStack.EMPTY,
 						false,
 						false,
-						1, 1
+						1, 1, false
 				),
 				new PlacementInfo(Vec3d.ZERO, TrackDirection.NONE, 0, Vec3d.ZERO),
 				null,

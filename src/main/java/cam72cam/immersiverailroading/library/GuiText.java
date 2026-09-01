@@ -68,6 +68,7 @@ public enum GuiText {
 	SELECTOR_PAINTBRUSH_TO_STOCK("selector.paintbrush_apply_to_stock"),
 	SELECTOR_PAINTBRUSH_TO_TRAIN("selector.paintbrush_apply_to_train"),
 	SELECTOR_TRACK_PIVOT_TYPE("selector.track_pivot_type"),
+	SELECTOR_TRACK_POWERED("selector.track_powered"),
 
 	TRACK_TYPE("track.type"),
 	TRACK_LENGTH("track.length"),

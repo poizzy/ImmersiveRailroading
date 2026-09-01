@@ -180,7 +180,8 @@ public class TrackExchangerGui implements IScreen {
 				railBed, ItemStack.EMPTY,
 				false,
 				false,
-				1, 1
+				1, 1,
+				false
 		);
 		ItemStack stack = new ItemStack(IRItems.ITEM_TRACK_BLUEPRINT, 1);
 		settings.write(stack);
