@@ -38,6 +38,11 @@ public enum ChatText {
 	SWITCH_CANT_RESET("switch_state.cant_reset"),
 	SWITCH_ALREADY_RESET("switch_state.already_reset"),
 	MULTIBLOCK_SELECTING("multiblock.select"),
+	WIRE_NO_TARGET("wire.no_target"),
+	WIRE_CLEARED("wire.cleared"),
+	WIRE_DIM_MISMATCH("wire.dim_mismatch"),
+	WIRE_SAME_BLOCk("wire.same_block"),
+	WIRE_STILE_MISSING("wire.tile_missing"),
 	;
 	
 	private String value;

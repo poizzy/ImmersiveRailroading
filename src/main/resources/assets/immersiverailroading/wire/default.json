@@ -1,0 +1,10 @@
+{
+  "name": "Default",
+  "wires": [
+    { "name": "messenger", "yOffset": 0.8, "width": 0.04, "sagRatio": 0.009, "color": "212121", "segments": 24 },
+    { "name": "contact", "yOffset": -0.4, "width": 0.025, "sagRatio": 0.002, "color": "212121", "segments": 24 }
+  ],
+  "connectors": [
+    { "from": "messenger", "to": "contact", "spacing": 5.0, "width": 0.05, "excludeEnds": true, "color": "212121" }
+  ]
+}
