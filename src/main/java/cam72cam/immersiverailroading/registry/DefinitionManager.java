@@ -27,6 +27,8 @@ public class DefinitionManager {
     private static Map<String, EntityRollingStockDefinition> definitions;
     private static BiMultiMap<String, EntityRollingStockDefinition> stockTags;
     private static Map<String, TrackDefinition> tracks;
+    private static Map<String, MastDefinition> masts;
+    private static Map<String, WireDefinition> wires;
     private static final Map<String, StockLoader> stockLoaders;
 
     static {
@@ -161,6 +163,18 @@ public class DefinitionManager {
         } catch (Exception e) {
             throw new RuntimeException("Unable to load tracks, do you have a broken pack?", e);
         }
+
+        try {
+            initMasts();
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to load masts, do you have a broken pack?", e);
+        }
+
+        try {
+            initWires();
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to load wires, do you have a broken pack?", e);
+        }
     }
 
     private static void initModels() throws IOException {
@@ -293,6 +307,107 @@ public class DefinitionManager {
         }
 
         return blacklist;
+    }
+
+    private static void initWires() throws IOException {
+        wires = new LinkedHashMap<>();
+
+        ImmersiveRailroading.info("Loading Wires.");
+
+        List<DataBlock> blocks = new ArrayList<>();
+
+        Identifier wireJson = new Identifier(ImmersiveRailroading.MODID, "wire/wire.json");
+        List<InputStream> inputs = wireJson.getResourceStreamAll();
+        for (InputStream input : inputs) {
+            blocks.add(JSON.parse(input));
+        }
+
+        Identifier wireCaml = new Identifier(ImmersiveRailroading.MODID, "wire/wire.caml");
+        inputs = wireCaml.getResourceStreamAll();
+        for (InputStream input : inputs) {
+            blocks.add(CAML.parse(input));
+        }
+
+        for (DataBlock wire : blocks) {
+            List<String> types = wire.getValues("types").stream().map(DataBlock.Value::asString).toList();
+            Progress.Bar bar = Progress.push("Loading Wires", types.size());
+
+            for (String def : types) {
+                bar.step(def);
+                String wireID = String.format("immersiverailroading:wire/%s.json", def);
+                ImmersiveRailroading.debug("Loading Wire %s", wireID);
+
+                Identifier identifier = new Identifier(wireID);
+                if (!identifier.canLoad()) {
+                    identifier = new Identifier(identifier.getDomain(), identifier.getPath().replace(".json", ".caml"));
+                }
+
+                if (!identifier.canLoad()) {
+                    ImmersiveRailroading.error("Unable to load wire %s: file not found", wireID);
+                    continue;
+                }
+
+                DataBlock block = DataBlock.load(identifier);
+                try {
+                    wires.put(wireID, new WireDefinition(wireID, block));
+                } catch (Exception e) {
+                    ImmersiveRailroading.catching(e);
+                }
+            }
+            Progress.pop(bar);
+        }
+    }
+
+    private static void initMasts() throws IOException {
+        masts = new LinkedHashMap<>();
+
+        ImmersiveRailroading.info("Loading Masts.");
+
+        List<DataBlock> blocks = new ArrayList<>();
+
+        Identifier mastJson = new Identifier(ImmersiveRailroading.MODID, "mast/mast.json");
+        List<InputStream> inputs = mastJson.getResourceStreamAll();
+        for (InputStream input : inputs) {
+            blocks.add(JSON.parse(input));
+        }
+
+        Identifier mastCaml = new Identifier(ImmersiveRailroading.MODID, "mast/mast.caml");
+        inputs = mastCaml.getResourceStreamAll();
+        for (InputStream input : inputs) {
+            blocks.add(CAML.parse(input));
+        }
+
+        for (DataBlock mast : blocks) {
+            List<String> types = mast.getValues("types").stream().map(DataBlock.Value::asString).toList();
+            Progress.Bar bar = Progress.push("Loading Masts", types.size());
+
+            for (String def : types) {
+                bar.step(def);
+                String mastID = String.format("immersiverailroading:mast/%s.json", def);
+                ImmersiveRailroading.debug("Loading Mast %s", mastID);
+
+                Identifier identifier = new Identifier(mastID);
+
+                if (!identifier.canLoad()) {
+                    identifier = new Identifier(identifier.getDomain(), identifier.getPath().replace(".json", ".caml"));
+                }
+
+                if (!identifier.canLoad()) {
+                    ImmersiveRailroading.error("Unable to load mast '%s': file not found", mastID);
+                    continue;
+                }
+
+                DataBlock block = DataBlock.load(identifier);
+
+                try {
+                    masts.put(mastID, new MastDefinition(mastID, block));
+                } catch (Exception e) {
+                    ImmersiveRailroading.catching(e);
+                }
+            }
+
+            Progress.pop(bar);
+        }
     }
 
     private static void initTracks() throws IOException {

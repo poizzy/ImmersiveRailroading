@@ -5,6 +5,7 @@ import cam72cam.immersiverailroading.entity.physics.chrono.ServerChronoState;
 import cam72cam.immersiverailroading.gui.AugmentFilterGUI;
 import cam72cam.immersiverailroading.gui.overlay.GuiBuilder;
 import cam72cam.immersiverailroading.items.ItemPaintBrush;
+import cam72cam.immersiverailroading.items.ItemWire;
 import cam72cam.immersiverailroading.library.*;
 import cam72cam.immersiverailroading.model.StockModel;
 import cam72cam.immersiverailroading.multiblock.*;
@@ -12,6 +13,7 @@ import cam72cam.immersiverailroading.net.*;
 import cam72cam.immersiverailroading.registry.DefinitionManager;
 import cam72cam.immersiverailroading.registry.EntityRollingStockDefinition;
 import cam72cam.immersiverailroading.render.SmokeParticle;
+import cam72cam.immersiverailroading.render.block.MastModel;
 import cam72cam.immersiverailroading.render.block.RailBaseModel;
 import cam72cam.immersiverailroading.render.item.*;
 import cam72cam.immersiverailroading.render.multiblock.MBBlueprintRender;
@@ -87,6 +89,7 @@ public class ImmersiveRailroading extends ModCore.Mod {
 				Packet.register(GuiBuilder.ControlChangePacket::new, PacketDirection.ClientToServer);
 				Packet.register(ItemPaintBrush.PaintBrushPacket::new, PacketDirection.ClientToServer);
 				Packet.register(AugmentFilterGUI.AugmentFilterChangePacket::new, PacketDirection.ClientToServer);
+				Packet.register(ItemWire.WirePacket::new, PacketDirection.ServerToClient);
 
 				ServerChronoState.register();
 
@@ -129,6 +132,7 @@ public class ImmersiveRailroading extends ModCore.Mod {
 				BlockRender.register(IRBlocks.BLOCK_RAIL_GAG, RailBaseModel::getModel, TileRailGag.class);
 				BlockRender.register(IRBlocks.BLOCK_RAIL_PREVIEW, RailPreviewRender::render, TileRailPreview.class);
 				BlockRender.register(IRBlocks.BLOCK_MULTIBLOCK, TileMultiblockRender::render, TileMultiblock.class);
+				BlockRender.register(IRBlocks.BLOCK_MAST, MastModel::getModel, TileMast.class);
 
 				ItemRender.register(IRItems.ITEM_PLATE, new PlateItemModel());
 				ItemRender.register(IRItems.ITEM_AUGMENT, new RailAugmentItemModel());
@@ -146,6 +150,8 @@ public class ImmersiveRailroading extends ModCore.Mod {
 				ItemRender.register(IRItems.ITEM_RADIO_CONTROL_CARD, new Identifier(MODID, "items/radio_card"));
 				ItemRender.register(IRItems.ITEM_MANUAL, new Identifier(MODID, "items/engineerslexicon"));
 				ItemRender.register(IRItems.ITEM_TRACK_EXCHANGER, new TrackExchangerModel());
+				ItemRender.register(IRItems.ITEM_MAST, new MastItemRenderer());
+				ItemRender.register(IRItems.ITEM_WIRE, new Identifier(MODID, "items/wire_default"));
 
 				IEntityRender<EntityMoveableRollingStock> stockRender = new IEntityRender<EntityMoveableRollingStock>() {
 					@Override

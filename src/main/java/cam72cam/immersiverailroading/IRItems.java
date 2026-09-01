@@ -20,6 +20,8 @@ public class IRItems {
 	public static ItemRadioCtrlCard ITEM_RADIO_CONTROL_CARD = new ItemRadioCtrlCard();
 	public static ItemSwitchKey ITEM_SWITCH_KEY = new ItemSwitchKey();
 	public static ItemTrackExchanger ITEM_TRACK_EXCHANGER = new ItemTrackExchanger();
+	public static ItemWire ITEM_WIRE = new ItemWire();
+	public static ItemMast ITEM_MAST = new ItemMast();
 
 	public static void register() {
 		// loads static classes and ctrs
