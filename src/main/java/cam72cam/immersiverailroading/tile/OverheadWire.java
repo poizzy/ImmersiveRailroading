@@ -22,9 +22,9 @@ public class OverheadWire {
 
     public OverheadWire() {}
 
-    public OverheadWire(TileMast mast1, TileMast mast2, String defID) {
-        this.connectionPoint = mast2.getConnectionPoint().subtract(new Vec3d(mast2.getPos()));
-        this.delta = mast2.getConnectionPoint().subtract(mast1.getConnectionPoint());
+    public OverheadWire(TileMast mast1, TileMast mast2, String defID, String firstConnector, String secondConnector) {
+        this.connectionPoint = mast2.getConnectionPoint(secondConnector).subtract(new Vec3d(mast2.getPos()));
+        this.delta = mast2.getConnectionPoint(secondConnector).subtract(mast1.getConnectionPoint(firstConnector));
         this.definitionID = defID;
     }
 
