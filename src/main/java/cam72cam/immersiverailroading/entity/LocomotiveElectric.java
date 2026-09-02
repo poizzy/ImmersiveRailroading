@@ -29,8 +29,14 @@ public class LocomotiveElectric extends Locomotive {
     @TagSync
     @TagField("electricalConnection")
     public boolean electricalConnection;
+    @TagSync
     @TagField(mapper = PantographStatesMapper.class)
     public Map<String, Boolean> pantographStates = new HashMap<>();
+
+    private int turnOnOffDelay = 0;
+
+    // TODO replace
+    private float relativeRPM;
 
     public LocomotiveElectric() {}
 
@@ -50,13 +56,16 @@ public class LocomotiveElectric extends Locomotive {
     }
 
     public void operatePantograph(String name) {
+        boolean newState = !pantographStates.getOrDefault(name, false);
         if (getDefinition().sharedPantograph) {
             mapTrain(this, false, (s) -> {
-                s.getDefinition().getModel().pantographs.stream().filter(p -> p.name.equals(name)).forEach(p -> p.operate(s, !pantographStates.getOrDefault(name, false)));
+                s.getDefinition().getModel().pantographs.stream().filter(p -> p.name.equals(name)).forEach(p -> p.operate(s, newState));
             });
         } else {
-            getDefinition().getModel().pantographs.stream().filter(p -> p.name.equals(name)).forEach(p -> p.operate(this, pantographStates.getOrDefault(name, false)));
+            getDefinition().getModel().pantographs.stream().filter(p -> p.name.equals(name)).forEach(p -> p.operate(this, newState));
         }
+
+        pantographStates.put(name, newState);
     }
 
     private boolean isOnPoweredRail() {
@@ -74,6 +83,18 @@ public class LocomotiveElectric extends Locomotive {
     @Override
     public void onTick() {
         super.onTick();
+
+        if (turnOnOffDelay > 0) {
+            turnOnOffDelay -= 1;
+        }
+
+        float absThrottle = Math.abs(this.getThrottle());
+        if (this.relativeRPM > absThrottle) {
+            this.relativeRPM -= Math.min(0.01f, this.relativeRPM - absThrottle);
+        } else if (this.relativeRPM < absThrottle) {
+            this.relativeRPM += Math.min(0.01f, absThrottle - this.relativeRPM);
+        }
+
         if (getWorld().isServer && getTickCount() % 20 == 0) {
             updateElectricalConnection();
         }
@@ -88,10 +109,13 @@ public class LocomotiveElectric extends Locomotive {
     public void handleKeyPress(Player source, KeyTypes key, boolean disableIndependentThrottle) {
         switch (key) {
             case START_STOP_ENGINE -> {
-                if (electricalConnection) {
-                    setMainSwitch(!isMainSwitchOn());
-                } else {
-                    source.sendMessage(ChatText.STOCK_NO_ELECTRICAL_CONNECTION.getMessage());
+                if (turnOnOffDelay == 0) {
+                    turnOnOffDelay = 10;
+                    if (electricalConnection) {
+                        setMainSwitch(!isMainSwitchOn());
+                    } else {
+                        source.sendMessage(ChatText.STOCK_NO_ELECTRICAL_CONNECTION.getMessage());
+                    }
                 }
             }
             case PANTOGRAPH_1 -> operatePantograph("PANTOGRAPH_1");
@@ -103,6 +127,10 @@ public class LocomotiveElectric extends Locomotive {
     public void setMainSwitch(boolean value) {
         mainSwitch = value;
         setControlPositions(ModelComponentType.ENGINE_START_X, mainSwitch ? 1 : 0);
+    }
+
+    public float getRelativeRPM() {
+        return relativeRPM;
     }
 
     public boolean isMainSwitchOn() {
