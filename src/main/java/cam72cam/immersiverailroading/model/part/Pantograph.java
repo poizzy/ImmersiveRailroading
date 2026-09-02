@@ -17,16 +17,16 @@ import cam72cam.mod.world.World;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class Pantograph<T extends EntityMoveableRollingStock> extends Interactable<T> {
+public class Pantograph<T extends EntityMoveableRollingStock> {
     public String name;
     private final Vec3d center;
 
     public static <T extends EntityMoveableRollingStock> List<Pantograph<T>> get(ComponentProvider provider, ModelState state, ModelComponentType type, ModelComponentType.ModelPosition pos) {
-        return provider.parseAll(type, pos).stream().map(part -> new Pantograph<T>(part, state, provider.internal_model_scale, provider.widgetConfig)).collect(Collectors.toList());
+        return provider.parseAll(type, pos).stream().map(part -> new Pantograph<T>(part, state)).collect(Collectors.toList());
     }
 
     public static <T extends EntityMoveableRollingStock> List<Pantograph<T>> get(ComponentProvider provider, ModelState state, ModelComponentType type) {
-        return provider.parseAll(type).stream().map(part -> new Pantograph<T>(part, state, provider.internal_model_scale, provider.widgetConfig)).collect(Collectors.toList());
+        return provider.parseAll(type).stream().map(part -> new Pantograph<T>(part, state)).collect(Collectors.toList());
     }
 
     public boolean isUp(EntityRollingStock stock) {
@@ -38,9 +38,9 @@ public class Pantograph<T extends EntityMoveableRollingStock> extends Interactab
         ImmersiveRailroading.info("Using pantograph %s. New state: %s", name, raise);
     }
 
-    public Pantograph(ModelComponent part, ModelState state, double internal_model_scale, Map<String, DataBlock> config) {
-        super(part);
+    public Pantograph(ModelComponent part, ModelState state) {
         this.center = part.center;
         this.name = "PANTOGRAPH_" + part.id;
+        state.include(part);
     }
 }
