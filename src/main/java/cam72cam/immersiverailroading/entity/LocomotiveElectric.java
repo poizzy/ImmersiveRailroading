@@ -13,9 +13,14 @@ import cam72cam.immersiverailroading.util.Speed;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.entity.sync.TagSync;
 import cam72cam.mod.fluid.Fluid;
+import cam72cam.mod.serialization.SerializationException;
+import cam72cam.mod.serialization.TagCompound;
 import cam72cam.mod.serialization.TagField;
+import cam72cam.mod.serialization.TagMapper;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class LocomotiveElectric extends Locomotive {
     @TagSync
@@ -24,9 +29,8 @@ public class LocomotiveElectric extends Locomotive {
     @TagSync
     @TagField("electricalConnection")
     public boolean electricalConnection;
-    @TagSync
-    @TagField
-    public boolean pantographState = false;
+    @TagField(mapper = PantographStatesMapper.class)
+    public Map<String, Boolean> pantographStates = new HashMap<>();
 
     public LocomotiveElectric() {}
 
@@ -34,30 +38,24 @@ public class LocomotiveElectric extends Locomotive {
         return mainSwitch && electricalConnection;
     }
 
-    public void updateElectricalConnection() {
-        this.electricalConnection =  isOnPoweredRail() && pantographState;
+    public boolean isOnePantographUp() {
+        for (Boolean state : pantographStates.values()) {
+            if (state) return true;
+        }
+        return false;
     }
 
-    public void updatePantographState() {
-        if (getDefinition().sharedPantograph) {
-            for (DirectionalStock d : getDirectionalTrain(false)) {
-                pantographState = d.stock.getDefinition().getModel().pantographs.stream().anyMatch(p -> p.isUp(this));
-                if (pantographState) {
-                    break;
-                }
-            }
-        } else {
-            pantographState = getDefinition().getModel().pantographs.stream().anyMatch(p -> p.isUp(this));
-        }
+    public void updateElectricalConnection() {
+        this.electricalConnection =  isOnPoweredRail() && isOnePantographUp();
     }
 
     public void operatePantograph(String name) {
         if (getDefinition().sharedPantograph) {
             mapTrain(this, false, (s) -> {
-                s.getDefinition().getModel().pantographs.stream().filter(p -> p.name.equals(name)).forEach(p -> p.operate(this, !pantographState));
+                s.getDefinition().getModel().pantographs.stream().filter(p -> p.name.equals(name)).forEach(p -> p.operate(s, !pantographStates.getOrDefault(name, false)));
             });
         } else {
-            getDefinition().getModel().pantographs.stream().filter(p -> p.name.equals(name)).forEach(p -> p.operate(this, !pantographState));
+            getDefinition().getModel().pantographs.stream().filter(p -> p.name.equals(name)).forEach(p -> p.operate(this, pantographStates.getOrDefault(name, false)));
         }
     }
 
@@ -78,7 +76,6 @@ public class LocomotiveElectric extends Locomotive {
         super.onTick();
         if (getWorld().isServer && getTickCount() % 20 == 0) {
             updateElectricalConnection();
-            updatePantographState();
         }
     }
 
@@ -91,10 +88,10 @@ public class LocomotiveElectric extends Locomotive {
     public void handleKeyPress(Player source, KeyTypes key, boolean disableIndependentThrottle) {
         switch (key) {
             case START_STOP_ENGINE -> {
-                if (pantographState) {
+                if (electricalConnection) {
                     setMainSwitch(!isMainSwitchOn());
                 } else {
-                    source.sendMessage(ChatText.STOCK_NO_PANTOGRAPH.getMessage());
+                    source.sendMessage(ChatText.STOCK_NO_ELECTRICAL_CONNECTION.getMessage());
                 }
             }
             case PANTOGRAPH_1 -> operatePantograph("PANTOGRAPH_1");
@@ -164,5 +161,16 @@ public class LocomotiveElectric extends Locomotive {
     @Override
     public int getInventoryWidth() {
         return 0;
+    }
+
+    public static class PantographStatesMapper implements TagMapper<Map<String, Boolean>> {
+
+        @Override
+        public TagAccessor<Map<String, Boolean>> apply(Class<Map<String, Boolean>> type, String fieldName, TagField tag) throws SerializationException {
+            return new TagAccessor<>(
+                    (compound, map) -> compound.setMap(fieldName, map, key -> key, value -> new TagCompound().setBoolean("value", value)),
+                    (tagCompound -> tagCompound.getMap(fieldName, key -> key, c -> c.getBoolean("value")))
+                    );
+        }
     }
 }
