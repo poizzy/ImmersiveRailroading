@@ -34,6 +34,7 @@ public class LocomotiveElectric extends Locomotive {
     public Map<String, Boolean> pantographStates = new HashMap<>();
 
     private int turnOnOffDelay = 0;
+    private int pantographDelay = 0;
 
     // TODO replace
     private float relativeRPM;
@@ -56,6 +57,12 @@ public class LocomotiveElectric extends Locomotive {
     }
 
     public void operatePantograph(String name) {
+        if (pantographDelay > 0) {
+            return;
+        }
+        pantographDelay = 10;
+
+
         boolean newState = !pantographStates.getOrDefault(name, false);
         if (getDefinition().sharedPantograph) {
             mapTrain(this, false, (s) -> {
@@ -86,6 +93,10 @@ public class LocomotiveElectric extends Locomotive {
 
         if (turnOnOffDelay > 0) {
             turnOnOffDelay -= 1;
+        }
+
+        if (pantographDelay > 0) {
+            pantographDelay -= 1;
         }
 
         float absThrottle = Math.abs(this.getThrottle());
