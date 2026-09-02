@@ -10,6 +10,7 @@ public enum ChatText {
 	STOCK_INVALID("stock.invalid"),
 	STOCK_WRONG_GAUGE("stock.wrong_gauge"),
 	STOCK_NO_ELECTRICAL_CONNECTION("stock.no_electrical_connection"),
+	STOCK_BATTERY_NOT_ON("stock.battery_not_on"),
 	DEADMANS_SWITCH_ENABLED("stock.deadmans_switch_enabled"),
 	DEADMANS_SWITCH_DISABLED("stock.deadmans_switch_disabled"),
 	COUPLER_FRONT("coupler.front"),

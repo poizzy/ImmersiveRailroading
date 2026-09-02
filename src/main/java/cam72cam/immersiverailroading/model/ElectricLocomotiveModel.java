@@ -2,6 +2,7 @@ package cam72cam.immersiverailroading.model;
 
 import cam72cam.immersiverailroading.ConfigSound;
 import cam72cam.immersiverailroading.entity.LocomotiveElectric;
+import cam72cam.immersiverailroading.library.ModelComponentType;
 import cam72cam.immersiverailroading.model.components.ComponentProvider;
 import cam72cam.immersiverailroading.model.part.Horn;
 import cam72cam.immersiverailroading.model.part.PartSound;
@@ -23,6 +24,14 @@ public class ElectricLocomotiveModel extends LocomotiveModel<LocomotiveElectric,
         super(def);
         idle = def.isCabCar() ? null : new PartSound(def.idle, true, 80, ConfigSound.SoundCategories.Locomotive.Diesel::idle);
         running = def.isCabCar() || def.running == null ? null : new PartSound(def.running, true, 80, ConfigSound.SoundCategories.Locomotive.Diesel::running);
+    }
+
+    @Override
+    protected void parseControllable(ComponentProvider provider, LocomotiveElectricDefinition def) {
+        super.parseControllable(provider, def);
+        addControl(provider, ModelComponentType.ENGINE_START_X);
+        addControl(provider, ModelComponentType.HORN_CONTROL_X);
+        addControl(provider, ModelComponentType.BATTERY_SWITCH_X);
     }
 
     @Override
