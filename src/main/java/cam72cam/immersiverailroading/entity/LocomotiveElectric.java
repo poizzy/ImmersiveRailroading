@@ -4,6 +4,8 @@ import cam72cam.immersiverailroading.entity.physics.SimulationState;
 import cam72cam.immersiverailroading.library.ChatText;
 import cam72cam.immersiverailroading.library.KeyTypes;
 import cam72cam.immersiverailroading.library.ModelComponentType;
+import cam72cam.immersiverailroading.model.part.Control;
+import cam72cam.immersiverailroading.model.part.Pantograph;
 import cam72cam.immersiverailroading.physics.MovementTrack;
 import cam72cam.immersiverailroading.registry.LocomotiveElectricDefinition;
 import cam72cam.immersiverailroading.thirdparty.trackapi.ITrack;
@@ -18,6 +20,7 @@ import cam72cam.mod.serialization.TagCompound;
 import cam72cam.mod.serialization.TagField;
 import cam72cam.mod.serialization.TagMapper;
 
+import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,9 +35,13 @@ public class LocomotiveElectric extends Locomotive {
     @TagSync
     @TagField(mapper = PantographStatesMapper.class)
     public Map<String, Boolean> pantographStates = new HashMap<>();
+    @TagSync
+    @TagField
+    public boolean batteryState = false;
 
     private int turnOnOffDelay = 0;
     private int pantographDelay = 0;
+    private int batteryDelay = 0;
 
     // TODO replace
     private float relativeRPM;
@@ -52,16 +59,26 @@ public class LocomotiveElectric extends Locomotive {
         return false;
     }
 
+    public void setBatteryState(boolean state) {
+        this.batteryState = state;
+    }
+
     public void updateElectricalConnection() {
         this.electricalConnection =  isOnPoweredRail() && isOnePantographUp();
     }
 
-    public void operatePantograph(String name) {
+    public void operatePantograph(String name, @Nullable Player player) {
         if (pantographDelay > 0) {
             return;
         }
         pantographDelay = 10;
 
+        if (!batteryState && player != null) {
+            if (getWorld().isClient) {
+                player.sendMessage(ChatText.STOCK_BATTERY_NOT_ON.getMessage());
+            }
+            return;
+        }
 
         boolean newState = !pantographStates.getOrDefault(name, false);
         if (getDefinition().sharedPantograph) {
@@ -99,6 +116,10 @@ public class LocomotiveElectric extends Locomotive {
             pantographDelay -= 1;
         }
 
+        if (batteryDelay > 0) {
+            batteryDelay -= 1;
+        }
+
         float absThrottle = Math.abs(this.getThrottle());
         if (this.relativeRPM > absThrottle) {
             this.relativeRPM -= Math.min(0.01f, this.relativeRPM - absThrottle);
@@ -125,12 +146,20 @@ public class LocomotiveElectric extends Locomotive {
                     if (electricalConnection) {
                         setMainSwitch(!isMainSwitchOn());
                     } else {
-                        source.sendMessage(ChatText.STOCK_NO_ELECTRICAL_CONNECTION.getMessage());
+                        if (getWorld().isClient) {
+                            source.sendMessage(ChatText.STOCK_NO_ELECTRICAL_CONNECTION.getMessage());
+                        }
                     }
                 }
             }
-            case PANTOGRAPH_1 -> operatePantograph("PANTOGRAPH_1");
-            case PANTOGRAPH_2 -> operatePantograph("PANTOGRAPH_2");
+            case PANTOGRAPH_1 -> operatePantograph("PANTOGRAPH_1", source);
+            case PANTOGRAPH_2 -> operatePantograph("PANTOGRAPH_2", source);
+            case ON_OFF_BATTERY -> {
+                if (batteryDelay == 0) {
+                    batteryDelay = 10;
+                    setBatteryState(!batteryState);
+                }
+            }
             default -> super.handleKeyPress(source, key, disableIndependentThrottle);
         }
     }
@@ -149,6 +178,26 @@ public class LocomotiveElectric extends Locomotive {
     }
 
     @Override
+    public void onDissassemble() {
+        super.onDissassemble();
+        setBatteryState(false);
+        setMainSwitch(false);
+        for (Pantograph<?> pantograph : getDefinition().getModel().pantographs) {
+            pantograph.operate(this, false);
+        }
+    }
+
+    @Override
+    public void onDragRelease(Control<?> control) {
+        super.onDragRelease(control);
+        switch (control.part.type) {
+            case ENGINE_START_X -> mainSwitch = getDefinition().getModel().getControls().stream().filter(c -> c.part.type == ModelComponentType.ENGINE_START_X).allMatch(c -> getControlPosition(c) == 1);
+            case BATTERY_SWITCH_X -> batteryState = getDefinition().getModel().getControls().stream().filter(c -> c.part.type == ModelComponentType.BATTERY_SWITCH_X).allMatch(c -> getControlPosition(c) == 1);
+            case REVERSER_X -> setControlPositions(ModelComponentType.REVERSER_X, getReverser()/-2 + 0.5f);
+        }
+    }
+
+    @Override
     public void setReverser(float newReverser) {
         super.setReverser(Math.round(newReverser));
     }
@@ -162,8 +211,7 @@ public class LocomotiveElectric extends Locomotive {
     public double getAppliedTractiveEffort(Speed speed) {
         if (isRunning()) {
             double maxPower_W = getDefinition().getWatt(gauge);
-            // Approximation by claude
-            double efficiency = 0.92;
+            double efficiency = 0.82;
             double speedMS = Math.abs(speed.metric()) / 3.6;
 
             double maxStaticEffort = getStaticTractiveEffort(speed);
@@ -184,7 +232,7 @@ public class LocomotiveElectric extends Locomotive {
 
     @Override
     public boolean providesElectricalPower() {
-        return electricalConnection;
+        return batteryState;
     }
 
     @Override

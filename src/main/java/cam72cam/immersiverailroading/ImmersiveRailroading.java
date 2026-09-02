@@ -198,6 +198,8 @@ public class ImmersiveRailroading extends ModCore.Mod {
 				Keyboard.registerKey("ir_keys.config", KeyCode.DIVIDE, "key.categories." + ImmersiveRailroading.MODID, () -> GuiTypes.CONFIG.open(MinecraftClient.getPlayer()));
 				Keyboard.registerKey("ir_keys.pantograph_1", KeyCode.NUMPAD0, "key.categories." + ImmersiveRailroading.MODID, onKeyPress.apply(KeyTypes.PANTOGRAPH_1));
 				Keyboard.registerKey("ir_keys.pantograph_2", KeyCode.COMMA, "key.categories." + ImmersiveRailroading.MODID, onKeyPress.apply(KeyTypes.PANTOGRAPH_2));
+				// TODO keybind
+				Keyboard.registerKey("ir_keys.battery_on_off", KeyCode.DELETE, "key.categories." + ImmersiveRailroading.MODID, onKeyPress.apply(KeyTypes.ON_OFF_BATTERY));
 
 				Audio.setSoundChannels(ConfigSound.customAudioChannels);
 				break;
