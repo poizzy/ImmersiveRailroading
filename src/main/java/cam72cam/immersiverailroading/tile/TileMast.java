@@ -23,16 +23,20 @@ public class TileMast extends BlockEntity {
     private List<OverheadWire> wires = new ArrayList<>();
     @TagSync
     @TagField
-    private int angle = 0;
+    private float angle = 0;
+    @TagSync
+    @TagField
+    private float offset;
 
     public void addWire(Vec3i firstMast, String defId, String firstConnector, String secondConnector) {
         wires.add(new OverheadWire(getWorld().getBlockEntity(firstMast, TileMast.class), this, defId, firstConnector, secondConnector));
         this.markDirty();
     }
 
-    public void setup(String definitionID, int angle) {
+    public void setup(String definitionID, float angle, float offset) {
         this.definitionID = definitionID;
         this.angle = angle;
+        this.offset = offset;
     }
 
     public MastDefinition getDefinition() {
@@ -48,8 +52,12 @@ public class TileMast extends BlockEntity {
         return wires;
     }
 
-    public int getAngle() {
+    public float getAngle() {
         return angle;
+    }
+
+    public float getOffset() {
+        return offset;
     }
 
     @Override

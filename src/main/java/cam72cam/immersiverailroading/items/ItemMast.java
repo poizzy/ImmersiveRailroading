@@ -5,7 +5,13 @@ import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.library.GuiTypes;
 import cam72cam.immersiverailroading.registry.DefinitionManager;
 import cam72cam.immersiverailroading.registry.MastDefinition;
+import cam72cam.immersiverailroading.render.item.MastSnappingUtil;
 import cam72cam.immersiverailroading.tile.TileMast;
+import cam72cam.immersiverailroading.tile.TileRail;
+import cam72cam.immersiverailroading.tile.TileRailBase;
+import cam72cam.immersiverailroading.track.VecYPR;
+import cam72cam.immersiverailroading.util.BlockUtil;
+import cam72cam.immersiverailroading.util.VecUtil;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.item.CreativeTab;
@@ -57,15 +63,34 @@ public class ItemMast extends CustomItem {
             return ClickResult.ACCEPTED;
         }
 
+        Data data = new Data(player.getHeldItem(hand));
         Vec3i target = world.isReplaceable(pos) ? pos : pos.offset(facing);
+        float rotation = (-(Math.round(player.getRotationYawHead() / 15) * 15) - 90);
+
+        if (BlockUtil.isIRRail(world, pos)) {
+            TileRailBase base = world.getBlockEntity(pos, TileRailBase.class);
+            TileRail parent = base instanceof TileRail p ? p : base.getParentTile();
+
+            VecYPR onTrack = parent != null && parent.info != null ? MastSnappingUtil.getClosestPointOnTrack(world, parent, new Vec3d(pos).add(inBlockPos)) : null;
+            if (onTrack == null) {
+                return ClickResult.REJECTED;
+            }
+
+            int offset = 2;
+            rotation = MastSnappingUtil.rightSideYaw(onTrack.getYaw(), player.getRotationYawHead());
+            Vec3i off = new Vec3i(VecUtil.fromYaw(offset, rotation));
+            target = new Vec3i(onTrack.x, onTrack.y, onTrack.z).add(off);
+
+            target = world.isReplaceable(target) ? target : target.offset(facing);
+
+            rotation -= 90;
+        }
 
         if (world.isAir(target) || world.isReplaceable(target)) {
-            Data data = new Data(player.getHeldItem(hand));
             world.setBlock(target, IRBlocks.BLOCK_MAST);
 
             TileMast te = world.getBlockEntity(target, TileMast.class);
-            int rotation = (-(Math.round(player.getRotationYawHead() / 15) * 15) - 90);
-            te.setup(data.defID, rotation);
+            te.setup(data.defID, rotation, data.getDistance());
             te.markDirty();
 
             return ClickResult.ACCEPTED;
