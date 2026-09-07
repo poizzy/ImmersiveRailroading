@@ -2,6 +2,7 @@ package cam72cam.immersiverailroading.items;
 
 import cam72cam.immersiverailroading.IRBlocks;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
+import cam72cam.immersiverailroading.library.GuiTypes;
 import cam72cam.immersiverailroading.registry.DefinitionManager;
 import cam72cam.immersiverailroading.registry.MastDefinition;
 import cam72cam.immersiverailroading.tile.TileMast;
@@ -44,6 +45,13 @@ public class ItemMast extends CustomItem {
     }
 
     @Override
+    public void onClickAir(Player player, World world, Player.Hand hand) {
+        if (world.isClient && hand.equals(Player.Hand.PRIMARY)) {
+            GuiTypes.MAST.open(player);
+        }
+    }
+
+    @Override
     public ClickResult onClickBlock(Player player, World world, Vec3i pos, Player.Hand hand, Facing facing, Vec3d inBlockPos) {
         if (world.isClient) {
             return ClickResult.ACCEPTED;
@@ -83,10 +91,15 @@ public class ItemMast extends CustomItem {
     public static class Data extends ItemDataSerializer {
         @TagField
         public String defID;
-
+        @TagField
+        public Float distance;
 
         public Data(ItemStack stack) {
             super(stack);
+        }
+
+        public float getDistance() {
+            return this.distance != null ? distance : 0;
         }
     }
 }

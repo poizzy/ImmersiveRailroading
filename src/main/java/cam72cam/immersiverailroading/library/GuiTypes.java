@@ -33,6 +33,7 @@ public class GuiTypes {
     public static final BlockGUI RAIL_AUGMENT = GuiRegistry.registerBlock(TileRailBase.class, AugmentFilterGUI::new);
     public static final GUI TRACK_EXCHANGER = GuiRegistry.register(new Identifier(ImmersiveRailroading.MODID, "TRACK_EXCHANGER"), TrackExchangerGui::new);
     public static final GUI PAINT_BRUSH = GuiRegistry.register(new Identifier(ImmersiveRailroading.MODID, "PAINT_BRUSH"), PaintBrushPicker::new);
+    public static final GUI MAST = GuiRegistry.register(new Identifier(ImmersiveRailroading.MODID, "MAST"), MastGUI::new);
 
     public static final BlockGUI STEAM_HAMMER = GuiRegistry.registerBlockContainer(TileMultiblock.class, SteamHammerContainer::new);
     public static final BlockGUI CASTING = GuiRegistry.registerBlock(TileMultiblock.class, GuiTypes::createMultiblockScreen);

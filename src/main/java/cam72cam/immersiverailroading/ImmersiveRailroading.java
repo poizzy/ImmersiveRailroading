@@ -206,6 +206,7 @@ public class ImmersiveRailroading extends ModCore.Mod {
 			case SETUP:
 				GlobalRender.registerItemMouseover(IRItems.ITEM_TRACK_BLUEPRINT, TrackBlueprintItemModel::renderMouseover);
 				GlobalRender.registerItemMouseover(IRItems.ITEM_MANUAL, MBBlueprintRender::renderMouseover);
+				GlobalRender.registerItemMouseover(IRItems.ITEM_MAST, MastItemRenderer::renderMouseover);
 
 				GlobalRender.registerOverlay((state, pt) -> {
 					Entity riding = MinecraftClient.getPlayer().getRiding();

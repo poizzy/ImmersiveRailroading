@@ -128,6 +128,8 @@ public enum GuiText {
 	LABEL_INCLUDED_TAG("label.included_tag"),
 	LABEL_EXCLUDED_TAG("label.excluded_tag"),
 
+	MAST_LENGTH("mast.length"),
+
 	ON("overlay.on"),
 	OFF("overlay.off"),
 	NONE("none"),
