@@ -10,11 +10,14 @@ import cam72cam.mod.gui.screen.IScreen;
 import cam72cam.mod.gui.screen.IScreenBuilder;
 import cam72cam.mod.gui.screen.TextField;
 import cam72cam.mod.item.ItemStack;
+import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.render.opengl.RenderState;
 
 public class MastGUI implements IScreen {
     private final ItemMast.Data mastData;
-    private TextField offset;
+    private TextField offsetX;
+    private TextField offsetY;
+    private TextField offsetZ;
 
     public MastGUI() {
         ItemStack stack = MinecraftClient.getPlayer().getHeldItem(Player.Hand.PRIMARY);
@@ -29,11 +32,12 @@ public class MastGUI implements IScreen {
         int width = 200;
         int height = 20;
 
-        Button offsetLabel = new Button(iScreenBuilder, xtop, ytop, width / 2 + 10, height, GuiText.MAST_LENGTH.toString(), ((_, _) -> {}));
-        offsetLabel.setEnabled(false);
-        offset = new TextField(iScreenBuilder, xtop, ytop, width, height);
-        offset.setText(String.valueOf(mastData.getDistance()));
-        offset.setValidator(s -> {
+        // Offset X
+        Button offsetXLabel = new Button(iScreenBuilder, xtop, ytop, width / 2 + 10, height, "Offset X:", ((_, _) -> {}));
+        offsetXLabel.setEnabled(false);
+        offsetX = new TextField(iScreenBuilder, xtop + width / 2 + 10, ytop, width, height);
+        offsetX.setText(String.valueOf(mastData.getOffset().x));
+        offsetX.setValidator(s -> {
             if (s == null || s.isEmpty()) {
                 return true;
             }
@@ -44,7 +48,50 @@ public class MastGUI implements IScreen {
                 return false;
             }
         });
-        offset.setFocused(true);
+        offsetX.setFocused(true);
+
+        ytop += height;
+
+        // Offset Y
+        Button offsetYLabel = new Button(iScreenBuilder, xtop, ytop, width / 2 + 10, height, "Offset Y:", ((_, _) -> {}));
+        offsetYLabel.setEnabled(false);
+        offsetY = new TextField(iScreenBuilder, xtop + width / 2 + 10, ytop, width, height);
+        offsetY.setText(String.valueOf(mastData.getOffset().y));
+        offsetY.setValidator(s -> {
+            if (s == null || s.isEmpty()) {
+                return true;
+            }
+            try {
+                Float.parseFloat(s);
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        });
+        offsetY.setFocused(true);
+
+        ytop += height;
+
+        // Offset Z
+
+        Button offsetZLabel = new Button(iScreenBuilder, xtop, ytop, width / 2 + 10, height, "Offset Z:", ((_, _) -> {}));
+        offsetZLabel.setEnabled(false);
+        offsetZ = new TextField(iScreenBuilder, xtop + width / 2 + 10, ytop, width, height);
+        offsetZ.setText(String.valueOf(mastData.getOffset().z));
+        offsetZ.setValidator(s -> {
+            if (s == null || s.isEmpty()) {
+                return true;
+            }
+            try {
+                Float.parseFloat(s);
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        });
+        offsetZ.setFocused(true);
+
+        ytop += height;
     }
 
     @Override
@@ -55,7 +102,7 @@ public class MastGUI implements IScreen {
 
     @Override
     public void onClose() {
-        mastData.distance = Float.parseFloat(offset.getText());
+        mastData.offset = new Vec3d(Double.parseDouble(offsetX.getText()), Double.parseDouble(offsetY.getText()), Double.parseDouble(offsetZ.getText()));
         mastData.write();
     }
 }

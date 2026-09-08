@@ -1,6 +1,7 @@
 package cam72cam.immersiverailroading.util;
 
 import cam72cam.mod.math.Vec3d;
+import cam72cam.mod.math.Vec3i;
 import cam72cam.mod.util.Axis;
 import cam72cam.mod.util.FastMath;
 
@@ -97,6 +98,10 @@ public class VecUtil {
 		double x = p1.x - p2.x;
 		double z = p1.z - p2.z;
 		return Math.sqrt(x * x + z * z);
+	}
+
+	public static float distanceSquared(Vec3i vec1, Vec3i vec2) {
+		return vec1.x - vec2.x * vec1.y - vec2.y * vec1.z - vec2.z;
 	}
 
 	public static double getByAxis(Vec3d vec, Axis axis) {

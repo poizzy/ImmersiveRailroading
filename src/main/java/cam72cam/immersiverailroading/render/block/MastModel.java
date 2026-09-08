@@ -4,7 +4,6 @@ import cam72cam.immersiverailroading.IRItems;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.tile.OverheadWire;
 import cam72cam.immersiverailroading.tile.TileMast;
-import cam72cam.immersiverailroading.util.VecUtil;
 import cam72cam.mod.MinecraftClient;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.math.Vec3d;
@@ -25,9 +24,9 @@ public class MastModel {
         StandardModel model = new StandardModel();
 
         Model mast = tile.getDefinition().model;
-        Vec3d offset = new Vec3d(0.5, 0, 0.5);
+        Vec3d blockOffset = new Vec3d(0.5, 0, 0.5);
         float rot = tile.getAngle();
-        offset.add(VecUtil.fromYaw(tile.getOffset(), rot));
+        Vec3d offset = blockOffset.add(tile.getOffset().rotateYaw(rot));
 
         model.addCustom(((renderState, v) -> {
             renderMast(offset, renderState, mast, rot);

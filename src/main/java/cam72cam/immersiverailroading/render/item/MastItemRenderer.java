@@ -41,7 +41,7 @@ public class MastItemRenderer implements ItemRender.IItemModel {
     public static void renderMouseover(Player player, ItemStack stack, Vec3i pos, Vec3d hit, RenderState state, float ignoredPartialTicks) {
         World world = player.getWorld();
         ItemMast.Data data = new ItemMast.Data(stack);
-        float localOff = data.getDistance();
+        Vec3d localOff = data.getOffset();
         Vec3d renderOff = new Vec3d(pos);
         float rotation = (-(Math.round(player.getRotationYawHead() / 15) * 15) - 90);
 
@@ -54,8 +54,10 @@ public class MastItemRenderer implements ItemRender.IItemModel {
                 int offset = 2;
 
                 rotation = MastSnappingUtil.rightSideYaw(onTrack.getYaw(), player.getRotationYawHead());
-                Vec3d off = VecUtil.fromYaw(offset + localOff, rotation);
-                renderOff = new Vec3d(new Vec3i(onTrack.x, onTrack.y, onTrack.z)).add(off);
+                Vec3d off = VecUtil.fromYaw(offset, rotation).add(localOff.rotateYaw(rotation));
+                renderOff = new Vec3d(onTrack.x, onTrack.y, onTrack.z).add(off);
+
+                rotation -= 90;
             }
         }
 
