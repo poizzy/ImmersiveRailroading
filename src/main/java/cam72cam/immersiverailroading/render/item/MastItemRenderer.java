@@ -42,7 +42,7 @@ public class MastItemRenderer implements ItemRender.IItemModel {
         World world = player.getWorld();
         ItemMast.Data data = new ItemMast.Data(stack);
         Vec3d localOff = data.getOffset();
-        Vec3d renderOff = new Vec3d(pos);
+        Vec3d renderOff = new Vec3d(pos).add(0.5, 0, 0.5);
         float rotation = (-(Math.round(player.getRotationYawHead() / 15) * 15) - 90);
 
         if (BlockUtil.isIRRail(world, pos)) {
@@ -65,7 +65,7 @@ public class MastItemRenderer implements ItemRender.IItemModel {
         Model model = DefinitionManager.getMast(data.defID).model;
 
         Vec3d cameraPos = GlobalRender.getCameraPos(ignoredPartialTicks);
-        renderOff = renderOff.add(0.5, 0, 0.5).subtract(cameraPos);
+        renderOff = renderOff.subtract(cameraPos);
 
         MastModel.renderMast(renderOff, state, model, rotation);
     }
