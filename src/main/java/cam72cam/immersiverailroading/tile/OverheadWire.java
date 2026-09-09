@@ -6,6 +6,8 @@ import cam72cam.immersiverailroading.util.VecUtil;
 import cam72cam.immersiverailroading.util.WireBuilder;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.math.Vec3i;
+import cam72cam.mod.model.common.mesh.Model;
+import cam72cam.mod.render.common.ModelRenderer;
 import cam72cam.mod.render.opengl.DirectDraw;
 import cam72cam.mod.render.opengl.RenderState;
 import cam72cam.mod.serialization.TagField;
@@ -18,7 +20,7 @@ public class OverheadWire {
     @TagField
     public Vec3d connectionPoint;
 
-    private DirectDraw model;
+    private Model model;
 
     public OverheadWire() {}
 
@@ -28,16 +30,16 @@ public class OverheadWire {
         this.definitionID = defID;
     }
 
-    private DirectDraw getOrCreateModel() {
-        if (this.model == null) {
-            this.model = WireBuilder.build(getDefinition(), delta.scale(-1));
-        }
-        return model;
-    }
-
     public void render(RenderState state) {
         state.translate(connectionPoint);
-        getOrCreateModel().draw(state);
+
+        if (this.model == null) {
+            model = WireBuilder.build(getDefinition(), delta.scale(-1));
+        }
+
+        try (ModelRenderer.Binding binding = ModelRenderer.getRendererFor(model).bind(state)) {
+            binding.enqueueOpaque();
+        }
     }
 
     public WireDefinition getDefinition() {

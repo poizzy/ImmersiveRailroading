@@ -6,9 +6,10 @@ import cam72cam.immersiverailroading.registry.WireDefinition;
 import cam72cam.immersiverailroading.util.WireBuilder;
 import cam72cam.mod.item.ItemStack;
 import cam72cam.mod.math.Vec3d;
+import cam72cam.mod.model.common.mesh.Model;
 import cam72cam.mod.render.ItemRender;
 import cam72cam.mod.render.StandardModel;
-import cam72cam.mod.render.opengl.DirectDraw;
+import cam72cam.mod.render.common.ModelRenderer;
 import cam72cam.mod.render.opengl.RenderState;
 import cam72cam.mod.render.opengl.Texture;
 import cam72cam.mod.world.World;
@@ -16,9 +17,8 @@ import cam72cam.mod.world.World;
 import java.util.HashMap;
 import java.util.Map;
 
-// TODO maybe itemSprite
 public class WireItemRenderer implements ItemRender.IItemModel {
-    public static final Map<String, DirectDraw> cache = new HashMap<>();
+    public static final Map<String, Model> cache = new HashMap<>();
 
     @Override
     public StandardModel getModel(World world, ItemStack itemStack) {
@@ -27,19 +27,21 @@ public class WireItemRenderer implements ItemRender.IItemModel {
 
     public static void render(RenderState state, ItemStack stack) {
         ItemWire.Data data = new ItemWire.Data(stack);
-        DirectDraw model = cache.get(data.defID);
-        if (model == null) {
-            WireDefinition definition = DefinitionManager.getWire(data.defID);
-            if (definition == null) return;
-            model = WireBuilder.build(definition, new Vec3d(-15, 0, 0), 3);
-            cache.put(data.defID, model);
-        }
+        Model model = cache.computeIfAbsent(data.defID, def -> {
+            WireDefinition definition = DefinitionManager.getWire(def);
+            if (definition == null) return null;
+            return WireBuilder.build(definition, new Vec3d(-15, 0, 0), 3);
+        });
+
+        if (model == null) return;
 
         state.scale(1.0f / 15.0f);
         state.cull_face(false);
         state.texture(Texture.NO_TEXTURE);
 
-        model.draw(state);
+        try (ModelRenderer.Binding binding = ModelRenderer.getRendererFor(model).bind(state)) {
+            binding.enqueueOpaque();
+        }
     }
 
     @Override
