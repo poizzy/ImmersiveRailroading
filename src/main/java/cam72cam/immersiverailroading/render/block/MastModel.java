@@ -26,7 +26,7 @@ public class MastModel {
         Model mast = tile.getDefinition().model;
         Vec3d blockOffset = new Vec3d(0.5, 0, 0.5);
         float rot = tile.getAngle();
-        Vec3d offset = blockOffset.add(tile.getOffset().rotateYaw(rot));
+        Vec3d offset = blockOffset.add(tile.getOffset());
 
         model.addCustom(((renderState, v) -> {
             renderMast(offset, renderState, mast, rot);

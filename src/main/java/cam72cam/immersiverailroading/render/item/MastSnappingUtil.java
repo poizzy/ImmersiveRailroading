@@ -104,6 +104,9 @@ public class MastSnappingUtil {
     }
 
     private static SnapInfo computeBlockPos(World world, Vec3d in, float rotation, Vec3d localOff) {
+        // Use actual rotation, not render
+        localOff = localOff.rotateYaw(rotation + 90);
+
         Vec3i blockPos = new Vec3i(in);
         if (world.isReplaceable(blockPos)) {
             Vec3d offset = in.subtract(blockPos).add(localOff);
