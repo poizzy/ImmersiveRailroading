@@ -90,6 +90,13 @@ public class TileMast extends BlockEntity {
         return stack;
     }
 
+    @Override
+    public void onBreak() {
+        for (OverheadWire wire : wires) {
+            wire.removed();
+        }
+    }
+
     private static class WireTagMapper implements TagMapper<List<OverheadWire>> {
 
         @Override

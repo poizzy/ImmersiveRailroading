@@ -11,6 +11,7 @@ import cam72cam.mod.render.common.ModelRenderer;
 import cam72cam.mod.render.opengl.DirectDraw;
 import cam72cam.mod.render.opengl.RenderState;
 import cam72cam.mod.serialization.TagField;
+import org.glassfish.jaxb.core.v2.model.core.EnumLeafInfo;
 
 public class OverheadWire {
     @TagField
@@ -44,6 +45,10 @@ public class OverheadWire {
 
     public WireDefinition getDefinition() {
         return DefinitionManager.getWire(definitionID);
+    }
+
+    public void removed() {
+        if (model != null) model.free();
     }
 
 }
