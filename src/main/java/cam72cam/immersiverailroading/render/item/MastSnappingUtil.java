@@ -89,7 +89,7 @@ public class MastSnappingUtil {
         int offset = 2;
 
         float rotation = MastSnappingUtil.rightSideYaw(onTrack.getYaw(), player.getRotationYawHead());
-        Vec3d off = VecUtil.fromYaw(offset, rotation).add(localOff.rotateYaw(rotation));
+        Vec3d off = VecUtil.fromYaw(offset, rotation);
         Vec3d blockPos = new Vec3d(onTrack.x, onTrack.y, onTrack.z).add(off);
 
         Vec3d placePosD = new Vec3d(new Vec3i(blockPos));
@@ -105,7 +105,7 @@ public class MastSnappingUtil {
 
     private static SnapInfo computeBlockPos(World world, Vec3d in, float rotation, Vec3d localOff) {
         // Use actual rotation, not render
-        localOff = localOff.rotateYaw(rotation + 90);
+        localOff = localOff.rotateYaw(rotation);
 
         Vec3i blockPos = new Vec3i(in);
         if (world.isReplaceable(blockPos)) {

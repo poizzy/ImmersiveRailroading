@@ -48,6 +48,8 @@ public class MastItemRenderer implements ItemRender.IItemModel {
         if (BlockUtil.isIRRail(world, pos) && (snapInfo = MastSnappingUtil.getPlacement(world, player, pos, localOff)) != null) {
             renderOff = snapInfo.getPosition();
             rotation = snapInfo.rotation();
+        } else {
+            renderOff = renderOff.add(localOff.rotateYaw(rotation));
         }
 
 
