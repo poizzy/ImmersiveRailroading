@@ -100,15 +100,15 @@ public class WireBuilder {
 
     public static class VertexBuilder {
         private static final Identifier LOCATION = new Identifier("WIRE_BUILDER");
-        private static final VAOLayout layout = new VAOLayout(VAOLayout.Element.POS, VAOLayout.Element.COLOR);
+        private static final VAOLayout layout = VAOLayout.POS_TEX_COLOR;
         private final List<Vertex> vertices = new ArrayList<>();
 
         public void addVertex(Vec3d pos, float r, float g, float b, float a) {
             addVertex((float) pos.x, (float) pos.y, (float) pos.z, r, g, b, a);
         }
 
-        public void addVertex(float x, float y, float z, float r, float g, float b, float a) {
-            vertices.add(new Vertex(x, y, z, r, g, b, a));
+        private void addVertex(float x, float y, float z, float r, float g, float b, float a) {
+            vertices.add(new Vertex(x, y, z, (float) 0.0, (float) 0.0, r, g, b, a));
         }
 
         public Model build() {
@@ -117,6 +117,7 @@ public class WireBuilder {
             float[] data = new float[triCount * strideF];
 
             int posOff = layout.getOffset(VAOLayout.Usage.POSITION);
+            int uvOff = layout.getOffset(VAOLayout.Usage.UV);
             int colorOff = layout.getOffset(VAOLayout.Usage.COLOR);
 
             for (int i = 0; i < triCount; i++) {
@@ -130,6 +131,11 @@ public class WireBuilder {
                     data[base + posOff + 2] = vertex.z();
                 }
 
+                if (uvOff != -1) {
+                    data[base + uvOff] = vertex.u();
+                    data[base + uvOff] = vertex.v();
+                }
+
                 if (colorOff != -1) {
                     data[base + colorOff] = vertex.r();
                     data[base + colorOff + 1] = vertex.g();
@@ -141,7 +147,7 @@ public class WireBuilder {
             return new Model(LOCATION, layout, () -> data, new LinkedHashMap<>(), false, false, false, 0, 0);
         }
 
-        public record Vertex(float x, float y, float z, float r, float g, float b, float a) {
+        public record Vertex(float x, float y, float z, float u, float v, float r, float g, float b, float a) {
         }
     }
 }
