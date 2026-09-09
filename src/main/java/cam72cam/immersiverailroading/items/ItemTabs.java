@@ -41,8 +41,21 @@ public class ItemTabs {
 			return items.get(0);
 		});
 
-		MAST_TAB = new CreativeTab(ImmersiveRailroading.MODID + ".mast", () -> new ItemStack(IRItems.ITEM_LARGE_WRENCH, 1));
-		WIRE_TAB = new CreativeTab(ImmersiveRailroading.MODID + ".wire", () -> new ItemStack(IRItems.ITEM_LARGE_WRENCH, 1));
+		MAST_TAB = new CreativeTab(ImmersiveRailroading.MODID + ".mast", () -> {
+			List<ItemStack> items = IRItems.ITEM_MAST.getItemVariants(MAST_TAB);
+			if (items.isEmpty()) {
+				return new ItemStack(IRItems.ITEM_LARGE_WRENCH, 1);
+			}
+			return items.getFirst();
+		});
+
+		WIRE_TAB = new CreativeTab(ImmersiveRailroading.MODID + ".wire", () -> {
+			List<ItemStack> items = IRItems.ITEM_WIRE.getItemVariants(WIRE_TAB);
+			if (items.isEmpty()) {
+				return new ItemStack(IRItems.ITEM_LARGE_WRENCH, 1);
+			}
+			return items.getFirst();
+		});
 
 		/*COMPONENT_TAB = new CreativeTab(ImmersiveRailroading.MODID + ".components", () -> {
 			List<ItemStack> items = IRItems.ITEM_ROLLING_STOCK_COMPONENT.getItemVariants(COMPONENT_TAB);
