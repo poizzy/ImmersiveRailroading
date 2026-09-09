@@ -149,7 +149,7 @@ public class ImmersiveRailroading extends ModCore.Mod {
 				ItemRender.register(IRItems.ITEM_MANUAL, new Identifier(MODID, "items/engineerslexicon"));
 				ItemRender.register(IRItems.ITEM_TRACK_EXCHANGER, new TrackExchangerModel());
 				ItemRender.register(IRItems.ITEM_MAST, new MastItemRenderer());
-				ItemRender.register(IRItems.ITEM_WIRE, new Identifier(MODID, "items/wire_default"));
+				ItemRender.register(IRItems.ITEM_WIRE, new WireItemRenderer());
 
 				IEntityRender<EntityMoveableRollingStock> stockRender = new IEntityRender<EntityMoveableRollingStock>() {
 					@Override
