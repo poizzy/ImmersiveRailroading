@@ -29,8 +29,10 @@ public class MastItemRenderer implements ItemRender.IItemModel {
         MastDefinition def = DefinitionManager.getMast(new ItemMast.Data(itemStack).defID);
         Model model = def.model;
         List<String> toBeRendered = model.groups().stream().filter(s -> !s.contains("CONNECTOR")).toList();
+        double scale = 1.0f / model.maxOfGroups(toBeRendered).y;
         return new StandardModel().addCustom((renderState, v) -> {
-            renderState.scale(0.5, 0.5, 0.5);
+            renderState.translate(0.5, 0, 0.5);
+            renderState.scale(scale);
             try (ModelRenderer.Binding vbo = ModelRenderer.getRendererFor(model).bind(renderState)) {
                 vbo.enqueueOpaque(toBeRendered);
             }

@@ -1,6 +1,5 @@
 package cam72cam.immersiverailroading.render.item;
 
-import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.items.ItemWire;
 import cam72cam.immersiverailroading.registry.DefinitionManager;
 import cam72cam.immersiverailroading.registry.WireDefinition;
@@ -11,7 +10,7 @@ import cam72cam.mod.render.ItemRender;
 import cam72cam.mod.render.StandardModel;
 import cam72cam.mod.render.opengl.DirectDraw;
 import cam72cam.mod.render.opengl.RenderState;
-import cam72cam.mod.resource.Identifier;
+import cam72cam.mod.render.opengl.Texture;
 import cam72cam.mod.world.World;
 
 import java.util.HashMap;
@@ -32,35 +31,22 @@ public class WireItemRenderer implements ItemRender.IItemModel {
         if (model == null) {
             WireDefinition definition = DefinitionManager.getWire(data.defID);
             if (definition == null) return;
-            model = WireBuilder.build(definition, new Vec3d(-30, 0, 0));
-            // cache.put(data.defID, model);
+            model = WireBuilder.build(definition, new Vec3d(-15, 0, 0), 3);
+            cache.put(data.defID, model);
         }
 
-        state.scale(0.1);
+        state.scale(1.0f / 15.0f);
+        state.cull_face(false);
+        state.texture(Texture.NO_TEXTURE);
 
         model.draw(state);
     }
 
-/*
-    public Identifier getSpriteKey(ItemStack itemStack) {
-        ItemWire.Data data = new ItemWire.Data(itemStack);
-        if (data.defID == null) return null;
+    @Override
+    public void applyTransform(ItemStack stack, ItemRender.ItemRenderType type, RenderState state) {
+        ItemRender.IItemModel.defaultTransform(type, state);
 
-        return new Identifier(ImmersiveRailroading.MODID, data.defID);
+        state.translate(1, 0.45, 0);
+        state.scale(1, 5, 0);
     }
-
-
-    public StandardModel getSpriteModel(ItemStack itemStack) {
-        ItemWire.Data data = new ItemWire.Data(itemStack);
-        WireDefinition def = DefinitionManager.getWire(data.defID);
-
-        return new StandardModel().addCustom((renderState, v) -> {
-            renderState.translate(0, 0.5, -0.5);
-            renderState.scale(0.5);
-            renderState.rotate(90, 0, 1, 0);
-            DirectDraw model = cache.computeIfAbsent(data.defID, _ -> WireBuilder.build(def, new Vec3d(-10, 0, 0)));
-            model.draw(renderState);
-        });
-    }
-*/
 }

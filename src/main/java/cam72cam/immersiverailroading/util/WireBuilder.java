@@ -9,6 +9,10 @@ import java.util.Map;
 
 public class WireBuilder {
     public static DirectDraw build(WireDefinition def, Vec3d end) {
+        return build(def, end, 1);
+    }
+
+    public static DirectDraw build(WireDefinition def, Vec3d end, float multiplier) {
         // This isn't ideal;
         DirectDraw model = new DirectDraw();
         double length = end.length();
@@ -29,7 +33,7 @@ public class WireBuilder {
                 double t = (double) i / strand.segments;
                 centerline[i] = end.scale(t).add(0, strand.yOffset + sagY(t, sag), 0);
             }
-            emitRibbon(model, centerline, strand.width, strand.color, planeNormal);
+            emitRibbon(model, centerline, strand.width * multiplier, strand.color, planeNormal);
         }
 
         for (WireDefinition.Connector conn : def.connectors) {
@@ -50,7 +54,7 @@ public class WireBuilder {
                 Vec3d base = end.scale(t);
                 Vec3d from = base.add(0, yFrom + sagY(t, sagFrom), 0);
                 Vec3d to = base.add(0, yTo + sagY(t, sagTo), 0);
-                emitRibbon(model, new Vec3d[]{from, to}, conn.width, conn.color, planeNormal);
+                emitRibbon(model, new Vec3d[]{from, to}, conn.width * multiplier, conn.color, planeNormal);
             }
         }
         return model;
