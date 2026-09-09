@@ -22,9 +22,7 @@ import cam72cam.mod.math.Vec3i;
 import cam72cam.mod.serialization.TagField;
 import cam72cam.mod.util.Facing;
 import cam72cam.mod.world.World;
-import net.minecraft.tileentity.TileEntity;
 
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -69,45 +67,11 @@ public class ItemMast extends CustomItem {
         float rotation = (-(Math.round(player.getRotationYawHead() / 15) * 15) - 90);
         Vec3d localOffset = data.getOffset().rotateYaw(rotation);
 
-        if (BlockUtil.isIRRail(world, pos)) {
-            TileRailBase base = world.getBlockEntity(pos, TileRailBase.class);
-            TileRail parent = base instanceof TileRail p ? p : base.getParentTile();
-
-            VecYPR onTrack = parent != null && parent.info != null ? MastSnappingUtil.getClosestPointOnTrack(world, parent, new Vec3d(pos).add(inBlockPos)) : null;
-            if (onTrack == null) {
-                return ClickResult.REJECTED;
-            }
-            rotation = MastSnappingUtil.rightSideYaw(onTrack.getYaw(), player.getRotationYawHead());
-
-            Vec3d railOffset = VecUtil.fromYaw(2, rotation);
-            Vec3d blockPos = new Vec3d(onTrack.x, onTrack.y, onTrack.z).add(railOffset);
-            localOffset = data.getOffset().rotateYaw(rotation);
-
-            Vec3i placePos = new Vec3i(blockPos);
-
-            if (!world.isReplaceable(placePos)) {
-                float lengthSquared = Float.POSITIVE_INFINITY;
-                // Find nearest placeable block
-                Vec3i nearest = null;
-                for (Facing f : new Facing[]{Facing.NORTH, Facing.EAST, Facing.SOUTH, Facing.WEST}) {
-                    Vec3i newPos = target.offset(f);
-                    if (!world.isReplaceable(newPos)) continue;
-                    float len = VecUtil.distanceSquared(newPos, placePos);
-                    if (len < lengthSquared) {
-                        lengthSquared = len;
-                        nearest = newPos;
-                    }
-                }
-
-                if (nearest != null) {
-                    localOffset = localOffset.add(placePos.subtract(nearest));
-                    placePos = nearest;
-                }
-            }
-
-            target = placePos;
-
-            rotation -= 90;
+        MastSnappingUtil.SnapInfo snapInfo;
+        if (BlockUtil.isIRRail(world, pos) && (snapInfo = MastSnappingUtil.getPlacement(world, player, pos, data.getOffset())) != null) {
+            target = snapInfo.blockPos();
+            rotation = snapInfo.rotation();
+            localOffset = snapInfo.offset().subtract(0.5, 0, 0.5);
         }
 
         if (world.isAir(target) || world.isReplaceable(target)) {

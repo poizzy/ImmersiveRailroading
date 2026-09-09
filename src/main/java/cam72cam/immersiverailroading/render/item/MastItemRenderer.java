@@ -1,7 +1,6 @@
 package cam72cam.immersiverailroading.render.item;
 
 import cam72cam.immersiverailroading.items.ItemMast;
-import cam72cam.immersiverailroading.library.TrackItems;
 import cam72cam.immersiverailroading.registry.DefinitionManager;
 import cam72cam.immersiverailroading.registry.MastDefinition;
 import cam72cam.immersiverailroading.render.block.MastModel;
@@ -45,20 +44,10 @@ public class MastItemRenderer implements ItemRender.IItemModel {
         Vec3d renderOff = new Vec3d(pos).add(0.5, 0, 0.5);
         float rotation = (-(Math.round(player.getRotationYawHead() / 15) * 15) - 90);
 
-        if (BlockUtil.isIRRail(world, pos)) {
-            TileRailBase rail = world.getBlockEntity(pos, TileRailBase.class);
-            TileRail parent = rail instanceof TileRail tr ? tr : rail.getParentTile();
-
-            VecYPR onTrack = parent != null && parent.info != null ? MastSnappingUtil.getClosestPointOnTrack(world, parent, hit) : null;
-            if (onTrack != null) {
-                int offset = 2;
-
-                rotation = MastSnappingUtil.rightSideYaw(onTrack.getYaw(), player.getRotationYawHead());
-                Vec3d off = VecUtil.fromYaw(offset, rotation).add(localOff.rotateYaw(rotation));
-                renderOff = new Vec3d(onTrack.x, onTrack.y, onTrack.z).add(off);
-
-                rotation -= 90;
-            }
+        MastSnappingUtil.SnapInfo snapInfo;
+        if (BlockUtil.isIRRail(world, pos) && (snapInfo = MastSnappingUtil.getPlacement(world, player, pos, localOff)) != null) {
+            renderOff = snapInfo.getPosition();
+            rotation = snapInfo.rotation();
         }
 
 
