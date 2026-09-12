@@ -131,6 +131,7 @@ public class ImmersiveRailroading extends ModCore.Mod {
 				BlockRender.register(IRBlocks.BLOCK_RAIL_PREVIEW, RailPreviewRender::render, TileRailPreview.class);
 				BlockRender.register(IRBlocks.BLOCK_MULTIBLOCK, TileMultiblockRender::render, TileMultiblock.class);
 				BlockRender.register(IRBlocks.BLOCK_MAST, MastModel::getModel, TileMast.class);
+				BlockRender.register(IRBlocks.BLOCK_DUMMY, _ -> new StandardModel(), TileDummy.class);
 
 				ItemRender.register(IRItems.ITEM_PLATE, new PlateItemModel());
 				ItemRender.register(IRItems.ITEM_AUGMENT, new RailAugmentItemModel());
