@@ -37,7 +37,7 @@ public class MastConnector {
         return origin.add(b.rotateYaw(rotation));
     }
 
-    public void RenderPreview(RenderState state) {
+    public void renderPreview(RenderState state) {
         if (drawCache == null) {
             drawCache = new DirectDraw();
 
@@ -51,40 +51,40 @@ public class MastConnector {
             double r = 1, g = 0, b = 0, alpha = 0.4;
 
             // Bottom (-Y)
-            drawCache.vertex(x0, y0, z0).color(r, g, b, alpha);
-            drawCache.vertex(x1, y0, z0).color(r, g, b, alpha);
-            drawCache.vertex(x1, y0, z1).color(r, g, b, alpha);
-            drawCache.vertex(x0, y0, z1).color(r, g, b, alpha);
+            drawCache.vertex(x0, y0, z0);
+            drawCache.vertex(x1, y0, z0);
+            drawCache.vertex(x1, y0, z1);
+            drawCache.vertex(x0, y0, z1);
 
             // Top (+Y)
-            drawCache.vertex(x0, y1, z0).color(r, g, b, alpha);
-            drawCache.vertex(x0, y1, z1).color(r, g, b, alpha);
-            drawCache.vertex(x1, y1, z1).color(r, g, b, alpha);
-            drawCache.vertex(x1, y1, z0).color(r, g, b, alpha);
+            drawCache.vertex(x0, y1, z0);
+            drawCache.vertex(x0, y1, z1);
+            drawCache.vertex(x1, y1, z1);
+            drawCache.vertex(x1, y1, z0);
 
             // North (-Z)
-            drawCache.vertex(x0, y0, z0).color(r, g, b, alpha);
-            drawCache.vertex(x0, y1, z0).color(r, g, b, alpha);
-            drawCache.vertex(x1, y1, z0).color(r, g, b, alpha);
-            drawCache.vertex(x1, y0, z0).color(r, g, b, alpha);
+            drawCache.vertex(x0, y0, z0);
+            drawCache.vertex(x0, y1, z0);
+            drawCache.vertex(x1, y1, z0);
+            drawCache.vertex(x1, y0, z0);
 
             // South (+Z)
-            drawCache.vertex(x0, y0, z1).color(r, g, b, alpha);
-            drawCache.vertex(x1, y0, z1).color(r, g, b, alpha);
-            drawCache.vertex(x1, y1, z1).color(r, g, b, alpha);
-            drawCache.vertex(x0, y1, z1).color(r, g, b, alpha);
+            drawCache.vertex(x0, y0, z1);
+            drawCache.vertex(x1, y0, z1);
+            drawCache.vertex(x1, y1, z1);
+            drawCache.vertex(x0, y1, z1);
 
             // West (-X)
-            drawCache.vertex(x0, y0, z0).color(r, g, b, alpha);
-            drawCache.vertex(x0, y0, z1).color(r, g, b, alpha);
-            drawCache.vertex(x0, y1, z1).color(r, g, b, alpha);
-            drawCache.vertex(x0, y1, z0).color(r, g, b, alpha);
+            drawCache.vertex(x0, y0, z0);
+            drawCache.vertex(x0, y0, z1);
+            drawCache.vertex(x0, y1, z1);
+            drawCache.vertex(x0, y1, z0);
 
             // East (+X)
-            drawCache.vertex(x1, y0, z0).color(r, g, b, alpha);
-            drawCache.vertex(x1, y1, z0).color(r, g, b, alpha);
-            drawCache.vertex(x1, y1, z1).color(r, g, b, alpha);
-            drawCache.vertex(x1, y0, z1).color(r, g, b, alpha);
+            drawCache.vertex(x1, y0, z0);
+            drawCache.vertex(x1, y1, z0);
+            drawCache.vertex(x1, y1, z1);
+            drawCache.vertex(x1, y0, z1);
         }
 
         drawCache.draw(state);

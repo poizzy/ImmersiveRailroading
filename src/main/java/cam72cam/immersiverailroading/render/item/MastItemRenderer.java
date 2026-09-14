@@ -60,6 +60,6 @@ public class MastItemRenderer implements ItemRender.IItemModel {
         Vec3d cameraPos = GlobalRender.getCameraPos(ignoredPartialTicks);
         renderOff = renderOff.subtract(cameraPos);
 
-        MastModel.renderMast(renderOff, state, def, rotation);
+        MastModel.renderMast(renderOff, state, def, rotation, null);
     }
 }
