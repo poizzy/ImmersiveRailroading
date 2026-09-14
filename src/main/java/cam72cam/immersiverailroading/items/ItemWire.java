@@ -44,6 +44,7 @@ public class ItemWire extends CustomItem {
             Vec3d localEyes = player.getPositionEyes()
                     .subtract(new Vec3d(nearest.getPos()))
                     .subtract(0.5, 0, 0.5)
+                    .subtract(nearest.getOffset())
                     .rotateYaw(-nearest.getAngle());
             Vec3d localLook = player.getLookVector().rotateYaw(-nearest.getAngle());
 

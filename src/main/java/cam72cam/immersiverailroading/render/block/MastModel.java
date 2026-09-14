@@ -55,7 +55,7 @@ public class MastModel {
         if (tm != null && player.getHeldItem(Player.Hand.PRIMARY).is(IRItems.ITEM_WIRE)) {
             Vec3d localEyes = player.getPositionEyes()
                     .subtract(new Vec3d(tm.getPos()))
-                    .subtract(0.5, 0, 0.5)
+                    .subtract(offset)
                     .rotateYaw(-tm.getAngle());
             Vec3d localLook = player.getLookVector().rotateYaw(-tm.getAngle());
             for (MastConnector connector : definition.connectors.values()) {

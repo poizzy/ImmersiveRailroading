@@ -29,14 +29,6 @@ public class MastConnector {
         return boundingBox;
     }
 
-    public Vec3d getA(Vec3d origin, float rotation) {
-        return origin.add(a.rotateYaw(rotation));
-    }
-
-    public Vec3d getB(Vec3d origin, float rotation) {
-        return origin.add(b.rotateYaw(rotation));
-    }
-
     public void renderPreview(RenderState state) {
         if (drawCache == null) {
             drawCache = new DirectDraw();
@@ -48,7 +40,6 @@ public class MastConnector {
             double x0 = min.x, y0 = min.y, z0 = min.z;
             double x1 = max.x, y1 = max.y, z1 = max.z;
 
-            double r = 1, g = 0, b = 0, alpha = 0.4;
 
             // Bottom (-Y)
             drawCache.vertex(x0, y0, z0);

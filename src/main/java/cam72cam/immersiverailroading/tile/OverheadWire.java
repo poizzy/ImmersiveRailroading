@@ -52,6 +52,11 @@ public class OverheadWire {
             TileMast parentTile = world.getBlockEntity(parent, TileMast.class);
             TileMast targetTile = world.getBlockEntity(target, TileMast.class);
 
+            if (parentTile == null || targetTile == null) {
+                // This will happen if the parent tile is loaded but the target tile not
+                return;
+            }
+
             Vec3d parentA = parentTile.getConnectionPoint(parentConnector, "A");
             Vec3d parentB = parentTile.getConnectionPoint(parentConnector, "B");
             Vec3d targetA = targetTile.getConnectionPoint(targetConnector, "A");
