@@ -4,6 +4,7 @@ import cam72cam.immersiverailroading.IRBlocks;
 import cam72cam.immersiverailroading.IRItems;
 import cam72cam.immersiverailroading.blocks.BlockDummy;
 import cam72cam.immersiverailroading.items.ItemMast;
+import cam72cam.immersiverailroading.library.MastConnector;
 import cam72cam.immersiverailroading.registry.DefinitionManager;
 import cam72cam.immersiverailroading.registry.MastDefinition;
 import cam72cam.immersiverailroading.util.RollAndOffsetInfo;
@@ -36,8 +37,8 @@ public class TileMast extends BlockEntity {
     @TagField(mapper = DummyPosTagMapper.class)
     public List<Vec3i> dummyPos = new ArrayList<>();
 
-    public void addWire(Vec3i firstMast, String defId, String firstConnector, String secondConnector) {
-        wires.add(new OverheadWire(getWorld().getBlockEntity(firstMast, TileMast.class), this, defId, firstConnector, secondConnector));
+    public void addWire(Vec3i firstMast, String defId, MastConnector connector1, MastConnector connector2) {
+        wires.add(new OverheadWire(getWorld().getBlockEntity(firstMast, TileMast.class), this, defId, connector1, connector2));
         this.markDirty();
     }
 
@@ -97,9 +98,13 @@ public class TileMast extends BlockEntity {
         return DefinitionManager.getMast(definitionID);
     }
 
-    public Vec3d getConnectionPoint(String name) {
-        Vec3d rotated = getDefinition().connectorPos.get(name).rotateYaw(angle).add(0.5, 0, 0.5);
-        return new Vec3d(this.getPos()).add(rotated);
+    public Vec3d getConnectionPoint(int id, String type) {
+        Vec3d connection = switch (type) {
+            case "A" -> getDefinition().connectors.get(id).a;
+            case "B" -> getDefinition().connectors.get(id).b;
+            case null, default -> Vec3d.ZERO;
+        };
+        return connection.rotateYaw(angle).add(0.5, 0, 0.5);
     }
 
     public List<OverheadWire> getWires() {
@@ -121,7 +126,7 @@ public class TileMast extends BlockEntity {
         Vec3d max = def.model.maxOfGroups(def.model.groups());
 
         for (OverheadWire wire : wires) {
-            Vec3d otherOffset = wire.delta.rotateYaw(180);
+            Vec3d otherOffset = wire.getDelta();
             min = min.min(otherOffset);
             max = max.max(otherOffset);
         }

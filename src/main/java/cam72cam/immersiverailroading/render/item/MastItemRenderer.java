@@ -55,11 +55,11 @@ public class MastItemRenderer implements ItemRender.IItemModel {
         }
 
 
-        Model model = DefinitionManager.getMast(data.defID).model;
+        MastDefinition def = DefinitionManager.getMast(data.defID);
 
         Vec3d cameraPos = GlobalRender.getCameraPos(ignoredPartialTicks);
         renderOff = renderOff.subtract(cameraPos);
 
-        MastModel.renderMast(renderOff, state, model, rotation);
+        MastModel.renderMast(renderOff, state, def, rotation);
     }
 }

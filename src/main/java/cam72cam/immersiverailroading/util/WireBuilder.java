@@ -9,36 +9,77 @@ import cam72cam.mod.resource.Identifier;
 import java.util.*;
 
 public class WireBuilder {
-    public static Model build(WireDefinition def, Vec3d end) {
-        return build(def, end, 1);
+
+    public static Model build(WireDefinition def, Vec3d delta, float multiplier) {
+        Vec3d parentA = new Vec3d(0, 1, 0);
+        Vec3d targetA = parentA.add(delta);
+        Vec3d parentB = Vec3d.ZERO;
+        Vec3d targetB = parentB.add(delta);
+        return build(def, targetA, targetB, parentA, parentB, multiplier);
     }
 
-    public static Model build(WireDefinition def, Vec3d end, float multiplier) {
+
+    public static Model build(WireDefinition def, Vec3d targetA, Vec3d targetB, Vec3d parentA, Vec3d parentB) {
+        return build(def, targetA, targetB, parentA, parentB, 1);
+    }
+
+    public static Model build(WireDefinition def, Vec3d targetA, Vec3d targetB, Vec3d parentA, Vec3d parentB, float multiplier) {
 
         VertexBuilder builder = new VertexBuilder();
 
-        double length = end.length();
+        // Transform to local space with parentA as (0, 0, 0)
+        Vec3d localA1 = targetA.subtract(parentA);
+        Vec3d localB1 = targetB.subtract(parentA);
+        Vec3d localA2 = parentA.subtract(parentA);
+        Vec3d localB2 = parentB.subtract(parentA);
+
+        Map<String, Vec3d> startByStrand = new HashMap<>();
+        Map<String, Vec3d> endByStrand = new HashMap<>();
+        startByStrand.put("A", localA1);
+        endByStrand.put("A", localA2);
+        startByStrand.put("B", localB1);
+        endByStrand.put("B", localB2);
+
+        double length = localA2.subtract(localA1).length();
         Vec3d up = new Vec3d(0, 1, 0);
-        Vec3d tangent = end.normalize();
+        Vec3d tangent = localA2.subtract(localA1).normalize();
         Vec3d planeNormal = tangent.crossProduct(up).normalize();
 
         Map<String, Double> sagByStrand = new HashMap<>();
         Map<String, Double> yOffsetByStrand = new HashMap<>();
+        Map<String, Vec3d> strandStart = new HashMap<>();
+        Map<String, Vec3d> strandEnd = new HashMap<>();
 
         for (WireDefinition.Wire strand : def.wires) {
-            double sag = strand.sagRatio * length;
+            Vec3d start = startByStrand.get(strand.name);
+            Vec3d end = endByStrand.get(strand.name);
+            if (start == null || end == null) {
+                throw new IllegalArgumentException("Unknown wire strand name: " + strand.name + " (expected \"A\" or \"B\")");
+            }
+
+            double strandLength = end.subtract(start).length();
+            double sag = strand.sagRatio * strandLength;
             sagByStrand.put(strand.name, sag);
             yOffsetByStrand.put(strand.name, (double) strand.yOffset);
+            strandStart.put(strand.name, start);
+            strandEnd.put(strand.name, end);
 
             Vec3d[] centerline = new Vec3d[strand.segments + 1];
             for (int i = 0; i <= strand.segments; i++) {
                 double t = (double) i / strand.segments;
-                centerline[i] = end.scale(t).add(0, strand.yOffset + sagY(t, sag), 0);
+                Vec3d base = start.add(end.subtract(start).scale(t));
+                centerline[i] = base.add(0, strand.yOffset + sagY(t, sag), 0);
             }
             emitRibbon(builder, centerline, strand.width * multiplier, strand.color, planeNormal);
         }
 
         for (WireDefinition.Connector conn : def.connectors) {
+            Vec3d fromStart = strandStart.get(conn.from);
+            Vec3d fromEnd = strandEnd.get(conn.from);
+            Vec3d toStart = strandStart.get(conn.to);
+            Vec3d toEnd = strandEnd.get(conn.to);
+            if (fromStart == null || toStart == null) continue;
+
             double sagFrom = sagByStrand.getOrDefault(conn.from, 0.0);
             double sagTo = sagByStrand.getOrDefault(conn.to, 0.0);
             double yFrom = yOffsetByStrand.getOrDefault(conn.from, 0.0);
@@ -52,10 +93,12 @@ public class WireBuilder {
 
             for (int i = lo; i <= hi; i++) {
                 double t = (double) i / n;
-                double x = t * length;
-                Vec3d base = end.scale(t);
-                Vec3d from = base.add(0, yFrom + sagY(t, sagFrom), 0);
-                Vec3d to = base.add(0, yTo + sagY(t, sagTo), 0);
+
+                Vec3d fromBase = fromStart.add(fromEnd.subtract(fromStart).scale(t));
+                Vec3d toBase = toStart.add(toEnd.subtract(toStart).scale(t));
+
+                Vec3d from = fromBase.add(0, yFrom + sagY(t, sagFrom), 0);
+                Vec3d to = toBase.add(0, yTo + sagY(t, sagTo), 0);
                 emitRibbon(builder, new Vec3d[]{from, to}, conn.width * multiplier, conn.color, planeNormal);
             }
         }

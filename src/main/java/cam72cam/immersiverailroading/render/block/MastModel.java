@@ -2,6 +2,8 @@ package cam72cam.immersiverailroading.render.block;
 
 import cam72cam.immersiverailroading.IRItems;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
+import cam72cam.immersiverailroading.library.MastConnector;
+import cam72cam.immersiverailroading.registry.MastDefinition;
 import cam72cam.immersiverailroading.tile.OverheadWire;
 import cam72cam.immersiverailroading.tile.TileMast;
 import cam72cam.mod.MinecraftClient;
@@ -18,18 +20,17 @@ import cam72cam.mod.resource.Identifier;
 import java.util.*;
 
 public class MastModel {
-    private static final Texture CONNECTOR = Texture.wrap(new Identifier(ImmersiveRailroading.MODID, "textures/connector.png"));
 
     public static StandardModel getModel(TileMast tile) {
         StandardModel model = new StandardModel();
 
-        Model mast = tile.getDefinition().model;
+        MastDefinition definition = tile.getDefinition();
         Vec3d blockOffset = new Vec3d(0.5, 0, 0.5);
         float rot = tile.getAngle();
         Vec3d offset = blockOffset.add(tile.getOffset());
 
         model.addCustom(((renderState, v) -> {
-            renderMast(offset, renderState, mast, rot);
+            renderMast(offset, renderState, definition, rot);
         }));
 
         model.addCustom(((state, _) -> {
@@ -42,19 +43,22 @@ public class MastModel {
         return model;
     }
 
-    public static void renderMast(Vec3d offset, RenderState renderState, Model mast, float rotationYaw) {
+    public static void renderMast(Vec3d offset, RenderState renderState, MastDefinition definition, float rotationYaw) {
         renderState.translate(offset);
         renderState.rotate(rotationYaw, 0, 1, 0);
+        Model mast = definition.model;
         List<String> toBeRendered = mast.groups().stream().filter(g -> !g.contains("CONNECTOR_")).toList();
-        List<String> connectors = mast.groups().stream().filter(g -> g.contains("CONNECTOR_")).toList();
         try (ModelRenderer.Binding bound = ModelRenderer.getRendererFor(mast).bind(renderState)) {
             bound.enqueueOpaque(toBeRendered);
+        }
 
-            Player player = MinecraftClient.getPlayer();
-            if (player.getHeldItem(Player.Hand.PRIMARY).is(IRItems.ITEM_WIRE)) {
-                bound.enqueueTransparent(connectors, state -> state.texture(CONNECTOR).blend(new BlendMode(BlendMode.GL_SRC_ALPHA, BlendMode.GL_ONE_MINUS_SRC_ALPHA)).lighting(false));
+        Player player = MinecraftClient.getPlayer();
+        if (player.getHeldItem(Player.Hand.PRIMARY).is(IRItems.ITEM_WIRE)) {
+            for (MastConnector connector : definition.connectors.values()) {
+                RenderState previewState = renderState.clone();
+                previewState.blend(new BlendMode(BlendMode.GL_SRC_ALPHA, BlendMode.GL_ONE_MINUS_SRC_ALPHA)).lighting(false);
+                connector.RenderPreview(previewState);
             }
-
         }
     }
 }

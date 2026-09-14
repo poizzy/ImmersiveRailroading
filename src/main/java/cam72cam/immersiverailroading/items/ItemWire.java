@@ -1,6 +1,7 @@
 package cam72cam.immersiverailroading.items;
 
 import cam72cam.immersiverailroading.ImmersiveRailroading;
+import cam72cam.immersiverailroading.library.MastConnector;
 import cam72cam.immersiverailroading.registry.DefinitionManager;
 import cam72cam.immersiverailroading.registry.MastDefinition;
 import cam72cam.immersiverailroading.registry.WireDefinition;
@@ -17,6 +18,7 @@ import cam72cam.mod.net.Packet;
 import cam72cam.mod.serialization.TagField;
 import cam72cam.mod.util.Facing;
 import cam72cam.mod.world.World;
+import scala.Int;
 
 import java.util.*;
 
@@ -37,16 +39,14 @@ public class ItemWire extends CustomItem {
             return;
         }
         MastDefinition def = nearest.getDefinition();
-        for (Map.Entry<String, Vec3d> connector : def.connectorPos.entrySet()) {
-            List<String> name = Collections.singletonList(connector.getKey());
-
+        for (MastConnector connector : def.connectors.values()) {
             Vec3d localEyes = player.getPositionEyes()
                     .subtract(new Vec3d(nearest.getPos()))
                     .subtract(0.5, 0, 0.5)
                     .rotateYaw(-nearest.getAngle());
             Vec3d localLook = player.getLookVector().rotateYaw(-nearest.getAngle());
 
-            IBoundingBox box = IBoundingBox.from(def.model.minOfGroups(name), def.model.maxOfGroups(name));
+            IBoundingBox box = connector.getBoundingBox();
             if (box.intersectsSegment(localEyes, localEyes.add(localLook.scale(10)))) {
                 ItemStack stack = player.getHeldItem(hand);
                 Data data = new Data(stack);
@@ -54,7 +54,7 @@ public class ItemWire extends CustomItem {
                 if (data.firstMast == null) {
                     data.firstMast = nearest.getPos();
                     data.firstDim = world.getId();
-                    data.firstConnector = name.getFirst();
+                    data.firstConnector = connector;
                     data.write();
                     return;
                 }
@@ -66,8 +66,8 @@ public class ItemWire extends CustomItem {
                     return;
                 }
 
-                nearest.addWire(data.firstMast, data.defID, data.firstConnector, name.getFirst());
-                new WirePacket(nearest.getPos(), data.defID, data.firstMast, data.firstConnector, name.getFirst()).sendToAll();
+                nearest.addWire(data.firstMast, data.defID, data.firstConnector, connector);
+                new WirePacket(nearest.getPos(), data.defID, data.firstMast, data.firstConnector, connector).sendToAll();
                 clearData(data);
                 break;
             }
@@ -77,39 +77,7 @@ public class ItemWire extends CustomItem {
     // TODO remove
     @Override
     public ClickResult onClickBlock(Player player, World world, Vec3i pos, Player.Hand hand, Facing facing, Vec3d inBlockPos) {
-        if (world.isClient) {
-            return ClickResult.PASS;
-        }
-
-        TileMast clicked = world.getBlockEntity(pos, TileMast.class);
-        if (clicked == null) {
-            player.sendMessage(WIRE_NO_TARGET.getMessage());
-            return ClickResult.PASS;
-        }
-
-        ItemStack stack = player.getHeldItem(hand);
-        Data data = new Data(stack);
-
-        if (data.firstMast == null) {
-            data.firstMast = pos;
-            data.firstDim = world.getId();
-            data.write();
-            return ClickResult.ACCEPTED;
-        }
-
-        if (pos.equals(data.firstMast)) {
-            return ClickResult.REJECTED;
-        }
-
-        if (data.firstDim != world.getId()) {
-            player.sendMessage(WIRE_DIM_MISMATCH.getMessage());
-            return ClickResult.REJECTED;
-        }
-
-        clicked.addWire(data.firstMast, data.defID, "", "");
-        new WirePacket(clicked.getPos(), data.defID, data.firstMast, "", "").sendToAll();
-        clearData(data);
-        return ClickResult.ACCEPTED;
+        return ClickResult.PASS;
     }
 
     @Override
@@ -150,13 +118,13 @@ public class ItemWire extends CustomItem {
         @TagField
         public Vec3i secondMast;
         @TagField
-        public String firstConnector;
+        public MastConnector firstConnector;
         @TagField
-        public String secondConnector;
+        public MastConnector secondConnector;
 
         public WirePacket(){}
 
-        public WirePacket(Vec3i secondMast, String def, Vec3i firstMast, String firstConnector, String secondConnector) {
+        public WirePacket(Vec3i secondMast, String def, Vec3i firstMast, MastConnector firstConnector, MastConnector secondConnector) {
             this.def = def;
             this.firstMast = firstMast;
             this.secondMast = secondMast;
@@ -183,7 +151,7 @@ public class ItemWire extends CustomItem {
         @TagField
         public Integer firstDim;
         @TagField
-        public String firstConnector;
+        public MastConnector firstConnector;
 
         public Data(ItemStack stack) {
             super(stack);
