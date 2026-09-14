@@ -62,25 +62,35 @@ public class TileMast extends BlockEntity {
             boundingBoxes.add(fallback);
         }
 
-        for (IBoundingBox box : boundingBoxes) {
+        boundingBoxes.sort(Comparator.comparingDouble(bb -> bb.center().distanceToSquared(Vec3d.ZERO)));
+
+        for (int i = 0; i < boundingBoxes.size(); i++) {
+            boolean overTe = i == 0;
+            IBoundingBox box = boundingBoxes.get(i);
             double highestY = box.max().y;
             double lowestY = box.min().y;
 
-            int blockDelta = (int) (highestY - lowestY) - 1;
+            int blockDelta = (int) (highestY - lowestY);
 
-            Vec3i placePos = getPos().up();
+            if (overTe) blockDelta -= 1;
 
-            for (int i = 0; i <= blockDelta; i++) {
+            Vec3d center = box.center().rotateYaw(angle);
+
+            int px = (int) Math.floor(center.x);
+            int pz = (int) Math.floor(center.z);
+
+            Vec3i placePos = overTe ? getPos().up() : getPos().add(px, (int) lowestY, pz);
+            IBoundingBox localBox = overTe ? box : box.offset(new Vec3d(-box.center().x, 0, -box.center().z));
+
+            for (int j = 0; j <= blockDelta; j++) {
                 getWorld().setBlock(placePos, IRBlocks.BLOCK_DUMMY);
                 TileDummy td = getWorld().getBlockEntity(placePos, TileDummy.class);
                 td.setParent(this);
-                td.setBoundingBox(box.offset(new Vec3d(0, -i - 1, 0)));
+                td.setBoundingBox(localBox.offset(new Vec3d(0, -j - 1, 0)));
                 dummyPos.add(placePos);
                 placePos = placePos.up();
             }
         }
-
-        boundingBoxes.sort(Comparator.comparingDouble(bb -> bb.center().distanceToSquared(Vec3d.ZERO)));
     }
 
     public MastDefinition getDefinition() {
