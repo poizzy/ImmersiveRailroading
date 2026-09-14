@@ -1,10 +1,12 @@
 package cam72cam.immersiverailroading.items;
 
+import cam72cam.immersiverailroading.IRBlocks;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.library.MastConnector;
 import cam72cam.immersiverailroading.registry.DefinitionManager;
 import cam72cam.immersiverailroading.registry.MastDefinition;
 import cam72cam.immersiverailroading.registry.WireDefinition;
+import cam72cam.immersiverailroading.tile.TileDummy;
 import cam72cam.immersiverailroading.tile.TileMast;
 import cam72cam.mod.entity.Player;
 import cam72cam.mod.entity.boundingbox.IBoundingBox;
@@ -18,7 +20,6 @@ import cam72cam.mod.net.Packet;
 import cam72cam.mod.serialization.TagField;
 import cam72cam.mod.util.Facing;
 import cam72cam.mod.world.World;
-import scala.Int;
 
 import java.util.*;
 
@@ -54,7 +55,7 @@ public class ItemWire extends CustomItem {
                 if (data.firstMast == null) {
                     data.firstMast = nearest.getPos();
                     data.firstDim = world.getId();
-                    data.firstConnector = connector;
+                    data.firstConnector = connector.id;
                     data.write();
                     return;
                 }
@@ -66,18 +67,39 @@ public class ItemWire extends CustomItem {
                     return;
                 }
 
-                nearest.addWire(data.firstMast, data.defID, data.firstConnector, connector);
-                new WirePacket(nearest.getPos(), data.defID, data.firstMast, data.firstConnector, connector).sendToAll();
+                nearest.addWire(data.firstMast, data.defID, data.firstConnector, connector.id);
+                new WirePacket(nearest.getPos(), data.defID, data.firstMast, data.firstConnector, connector.id).sendToAll();
                 clearData(data);
                 break;
             }
         }
     }
 
-    // TODO remove
     @Override
     public ClickResult onClickBlock(Player player, World world, Vec3i pos, Player.Hand hand, Facing facing, Vec3d inBlockPos) {
-        return ClickResult.PASS;
+        if (world.isClient) {
+            return ClickResult.PASS;
+        }
+
+        ItemStack itemStack = player.getHeldItem(hand);
+        Data data = new Data(itemStack);
+
+        if (world.isBlock(pos, IRBlocks.BLOCK_MAST) && player.isCrouching()) {
+            TileMast tm = world.getBlockEntity(pos, TileMast.class);
+            tm.removeWires();
+            clearData(data);
+            return ClickResult.ACCEPTED;
+        } else if (world.isBlock(pos, IRBlocks.BLOCK_DUMMY) && player.isCrouching()) {
+            TileMast tm = world.getBlockEntity(pos, TileDummy.class).getParentTile();
+            tm.removeWires();
+            clearData(data);
+            return ClickResult.ACCEPTED;
+        } else if (player.isCrouching()) {
+            clearData(data);
+            return ClickResult.ACCEPTED;
+        }
+
+        return ClickResult.REJECTED;
     }
 
     @Override
@@ -118,23 +140,23 @@ public class ItemWire extends CustomItem {
         @TagField
         public Vec3i secondMast;
         @TagField
-        public MastConnector firstConnector;
+        public Integer targetConnector;
         @TagField
-        public MastConnector secondConnector;
+        public Integer parentConnector;
 
         public WirePacket(){}
 
-        public WirePacket(Vec3i secondMast, String def, Vec3i firstMast, MastConnector firstConnector, MastConnector secondConnector) {
+        public WirePacket(Vec3i secondMast, String def, Vec3i firstMast, int targetConnector, int parentConnector) {
             this.def = def;
             this.firstMast = firstMast;
             this.secondMast = secondMast;
-            this.firstConnector = firstConnector;
-            this.secondConnector = secondConnector;
+            this.targetConnector = targetConnector;
+            this.parentConnector = parentConnector;
         }
 
         @Override
         protected void handle() {
-            getWorld().getBlockEntity(secondMast, TileMast.class).addWire(firstMast, def, firstConnector, secondConnector);
+            getWorld().getBlockEntity(secondMast, TileMast.class).addWire(firstMast, def, targetConnector, parentConnector);
         }
     }
 
@@ -151,7 +173,7 @@ public class ItemWire extends CustomItem {
         @TagField
         public Integer firstDim;
         @TagField
-        public MastConnector firstConnector;
+        public Integer firstConnector;
 
         public Data(ItemStack stack) {
             super(stack);

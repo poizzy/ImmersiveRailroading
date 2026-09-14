@@ -1,15 +1,16 @@
 package cam72cam.immersiverailroading.tile;
 
-import cam72cam.immersiverailroading.library.MastConnector;
 import cam72cam.immersiverailroading.registry.DefinitionManager;
 import cam72cam.immersiverailroading.registry.WireDefinition;
 import cam72cam.immersiverailroading.util.WireBuilder;
+import cam72cam.mod.MinecraftClient;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.math.Vec3i;
 import cam72cam.mod.model.common.mesh.Model;
 import cam72cam.mod.render.common.ModelRenderer;
 import cam72cam.mod.render.opengl.RenderState;
 import cam72cam.mod.serialization.TagField;
+import cam72cam.mod.world.World;
 
 public class OverheadWire {
     @TagField
@@ -17,38 +18,46 @@ public class OverheadWire {
     @TagField
     public Vec3d connectionPoint;
     @TagField
-    private MastConnector connector1;
+    private Vec3i parent;
     @TagField
-    private MastConnector connector2;
+    private Vec3i target;
     @TagField
-    private Vec3d parentOrigin;
+    private int parentConnector;
     @TagField
-    private Vec3d targetOrigin;
+    private int targetConnector;
     @TagField
-    private float parentRotation;
-    @TagField
-    private float targetRotation;
+    private Vec3d delta;
 
     private Model model;
 
     public OverheadWire() {}
 
-    public OverheadWire(TileMast target, TileMast parent, String defID, MastConnector connector1, MastConnector connector2) {
-        this.connectionPoint = parent.getConnectionPoint(connector2.id, "A");
-        this.connector1 = connector1;
-        this.connector2 = connector2;
+    public OverheadWire(TileMast target, TileMast parent, String defID, int targetConnector, int parentConnector) {
+        this.connectionPoint = parent.getLocalConnectionPoint(parentConnector, "A");
         this.definitionID = defID;
-        this.parentOrigin = new Vec3d(parent.getPos()).add(0.5, 0, 0.5);
-        this.targetOrigin = new Vec3d(target.getPos()).add(0.5, 0, 0.5);
-        this.parentRotation = parent.getAngle();
-        this.targetRotation = target.getAngle();
+        this.target = target.getPos();
+        this.parent = parent.getPos();
+        this.parentConnector = parentConnector;
+        this.targetConnector = targetConnector;
+
+        this.delta = parent.getConnectionPoint(parentConnector, "A").subtract(target.getConnectionPoint(targetConnector, "A")).scale(-1);
     }
 
     public void render(RenderState state) {
         state.translate(connectionPoint);
 
         if (this.model == null) {
-            model = WireBuilder.build(getDefinition(), connector1.getA(targetOrigin, targetRotation), connector1.getB(targetOrigin, targetRotation), connector2.getA(parentOrigin, parentRotation), connector2.getB(parentOrigin, parentRotation));
+            World world = MinecraftClient.getPlayer().getWorld();
+
+            TileMast parentTile = world.getBlockEntity(parent, TileMast.class);
+            TileMast targetTile = world.getBlockEntity(target, TileMast.class);
+
+            Vec3d parentA = parentTile.getConnectionPoint(parentConnector, "A");
+            Vec3d parentB = parentTile.getConnectionPoint(parentConnector, "B");
+            Vec3d targetA = targetTile.getConnectionPoint(targetConnector, "A");
+            Vec3d targetB = targetTile.getConnectionPoint(targetConnector, "B");
+
+            model = WireBuilder.build(getDefinition(), targetA, targetB, parentA, parentB);
         }
 
         try (ModelRenderer.Binding binding = ModelRenderer.getRendererFor(model).bind(state)) {
@@ -57,7 +66,7 @@ public class OverheadWire {
     }
 
     public Vec3d getDelta() {
-        return connector2.getA(parentOrigin, parentRotation).subtract(connector1.getA(targetOrigin, targetRotation)).scale(-1);
+        return this.delta;
     }
 
     public WireDefinition getDefinition() {

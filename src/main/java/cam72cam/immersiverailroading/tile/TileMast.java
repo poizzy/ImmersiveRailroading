@@ -2,12 +2,9 @@ package cam72cam.immersiverailroading.tile;
 
 import cam72cam.immersiverailroading.IRBlocks;
 import cam72cam.immersiverailroading.IRItems;
-import cam72cam.immersiverailroading.blocks.BlockDummy;
 import cam72cam.immersiverailroading.items.ItemMast;
-import cam72cam.immersiverailroading.library.MastConnector;
 import cam72cam.immersiverailroading.registry.DefinitionManager;
 import cam72cam.immersiverailroading.registry.MastDefinition;
-import cam72cam.immersiverailroading.util.RollAndOffsetInfo;
 import cam72cam.mod.block.BlockEntity;
 import cam72cam.mod.entity.boundingbox.IBoundingBox;
 import cam72cam.mod.entity.sync.TagSync;
@@ -37,8 +34,13 @@ public class TileMast extends BlockEntity {
     @TagField(mapper = DummyPosTagMapper.class)
     public List<Vec3i> dummyPos = new ArrayList<>();
 
-    public void addWire(Vec3i firstMast, String defId, MastConnector connector1, MastConnector connector2) {
-        wires.add(new OverheadWire(getWorld().getBlockEntity(firstMast, TileMast.class), this, defId, connector1, connector2));
+    public void addWire(Vec3i firstMast, String defId, int targetConnector, int parentConnector) {
+        wires.add(new OverheadWire(getWorld().getBlockEntity(firstMast, TileMast.class), this, defId, targetConnector, parentConnector));
+        this.markDirty();
+    }
+
+    public void removeWires() {
+        this.wires.clear();
         this.markDirty();
     }
 
@@ -99,12 +101,16 @@ public class TileMast extends BlockEntity {
     }
 
     public Vec3d getConnectionPoint(int id, String type) {
+        return new Vec3d(getPos()).add(getLocalConnectionPoint(id, type));
+    }
+
+    public Vec3d getLocalConnectionPoint(int id, String type) {
         Vec3d connection = switch (type) {
             case "A" -> getDefinition().connectors.get(id).a;
             case "B" -> getDefinition().connectors.get(id).b;
             case null, default -> Vec3d.ZERO;
         };
-        return connection.rotateYaw(angle).add(0.5, 0, 0.5);
+        return connection.rotateYaw(angle).add(0.5, 0, 0.5).add(offset);
     }
 
     public List<OverheadWire> getWires() {
@@ -135,6 +141,9 @@ public class TileMast extends BlockEntity {
 
     @Override
     public IBoundingBox getBoundingBox() {
+        if (boundingBoxes == null || boundingBoxes.isEmpty()) {
+            return IBoundingBox.BLOCK;
+        }
         return boundingBoxes.getFirst();
     }
 
