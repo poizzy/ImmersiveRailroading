@@ -115,6 +115,7 @@ public abstract class EntityRollingStockDefinition {
     public List<AnimationDefinition> animations;
     public Map<String, Float> cgDefaults;
     public Map<String, DataBlock> widgetConfig;
+    public Map<String, TextFieldConfig> textFieldConfig;
 
     public List<StockSound> customSounds;
 
@@ -655,6 +656,15 @@ public abstract class EntityRollingStockDefinition {
         if (widgets != null) {
             widgetConfig = widgets.getBlockMap();
         }
+
+        this.textFieldConfig = new HashMap<>();
+        List<DataBlock> textFields = data.getBlocks("text_fields");
+        if (textFields != null) {
+            textFields.forEach(d -> {
+                TextFieldConfig config = TextFieldConfig.fromDataBlock(d);
+                textFieldConfig.put(config.name, config);
+            });
+        }
     }
 
     public void loadSounds(Identifier file) throws IOException {
@@ -745,7 +755,7 @@ public abstract class EntityRollingStockDefinition {
         return clamped.subtract(flippedOffset).rotateYaw(90);
     }
 
-    //Trying to query closed doors we're colliding and get their tangent to restrict moving
+    //Trying to query closed doors we're colliding and get their xAxis to restrict moving
     private Vec3d getCollidingDoorTangent(EntityRollingStock stock, Gauge gauge, Vec3d start, Vec3d end) {
         // Maybe filter by nearest door?
         List<Door<?>> doors = getModel().getDoors().stream()

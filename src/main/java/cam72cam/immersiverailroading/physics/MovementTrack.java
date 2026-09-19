@@ -183,7 +183,7 @@ public class MovementTrack {
 		} else if (rail.info.getBuilder(world) instanceof IIterableTrack) {
 			/*
 			 * Discovery: This is not accurate for distances less than 0.1m
-			 * Since we snap to the line, small distances are snapped to a tangent that's further than they are
+			 * Since we snap to the line, small distances are snapped to a xAxis that's further than they are
 			 * trying to move.  Instead we should probably calculate the vector between the closest pos
 			 * and the current pos and move distance along that.  How would that work for slopes at the ends? just fine?
 			 */

@@ -121,6 +121,9 @@ public enum ModelComponentType {
 	COUPLED_X("COUPLED_#ID#"),
 	GAUGE_EMERGENCY_X("GAUGE_EMERGENCY_#ID#"),
 
+	// Textfields
+	TEXTFIELD_X("TEXTFIELD"),
+
 	// Floor
 	FLOOR("FLOOR"),
 	//TODO Find a proper way to implement this

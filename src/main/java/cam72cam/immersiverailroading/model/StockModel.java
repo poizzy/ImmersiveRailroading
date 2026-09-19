@@ -52,6 +52,7 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
     protected final List<Control<ENTITY>> controls;
     protected final List<Readout<ENTITY>> gauges;
     protected final List<Seat<ENTITY>> seats;
+    protected final List<TextField<ENTITY>> textFields;
 
     protected List<LightFlare<ENTITY>> headlights;
 
@@ -88,6 +89,7 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
         this.controls = new ArrayList<>();
         this.gauges = new ArrayList<>();
         this.headlights = new ArrayList<>();
+        this.textFields = new ArrayList<>();
 
         ModelState.LightState base = new ModelState.LightState(null, null, null, hasInterior);
 
@@ -209,6 +211,12 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
         this.headlights.addAll(LightFlare.get(def, provider, rocking, type));
     }
 
+    protected void addTextField(DEFINITION def, ComponentProvider provider) {
+        this.textFields.addAll(TextField.get(def, provider, ModelComponentType.TEXTFIELD_X, model, ModelPosition.BOGEY_FRONT));
+        this.textFields.addAll(TextField.get(def, provider, ModelComponentType.TEXTFIELD_X, model, ModelPosition.BOGEY_REAR));
+        this.textFields.addAll(TextField.get(def, provider, ModelComponentType.TEXTFIELD_X, model));
+    }
+
     protected void parseControllable(ComponentProvider provider, DEFINITION def) {
         gauges.addAll(Readout.getReadouts(provider, frontRocking, ModelComponentType.COUPLED_X, ModelPosition.BOGEY_FRONT, Readouts.COUPLED_FRONT));
         gauges.addAll(Readout.getReadouts(provider, rearRocking, ModelComponentType.COUPLED_X, ModelPosition.BOGEY_REAR, Readouts.COUPLED_REAR));
@@ -232,6 +240,7 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
         seats.addAll(Seat.get(provider, rocking));
 
         addHeadlight(def, provider, ModelComponentType.HEADLIGHT_X);
+        addTextField(def, provider);
     }
 
     protected void parseComponents(ComponentProvider provider, DEFINITION def) {

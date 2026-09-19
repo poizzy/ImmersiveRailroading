@@ -2,6 +2,7 @@ package cam72cam.immersiverailroading.gui.util;
 
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.track.CubicCurve;
+import cam72cam.immersiverailroading.util.Color;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.render.opengl.BlendMode;
 import cam72cam.mod.render.opengl.DirectDraw;

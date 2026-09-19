@@ -605,7 +605,7 @@ public class CubicCurve {
         double pitchTan = Math.tan(pitchRad);
         if (Math.abs(pitchTan) >= 10) {
             double limit = pitchTan > 0 ? 10 : -10;
-            ImmersiveRailroading.warn("The pitch tangent value %s is out of range and will be clamped to %s.", pitchTan, limit);
+            ImmersiveRailroading.warn("The pitch xAxis value %s is out of range and will be clamped to %s.", pitchTan, limit);
             pitchTan = limit;
         }
 
