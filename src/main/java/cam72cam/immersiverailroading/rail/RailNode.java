@@ -46,7 +46,7 @@ public class RailNode {
         this.id = id;
         this.nodeStart = start;
         this.nodeEnd = end;
-        this.length = end.subtract(start).length();
+        this.length = new Vec3d(end.subtract(start)).length();
         this.settings = settings;
         this.isSwitch = settings.type == TrackItems.SWITCH;
     }
