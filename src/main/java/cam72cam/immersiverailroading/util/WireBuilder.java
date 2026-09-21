@@ -9,21 +9,22 @@ import cam72cam.mod.resource.Identifier;
 import java.util.*;
 
 public class WireBuilder {
+    private static final int TUBE_SEGMENTS = 8;
 
     public static Model build(WireDefinition def, Vec3d delta, float multiplier) {
         Vec3d parentA = new Vec3d(0, 1, 0);
         Vec3d targetA = parentA.add(delta);
         Vec3d parentB = Vec3d.ZERO;
         Vec3d targetB = parentB.add(delta);
-        return build(def, targetA, targetB, parentA, parentB, multiplier);
+        return build(def, targetA, targetB, parentA, parentB, multiplier, true);
     }
 
 
     public static Model build(WireDefinition def, Vec3d targetA, Vec3d targetB, Vec3d parentA, Vec3d parentB) {
-        return build(def, targetA, targetB, parentA, parentB, 1);
+        return build(def, targetA, targetB, parentA, parentB, 1, false);
     }
 
-    public static Model build(WireDefinition def, Vec3d targetA, Vec3d targetB, Vec3d parentA, Vec3d parentB, float multiplier) {
+    public static Model build(WireDefinition def, Vec3d targetA, Vec3d targetB, Vec3d parentA, Vec3d parentB, float multiplier, boolean itemRender) {
 
         VertexBuilder builder = new VertexBuilder();
 
@@ -70,7 +71,8 @@ public class WireBuilder {
                 Vec3d base = start.add(end.subtract(start).scale(t));
                 centerline[i] = base.add(0, strand.yOffset + sagY(t, sag), 0);
             }
-            emitRibbon(builder, centerline, strand.width * multiplier, strand.color, planeNormal);
+            if (itemRender) emitRibbon(builder, centerline, strand.width * multiplier, strand.color, planeNormal);
+            else emitTube(builder, centerline, strand.width * multiplier, strand.color, planeNormal);
         }
 
         for (WireDefinition.Connector conn : def.connectors) {
@@ -99,7 +101,8 @@ public class WireBuilder {
 
                 Vec3d from = fromBase.add(0, yFrom + sagY(t, sagFrom), 0);
                 Vec3d to = toBase.add(0, yTo + sagY(t, sagTo), 0);
-                emitRibbon(builder, new Vec3d[]{from, to}, conn.width * multiplier, conn.color, planeNormal);
+                if (itemRender) emitRibbon(builder, new Vec3d[]{from, to}, conn.width * multiplier, conn.color, planeNormal);
+                else emitTube(builder, new Vec3d[]{from, to}, conn.width * multiplier, conn.color, planeNormal);
             }
         }
         return builder.build();
@@ -139,6 +142,59 @@ public class WireBuilder {
             builder.addVertex(right[i + 1], r, g, b, a);
             builder.addVertex(left[i + 1], r, g, b, a);
         }
+    }
+
+    private static void emitTube(VertexBuilder builder, Vec3d[] centerline, double width, String color, Vec3d planeNormal) {
+        double radius = width / 2;
+        int n = centerline.length;
+
+        Vec3d[][] rings = new Vec3d[n][TUBE_SEGMENTS];
+
+        for (int i = 0; i < n; i++) {
+            Vec3d localTangent = tangentAt(centerline, i);
+
+            Vec3d n1 = planeNormal.crossProduct(localTangent).normalize();
+            Vec3d n2 = localTangent.crossProduct(n1).normalize();
+
+            for (int k = 0; k < TUBE_SEGMENTS; k++) {
+                double theta = 2.0 * Math.PI * k / TUBE_SEGMENTS;
+                Vec3d dir = n1.scale(Math.cos(theta)).add(n2.scale(Math.sin(theta)));
+                rings[i][k] = centerline[i].add(dir.scale(radius));
+            }
+        }
+
+        // TODO use color util
+        float[] rgba = {
+                Integer.parseInt(color.substring(0, 2)) / 255f,
+                Integer.parseInt(color.substring(2, 4)) / 255f,
+                Integer.parseInt(color.substring(4, 6)) / 255f,
+                1.0f
+        };
+
+        for (int i = 0; i < n - 1; i++) {
+            for (int k = 0; k < TUBE_SEGMENTS; k++) {
+                int kNext = (k + 1) % TUBE_SEGMENTS;
+
+                Vec3d a = rings[i][k];
+                Vec3d b = rings[i][kNext];
+                Vec3d c = rings[i + 1][kNext];
+                Vec3d d = rings[i + 1][k];
+
+                builder.addVertex(a, rgba[0], rgba[1], rgba[2], rgba[3]);
+                builder.addVertex(b, rgba[0], rgba[1], rgba[2], rgba[3]);
+                builder.addVertex(c, rgba[0], rgba[1], rgba[2], rgba[3]);
+
+                builder.addVertex(a, rgba[0], rgba[1], rgba[2], rgba[3]);
+                builder.addVertex(c, rgba[0], rgba[1], rgba[2], rgba[3]);
+                builder.addVertex(d, rgba[0], rgba[1], rgba[2], rgba[3]);
+            }
+        }
+    }
+
+    private static Vec3d tangentAt(Vec3d[] centerline, int i) {
+        if (i == 0) return centerline[1].subtract(centerline[0]).normalize();
+        if (i == centerline.length - 1) return centerline[i].subtract(centerline[i - 1]).normalize();
+        return centerline[i + 1].subtract(centerline[i - 1]).normalize();
     }
 
     public static class VertexBuilder {
