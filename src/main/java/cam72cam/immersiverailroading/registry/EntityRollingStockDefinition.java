@@ -5,6 +5,7 @@ import cam72cam.immersiverailroading.ConfigSound;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.entity.*;
 import cam72cam.immersiverailroading.entity.EntityCoupleableRollingStock.CouplerType;
+import cam72cam.immersiverailroading.font.FontManager;
 import cam72cam.immersiverailroading.sound.*;
 import cam72cam.immersiverailroading.util.floor.NavMesh;
 import cam72cam.immersiverailroading.model.part.Door;
@@ -664,6 +665,13 @@ public abstract class EntityRollingStockDefinition {
                 TextFieldConfig config = TextFieldConfig.fromDataBlock(d);
                 textFieldConfig.put(config.name, config);
             });
+        }
+
+        List<DataBlock.Value> fonts = data.getValues("fonts");
+        if (fonts != null) {
+            for (DataBlock.Value id : fonts) {
+                FontManager.addFont(id.asIdentifier());
+            }
         }
     }
 

@@ -4,40 +4,30 @@ import cam72cam.mod.model.obj.Vec2f;
 import cam72cam.mod.resource.Identifier;
 import org.apache.commons.lang3.tuple.Pair;
 
+import javax.swing.plaf.synth.Region;
 import java.util.Map;
+import java.util.function.Supplier;
 
 public class Font {
-    /**
-     * Helper class that defines a character
-     */
     public static class Glyph {
-        double x;
-        double y;
+        int x;
+        int y;
         int width;
         int height;
     }
 
-    public int textureHeight;
-    public int textureWidth;
-    public Identifier texture;
+    public Identifier key;
     public Map<Character, Glyph> glyphs;
+    public int atlasHeight;
+    public int atlasWidth;
 
-    /**
-     * Constructor for the struct used by the loader
-     * @see FontLoader
-     */
-    protected Font(int textureHeight, int textureWidth, Identifier texture, Map<Character, Glyph> glyphs) {
-        this.textureHeight = textureHeight;
-        this.textureWidth = textureWidth;
-        this.texture = texture;
+    protected Font(Identifier key, Map<Character, Glyph> glyphs, int atlasHeight, int atlasWidth) {
+        this.key = key;
         this.glyphs = glyphs;
+        this.atlasWidth = atlasWidth;
+        this.atlasHeight = atlasHeight;
     }
 
-    /**
-     * Get the width of a given char in px
-     * @param c Character
-     * @return Width of the char
-     */
     public int getCharWidthPx(char c) {
         Glyph g = glyphs.get(c);
         if (g == null) {
@@ -46,11 +36,6 @@ public class Font {
         return g.width;
     }
 
-    /**
-     * Get the height of a given char in px
-     * @param c Character
-     * @return Height of the char
-     */
     public int getCharHeightPx(char c) {
         Glyph g = glyphs.get(c);
         if (g == null) {
@@ -59,19 +44,19 @@ public class Font {
         return g.height;
     }
 
-    /**
-     * Get the UV coordinates of the char on the png
-     * @param c char
-     * @return UVs as a pair of two Vec2f
-     */
     public Pair<Vec2f, Vec2f> getUV(char c) {
         Glyph g = glyphs.get(c);
         if (g == null) {
             g = glyphs.get(' ');
         }
 
-        Vec2f left = new Vec2f((float) g.x / textureWidth, (float) g.y / textureHeight);
-        Vec2f right = new Vec2f((float) ((g.x + g.width) / textureWidth), (float) ((g.y + g.height) / textureHeight));
+        FontManager.Region region = FontManager.getRegion(key);
+
+        int x = region.transformX(g.x);
+        int y = region.transformY(g.y);
+
+        Vec2f left = new Vec2f((float) x / atlasWidth, (float) y / atlasHeight);
+        Vec2f right = new Vec2f((float) ((x + g.width) / atlasWidth), (float) ((y + g.height) / atlasHeight));
         return Pair.of(left, right);
     }
 }

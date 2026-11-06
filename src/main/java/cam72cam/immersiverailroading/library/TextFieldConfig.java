@@ -1,6 +1,6 @@
 package cam72cam.immersiverailroading.library;
 
-import cam72cam.immersiverailroading.font.FontLoader;
+import cam72cam.immersiverailroading.font.FontManager;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.mod.math.Vec3d;
 import cam72cam.mod.model.common.mesh.Face;
@@ -10,6 +10,7 @@ import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.TagField;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Supplier;
@@ -18,9 +19,9 @@ import java.util.stream.Stream;
 public class TextFieldConfig {
     public final String name;
     public final Supplier<Mutable> mutable;
-    public final Supplier<Immutable> immutable;
+    public final Immutable immutable;
 
-    private TextFieldConfig(String name, Supplier<Mutable> mutable, Supplier<Immutable> immutable) {
+    private TextFieldConfig(String name, Supplier<Mutable> mutable, Immutable immutable) {
         this.name = name;
         this.mutable = mutable;
         this.immutable = immutable;
@@ -32,13 +33,13 @@ public class TextFieldConfig {
             throw new RuntimeException("An Error occurred during text field init: Missing name");
         }
 
-        Supplier<Immutable> immutable = initImmutable(data, object);
+        Immutable immutable = initImmutable(data, object);
         Supplier<Mutable> mutable = initMutable(data);
 
         return new TextFieldConfig(object, mutable, immutable);
     }
 
-    private static Supplier<Immutable> initImmutable(DataBlock data, String object) {
+    private static Immutable initImmutable(DataBlock data, String object) {
         DataBlock resolution = data.getBlock("resolution");
         int resX = resolution.getValue("x").asInteger(128);
         int resY = resolution.getValue("y").asInteger(9);
@@ -64,7 +65,7 @@ public class TextFieldConfig {
             config.getValues("availableFonts").forEach(f -> availableFonts.add(f.asIdentifier()));
         }
 
-        return () -> new Immutable(object, resX, resY, linked, filter, fullbright, global, selectable, unique, availableFonts);
+        return new Immutable(object, resX, resY, linked, filter, fullbright, global, selectable, unique, availableFonts);
     }
 
     private static Supplier<Mutable> initMutable(DataBlock data) {
@@ -74,7 +75,7 @@ public class TextFieldConfig {
         String text = config.getValue("text").asString("");
         Align align = Align.valueOf(config.getValue("align").asString("left").toUpperCase());
         VerticalAlign verticalAlign = VerticalAlign.valueOf(config.getValue("verticalAlign").asString("center").toUpperCase());
-        Identifier font = config.getValue("font").asIdentifier(FontLoader.DEFAULT);
+        Identifier font = config.getValue("font").asIdentifier(FontManager.DEFAULT);
         int gap = config.getValue("gap").asInteger(1);
         int offset = config.getValue("offset").asInteger(0);
         float scale = config.getValue("scale").asFloat(1);
@@ -163,7 +164,6 @@ public class TextFieldConfig {
 
         public Mutable setDirty(boolean dirty) {
             this.dirty = dirty;
-            this.dirty = true;
             return this;
         }
     }
@@ -189,13 +189,13 @@ public class TextFieldConfig {
             this.object = object;
             this.resolutionX = resolutionX;
             this.resolutionY = resolutionY;
-            this.linked = linked;
-            this.filter = filter;
+            this.linked = Collections.unmodifiableList(linked);
+            this.filter = Collections.unmodifiableList(filter);
             this.fullbright = fullbright;
             this.global = global;
             this.selectable = selectable;
             this.unique = unique;
-            this.availableFonts = availableFonts;
+            this.availableFonts = Collections.unmodifiableList(availableFonts);
         }
 
         public void initRenderData(String key, Model model) {
