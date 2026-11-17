@@ -8,6 +8,7 @@ import cam72cam.immersiverailroading.gui.overlay.GuiBuilder;
 import cam72cam.immersiverailroading.items.ItemPaintBrush;
 import cam72cam.immersiverailroading.library.*;
 import cam72cam.immersiverailroading.model.StockModel;
+import cam72cam.immersiverailroading.model.part.TextField;
 import cam72cam.immersiverailroading.multiblock.*;
 import cam72cam.immersiverailroading.net.*;
 import cam72cam.immersiverailroading.registry.DefinitionManager;
@@ -95,6 +96,9 @@ public class ImmersiveRailroading extends ModCore.Mod {
 				Packet.register(RemoteControlServerPacket::new, PacketDirection.ServerToClient);
 				Packet.register(RemoteControlClientPacket::new, PacketDirection.ClientToServer);
 				Packet.register(RemoteControlActivePacket::new, PacketDirection.ClientToServer);
+				Packet.register(TextField.DirtyPackage::new, PacketDirection.ClientToServer);
+				Packet.register(EntityRollingStock.TextFieldClientSync::new, PacketDirection.ServerToClient);
+				Packet.register(EntityRollingStock.TextFieldServerSync::new, PacketDirection.ClientToServer);
 
 				ServerChronoState.register();
 				WirelessRemoteControlServer.init();
@@ -157,6 +161,7 @@ public class ImmersiveRailroading extends ModCore.Mod {
 				ItemRender.register(IRItems.ITEM_MANUAL, new Identifier(MODID, "items/engineerslexicon"));
 				ItemRender.register(IRItems.ITEM_TRACK_EXCHANGER, new TrackExchangerModel());
 				ItemRender.register(IRItems.ITEM_WIRELESS_REMOTECONTROL, ObjItemRender.getModelFor(new Identifier(MODID, "models/item/wireless_remotecontrol/wireless_remotecontrol.obj"), new Vec3d(0.5, 0.5, 0.5), 1));
+				ItemRender.register(IRItems.ITEM_TYPEWRITER, ObjItemRender.getModelFor(new Identifier(MODID, "models/item/typewriter.obj"), new Vec3d(0.5, 0.5, 0.5), 1));
 
 				IEntityRender<EntityMoveableRollingStock> stockRender = new IEntityRender<EntityMoveableRollingStock>() {
 					@Override

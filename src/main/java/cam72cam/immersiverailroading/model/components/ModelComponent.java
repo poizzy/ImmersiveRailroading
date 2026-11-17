@@ -70,10 +70,17 @@ public class ModelComponent {
         }
     }
 
-    public ModelComponent(ModelComponentType type, ModelPosition pos, Integer id, Model model, Set<String> modelIDs) {
+    public ModelComponent(ModelComponentType type, ModelPosition pos, String id, Model model, Set<String> modelIDs) {
+        int compId;
         this.type = type;
         this.pos = pos;
-        this.id = id;
+        try {
+            compId = Integer.parseInt(id);
+        } catch (NumberFormatException e) {
+            compId = 0;
+        }
+
+        this.id = compId;
         this.modelIDs = modelIDs;
         this.groups = modelIDs.stream().map(ModelGroupData::new).collect(Collectors.toList());
         this.key = String.join(" ", modelIDs);

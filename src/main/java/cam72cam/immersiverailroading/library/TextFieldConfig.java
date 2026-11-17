@@ -1,5 +1,6 @@
 package cam72cam.immersiverailroading.library;
 
+import cam72cam.immersiverailroading.entity.EntityRollingStock;
 import cam72cam.immersiverailroading.font.FontManager;
 import cam72cam.immersiverailroading.util.DataBlock;
 import cam72cam.mod.math.Vec3d;
@@ -7,7 +8,11 @@ import cam72cam.mod.model.common.mesh.Face;
 import cam72cam.mod.model.common.mesh.Model;
 import cam72cam.mod.model.common.util.FaceAccessor;
 import cam72cam.mod.resource.Identifier;
+import cam72cam.mod.serialization.SerializationException;
+import cam72cam.mod.serialization.TagCompound;
 import cam72cam.mod.serialization.TagField;
+import cam72cam.mod.serialization.TagMapper;
+import nonapi.io.github.classgraph.json.Id;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,13 +23,13 @@ import java.util.stream.Stream;
 
 public class TextFieldConfig {
     public final String name;
-    public final Supplier<Mutable> mutable;
-    public final Immutable immutable;
+    private final Supplier<State> defaultState;
+    private final Definition definition;
 
-    private TextFieldConfig(String name, Supplier<Mutable> mutable, Immutable immutable) {
+    private TextFieldConfig(String name, Supplier<State> defaultState, Definition definition) {
         this.name = name;
-        this.mutable = mutable;
-        this.immutable = immutable;
+        this.defaultState = defaultState;
+        this.definition = definition;
     }
 
     public static TextFieldConfig fromDataBlock(DataBlock data) {
@@ -33,13 +38,13 @@ public class TextFieldConfig {
             throw new RuntimeException("An Error occurred during text field init: Missing name");
         }
 
-        Immutable immutable = initImmutable(data, object);
-        Supplier<Mutable> mutable = initMutable(data);
+        Definition definition = initImmutable(data, object);
+        Supplier<State> mutable = initMutable(data);
 
-        return new TextFieldConfig(object, mutable, immutable);
+        return new TextFieldConfig(object, mutable, definition);
     }
 
-    private static Immutable initImmutable(DataBlock data, String object) {
+    private static Definition initImmutable(DataBlock data, String object) {
         DataBlock resolution = data.getBlock("resolution");
         int resX = resolution.getValue("x").asInteger(128);
         int resY = resolution.getValue("y").asInteger(9);
@@ -65,10 +70,10 @@ public class TextFieldConfig {
             config.getValues("availableFonts").forEach(f -> availableFonts.add(f.asIdentifier()));
         }
 
-        return new Immutable(object, resX, resY, linked, filter, fullbright, global, selectable, unique, availableFonts);
+        return new Definition(object, resX, resY, linked, filter, fullbright, global, selectable, unique, availableFonts);
     }
 
-    private static Supplier<Mutable> initMutable(DataBlock data) {
+    private static Supplier<State> initMutable(DataBlock data) {
         DataBlock config = data.getBlock("config");
 
         String color = config.getValue("color").asString("#000000");
@@ -80,10 +85,10 @@ public class TextFieldConfig {
         int offset = config.getValue("offset").asInteger(0);
         float scale = config.getValue("scale").asFloat(1);
 
-        return () -> new Mutable(color, text, align, verticalAlign, font, gap, offset, scale);
+        return () -> new State(color, text, align, verticalAlign, font, gap, offset, scale);
     }
 
-    public static class Mutable {
+    public static class State {
         @TagField
         public String color;
         @TagField
@@ -92,7 +97,7 @@ public class TextFieldConfig {
         public Align align;
         @TagField(typeHint = VerticalAlign.class)
         public VerticalAlign verticalAlign;
-        @TagField
+        @TagField(mapper = IdentifierTagMapper.class)
         public Identifier font;
         @TagField
         public int gap;
@@ -100,10 +105,12 @@ public class TextFieldConfig {
         public int offset;
         @TagField
         public float scale;
-
+        @TagField
         public boolean dirty = false;
 
-        public Mutable(String color, String text, Align align, VerticalAlign verticalAlign, Identifier font, int gap, int offset, float scale) {
+        public State() {}
+
+        public State(String color, String text, Align align, VerticalAlign verticalAlign, Identifier font, int gap, int offset, float scale) {
             this.color = color;
             this.text = text;
             this.align = align;
@@ -114,64 +121,78 @@ public class TextFieldConfig {
             this.scale = scale;
         }
 
-        public Mutable setColor(String color) {
+        public State setColor(String color) {
             this.color = color;
             this.dirty = true;
             return this;
         }
 
-        public Mutable setText(String text) {
+        public State setText(String text) {
             this.text = text;
             this.dirty = true;
             return this;
         }
 
-        public Mutable setAlign(Align align) {
+        public State setAlign(Align align) {
             this.align = align;
             this.dirty = true;
             return this;
         }
 
-        public Mutable setVerticalAlign(VerticalAlign verticalAlign) {
+        public State setVerticalAlign(VerticalAlign verticalAlign) {
             this.verticalAlign = verticalAlign;
             this.dirty = true;
             return this;
         }
 
-        public Mutable setFont(Identifier font) {
+        public State setFont(Identifier font) {
             this.font = font;
             this.dirty = true;
             return this;
         }
 
-        public Mutable setGap(int gap) {
+        public State setGap(int gap) {
             this.gap = gap;
             this.dirty = true;
             return this;
         }
 
-        public Mutable setOffset(int offset) {
+        public State setOffset(int offset) {
             this.offset = offset;
             this.dirty = true;
             return this;
         }
 
-        public Mutable setScale(float scale) {
+        public State setScale(float scale) {
             this.scale = scale;
             this.dirty = true;
             return this;
         }
 
-        public Mutable setDirty(boolean dirty) {
+        public State setDirty(boolean dirty) {
             this.dirty = dirty;
             return this;
         }
+
+
+
+        public void copyState(State other) {
+            this.color = other.color;
+            this.text = other.text;
+            this.align = other.align;
+            this.verticalAlign = other.verticalAlign;
+            this.font = other.font;
+            this.gap = other.gap;
+            this.offset = other.offset;
+            this.scale = other.scale;
+            this.dirty = true;
+        }
     }
 
-    public static final class Immutable {
+    public static final class Definition {
         public final String object;
-        private final int resolutionX;
-        private final int resolutionY;
+        public final int resolutionX;
+        public final int resolutionY;
 
         public final List<String> linked;
         public final List<String> filter;
@@ -183,9 +204,9 @@ public class TextFieldConfig {
 
         public RenderData renderData;
 
-        public Immutable(String object, int resolutionX, int resolutionY, List<String> linked, List<String> filter,
-                         boolean fullbright, boolean global, boolean selectable, boolean unique,
-                         List<Identifier> availableFonts) {
+        public Definition(String object, int resolutionX, int resolutionY, List<String> linked, List<String> filter,
+                          boolean fullbright, boolean global, boolean selectable, boolean unique,
+                          List<Identifier> availableFonts) {
             this.object = object;
             this.resolutionX = resolutionX;
             this.resolutionY = resolutionY;
@@ -232,6 +253,18 @@ public class TextFieldConfig {
         public record RenderData(Vec3d origin, Vec3d xAxis, Vec3d yAxis, Vec3d normal, double pixelSizeX, double pixelSizeY, boolean flippedNormal) {}
     }
 
+    public Definition getDefinition() {
+        return this.definition;
+    }
+
+    public State getState(EntityRollingStock stock) {
+        return stock.textfieldData.get(name);
+    }
+
+    public State defaultState() {
+        return defaultState.get();
+    }
+
     public enum Align {
         RIGHT,
         CENTER,
@@ -253,6 +286,18 @@ public class TextFieldConfig {
 
         public VerticalAlign next() {
             return vals[(this.ordinal() + 1) % vals.length];
+        }
+    }
+
+    public static class IdentifierTagMapper implements TagMapper<Identifier> {
+
+        @Override
+        public TagAccessor<Identifier> apply(Class<Identifier> aClass, String fieldName, TagField tagField) throws SerializationException {
+            return new TagAccessor<>((compound, identifier) -> compound.set(fieldName, new TagCompound().setString("domain", identifier.getDomain()).setString("path", identifier.getPath())),
+                    compound -> {
+                TagCompound identifier = compound.get(fieldName);
+                return new Identifier(identifier.getString("domain"), identifier.getString("path"));
+                    });
         }
     }
 }

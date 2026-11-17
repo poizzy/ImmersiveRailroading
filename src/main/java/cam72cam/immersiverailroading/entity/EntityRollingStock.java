@@ -5,6 +5,7 @@ import cam72cam.immersiverailroading.ConfigSound;
 import cam72cam.immersiverailroading.IRItems;
 import cam72cam.immersiverailroading.ImmersiveRailroading;
 import cam72cam.immersiverailroading.items.ItemPaintBrush;
+import cam72cam.immersiverailroading.items.ItemTypewriter;
 import cam72cam.immersiverailroading.library.*;
 import cam72cam.immersiverailroading.model.part.Control;
 import cam72cam.immersiverailroading.registry.DefinitionManager;
@@ -16,6 +17,7 @@ import cam72cam.mod.entity.custom.*;
 import cam72cam.mod.item.ClickResult;
 import cam72cam.mod.item.Fuzzy;
 import cam72cam.mod.math.Vec3d;
+import cam72cam.mod.net.Packet;
 import cam72cam.mod.resource.Identifier;
 import cam72cam.mod.serialization.*;
 import cam72cam.mod.sound.Audio;
@@ -52,11 +54,17 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 			.scale(this.gauge.scale(), this.gauge.scale(), this.gauge.scale())
 	);
 
+	// TODO TagSync vs manual
+	// @TagSync
+	@TagField(mapper = TextFieldMapper.class)
+	public Map<String, TextFieldConfig.State> textfieldData = new HashMap<>();
+
 	public void setup(EntityRollingStockDefinition def, Gauge gauge, String texture) {
 		this.defID = def.defID;
 		this.gauge = gauge;
 		this.texture = texture;
 		def.cgDefaults.forEach(this::setControlPosition);
+		def.textFieldConfig.forEach((name, config) -> textfieldData.put(name, config.defaultState()));
 	}
 
 	public boolean isImmuneToFire() {
@@ -115,6 +123,14 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 				this.kill();
 			}
 		}
+
+		if (getWorld().isServer) {
+			for (var e : textfieldData.entrySet()) {
+				if (e.getValue().dirty) {
+					// new TextFieldClientSync(this, e.getKey(), e.getValue()).sendToAll();
+				}
+			}
+		}
 	}
 
 	/*
@@ -125,6 +141,11 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 	public ClickResult onClick(Player player, Player.Hand hand) {
 		if (player.getHeldItem(hand).is(IRItems.ITEM_PAINT_BRUSH) && player.hasPermission(Permissions.PAINT_BRUSH)) {
 			ItemPaintBrush.onStockInteract(this, player, hand);
+			return ClickResult.ACCEPTED;
+		}
+
+		if (player.getHeldItem(hand).is(IRItems.ITEM_TYPEWRITER) && player.hasPermission(Permissions.PAINT_BRUSH)) {
+			ItemTypewriter.onStockInteract(this, player, hand);
 			return ClickResult.ACCEPTED;
 		}
 
@@ -360,6 +381,77 @@ public class EntityRollingStock extends CustomEntity implements ITickable, IClic
 					(d, o) -> d.setMap(fieldName, o, Function.identity(), x -> new TagCompound().setBoolean("pressed", x.getLeft()).setFloat("pos", x.getRight())),
 					d -> d.getMap(fieldName, Function.identity(), x -> Pair.of(x.hasKey("pressed") && x.getBoolean("pressed"), x.getFloat("pos")))
 			);
+		}
+	}
+
+	private static class TextFieldMapper implements TagMapper<Map<String, TextFieldConfig.State>> {
+
+		@Override
+		public TagAccessor<Map<String, TextFieldConfig.State>> apply(Class<Map<String, TextFieldConfig.State>> type, String fieldName, TagField tag) throws SerializationException {
+			return new TagAccessor<>(
+					(d, o) -> d.setMap(fieldName, o, k -> k, v -> {
+						TagCompound compound = new TagCompound();
+                        try {
+                            TagSerializer.serialize(compound, v);
+                        } catch (SerializationException e) {
+                            throw new RuntimeException(e);
+                        }
+                        return compound;
+					}),
+					d -> d.getMap(fieldName, k -> k, v -> {
+						TextFieldConfig.State mut = new TextFieldConfig.State();
+                        try {
+                            TagSerializer.deserialize(v, mut);
+                        } catch (SerializationException e) {
+                            throw new RuntimeException(e);
+                        }
+						return mut;
+                    })
+			);
+		}
+	}
+
+	public static class TextFieldServerSync extends Packet {
+		@TagField
+		public EntityRollingStock stock;
+		@TagField
+		public String name;
+		@TagField
+		public TextFieldConfig.State state;
+
+		public TextFieldServerSync(EntityRollingStock stock, String name, TextFieldConfig.State state) {
+			this.name = name;
+			this.state = state;
+			this.stock = stock;
+		}
+
+		public TextFieldServerSync() {}
+
+		@Override
+		protected void handle() {
+			stock.textfieldData.put(name, state);
+		}
+	}
+
+	public static class TextFieldClientSync extends Packet {
+		@TagField
+		public EntityRollingStock stock;
+		@TagField
+		public String name;
+		@TagField
+		public TextFieldConfig.State state;
+
+		public TextFieldClientSync(EntityRollingStock stock, String name, TextFieldConfig.State state) {
+			this.name = name;
+			this.state = state;
+			this.stock = stock;
+		}
+
+		public TextFieldClientSync() {}
+
+		@Override
+		protected void handle() {
+			stock.textfieldData.put(name, state);
 		}
 	}
 }

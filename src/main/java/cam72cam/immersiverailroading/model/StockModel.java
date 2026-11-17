@@ -389,6 +389,7 @@ public class StockModel<ENTITY extends EntityMoveableRollingStock, DEFINITION ex
         doors.forEach(c -> c.postRender(stock, state, partialTicks));
         gauges.forEach(c -> c.postRender(stock, state, partialTicks));
         headlights.forEach(x -> x.postRender(stock, state));
+        textFields.forEach(t -> t.render(stock, state, partialTicks));
     }
 
     public List<Control<ENTITY>> getControls() {

@@ -49,14 +49,21 @@ public class Font {
         if (g == null) {
             g = glyphs.get(' ');
         }
+        if (g == null) {
+            g = glyphs.get(glyphs.keySet().iterator().next());
+        }
 
         FontManager.Region region = FontManager.getRegion(key);
 
         int x = region.transformX(g.x);
         int y = region.transformY(g.y);
 
-        Vec2f left = new Vec2f((float) x / atlasWidth, (float) y / atlasHeight);
-        Vec2f right = new Vec2f((float) ((x + g.width) / atlasWidth), (float) ((y + g.height) / atlasHeight));
-        return Pair.of(left, right);
+        float u0 = (float) x / atlasWidth;
+        float u1 = (float) (x + g.width) / atlasWidth;
+
+        float v0 = (float) y / atlasHeight;
+        float v1 = (float) (y + g.height) / atlasHeight;
+
+        return Pair.of(new Vec2f(u0, v0), new Vec2f(u1, v1));
     }
 }

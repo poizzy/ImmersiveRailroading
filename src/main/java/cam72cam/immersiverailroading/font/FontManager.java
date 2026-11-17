@@ -27,7 +27,7 @@ public class FontManager {
     private static final Map<Identifier, Region> regions;
     private static final List<FontLocation> fontsToLoad;
 
-    public static Texture TEXTURE;
+    private static OBJTextureSheet textureSheet;
 
     public record FontLocation(Identifier image, Identifier json) {}
     public record Region(Identifier name, int x, int y, int width, int height) {
@@ -94,8 +94,6 @@ public class FontManager {
             int width = sprite.img().getWidth();
             int height = sprite.img().getHeight();
 
-            atlasWidth += width;
-
             if (width + 2 * padding > MAX_ATLAS_WIDTH) {
                 throw new IllegalArgumentException(sprite.loc.getPath() + " is wider than the texture atlas! Max width: " + MAX_ATLAS_WIDTH);
             }
@@ -109,6 +107,7 @@ public class FontManager {
             regions.put(sprite.loc(), new Region(sprite.loc(), x, y, width, height));
             x += width + padding;
             rowHeight = Math.max(rowHeight, height);
+            atlasWidth = Math.max(atlasWidth, x);
         }
 
         atlasWidth = Math.min(atlasWidth, MAX_ATLAS_WIDTH);
@@ -124,7 +123,7 @@ public class FontManager {
 
         Supplier<ResourceCache.GenericByteBuffer> getBuffer = () -> new ResourceCache.GenericByteBuffer(ImageUtils.toRGBA(atlas));
 
-        TEXTURE = new OBJTextureSheet(atlasWidth, atlasHeight, getBuffer, 0);
+        textureSheet = new OBJTextureSheet(atlasWidth, atlasHeight, getBuffer, 30);
 
         loadFonts(atlasHeight, atlasWidth);
     }
@@ -147,5 +146,9 @@ public class FontManager {
             Font font = new Font(key, loadedGlyphs, atlasHeight, atlasWidth);
             availableFonts.put(key, font);
         }
+    }
+
+    public static Texture getTexture() {
+        return textureSheet.synchronous(true);
     }
 }
